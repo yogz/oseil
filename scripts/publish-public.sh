@@ -11,8 +11,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PUBLIC_URL=https://github.com/yogz/oseil.git
-# Configuration of this machine's tools, never read by the site: kept out of the public copy.
-EXCLUDED=(.env.tools.tmpl mise-supabase.tmpl .claude)
+# Kept out of the public copy: the configuration of this machine's tools (the names of the password
+# vaults it reads), and the working notes for the coding agents (CLAUDE.md, AGENTS.md). The design
+# documents stay: they are what a reviewer reads.
+EXCLUDED=(.env.tools.tmpl mise-supabase.tmpl mise-tokens.sh .claude CLAUDE.md AGENTS.md)
 
 git fetch -q origin main
 source_sha=$(git rev-parse --short origin/main)
