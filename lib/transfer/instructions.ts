@@ -7,8 +7,11 @@ import { SITE_URL } from '@/lib/app/site-metadata'
 import { canHold } from '@/lib/correct/profile-changes'
 import type { AccountTypeId, CategoryId } from '@/lib/model/types'
 import {
+  ACCOUNT_REFUSALS,
   COLUMNS,
   EXAMPLE_BANK,
+  FILE_REFUSALS,
+  GOAL_REFUSALS,
   HOME_NAME,
   IMPORT_LINK,
   KIND_NAMES,
@@ -16,8 +19,10 @@ import {
   PURCHASE_IN_EUROS_WORD,
   REFUSALS,
   SETTING_NAMES,
+  SETTING_REFUSALS,
   SETTING_VALUES,
   SHEETS,
+  SNAPSHOT_REFUSALS,
   dateCell,
   type Column,
 } from './format'
@@ -120,6 +125,7 @@ const homePath = [HOME_NAME, 'Appartement', 'Appartement'].join(PATH_SEPARATOR)
 const fund = { bank: 'Ma banque', account: 'PEA', line: 'Fonds monde' }
 const home = { bank: HOME_NAME, account: 'Appartement', line: 'Appartement' }
 const loan = { bank: 'Ma banque', account: 'Prêt immobilier', line: 'Prêt immobilier' }
+const shares = { bank: 'Ma banque', account: 'Compte-titres', line: 'Apple' }
 
 const exampleTable = (kind: 'accounts' | 'snapshots', rows: Record<string, Cell>[]): SheetSpec => ({
   name: SHEETS[kind],
@@ -132,14 +138,17 @@ export const AI_EXAMPLE: SheetSpec[] = [
     { ...fund, type: ACCOUNT_TYPES.pea.label, group: GROUP_LABELS.world, kind: KIND_NAMES.units },
     { ...home, type: ACCOUNT_TYPES.home.label },
     { ...loan, type: ACCOUNT_TYPES.loan.label, financedLine: homePath },
+    { ...shares, type: ACCOUNT_TYPES.securities.label, group: GROUP_LABELS.us, kind: KIND_NAMES.units, currency: 'USD' },
   ]),
   exampleTable('snapshots', [
     { date: dateCell('2026-09-30'), ...fund, units: 20, unitPrice: 500.5 },
     { date: dateCell('2026-09-30'), ...home, amount: 250000 },
     { date: dateCell('2026-09-30'), ...loan, amount: -180000 },
+    { date: dateCell('2026-09-30'), ...shares, units: 10, unitPrice: 230, averagePrice: 180, fx: 0.9 },
     { date: dateCell('2026-10-31'), ...fund, units: 20, unitPrice: 512.3, seenOn: dateCell('2026-10-28') },
     { date: dateCell('2026-10-31'), ...home, amount: 250000 },
     { date: dateCell('2026-10-31'), ...loan, amount: -179200 },
+    { date: dateCell('2026-10-31'), ...shares, units: 10, unitPrice: 240, averagePrice: 180, fx: 0.92 },
   ]),
 ]
 
@@ -152,17 +161,20 @@ function cellText(cell: Cell): string {
   return String(cell)
 }
 
+// The example as Markdown tables, one per sheet, with only the columns it fills.
 function exampleLines(): string[] {
-  return AI_EXAMPLE.flatMap((sheet) => [
-    `Onglet ${q(sheet.name)}${NB}:`,
-    ...sheet.rows.map(
-      (row, index) =>
-        `ligne ${index + 2} — ` +
-        sheet.columns
-          .flatMap((column, at) => (row[at] === null ? [] : [`${column.title}${NB}: ${cellText(row[at])}`]))
-          .join(`${NB}; `),
-    ),
-  ])
+  return AI_EXAMPLE.flatMap((sheet) => {
+    const used = sheet.columns.map((_, at) => at).filter((at) => sheet.rows.some((row) => row[at] !== null))
+    const cells = (values: string[]) => `| ${values.join(' | ')} |`
+    return [
+      `### Onglet ${q(sheet.name)}`,
+      [
+        cells(used.map((at) => sheet.columns[at].title)),
+        cells(used.map(() => '---')),
+        ...sheet.rows.map((row) => cells(used.map((at) => (row[at] === null ? '' : cellText(row[at]))))),
+      ].join('\n'),
+    ]
+  })
 }
 
 const FORMAT_WORDS: Record<ColumnFormat, string> = {
@@ -256,7 +268,7 @@ function columnLines(kind: keyof typeof COLUMNS): string[] {
       else if (column.key === 'rental') {
         help = `la part visée pour les logements de type ${q(RESIDENCE_LABELS.rental)}, en pour cent comme les autres parts. Vide, ou colonne absente${NB}: 0.`
       } else {
-        help = `la part visée, en pour cent, un nombre simple (25 pour 25${NB}%). Les parts d’une ligne font 100, ${title('goals', 'rental')} compris. Une ligne dont le total fait 1 est lue en fractions (0,25 pour 25${NB}%)${NB}; une ligne d’une seule part à 1 et des autres à 0 est refusée, écris alors 100.`
+        help = 'la part visée, en pour cent (voir la règle des parts, plus bas).'
       }
     } else {
       help = HELP[kind][column.key]
@@ -306,10 +318,17 @@ const ROLES: Record<(typeof TABLES)[number], string> = {
 }
 
 // The refusals of REFUSALS are those the import makes, under the same keys (a test makes the
-// import produce each one), and the import refuses under no other.
-function refusalSentence(): string {
-  const all = Object.values(REFUSALS).join(`${NB}; `)
-  return `${all.charAt(0).toUpperCase()}${all.slice(1)}.`
+// import produce each one), and the import refuses under no other. One list per group, so that none
+// is skimmed over in a block of text.
+const REFUSAL_GROUPS: Array<[string, Record<string, string>]> = [
+  ['Le fichier', FILE_REFUSALS],
+  [`L’onglet ${q(SHEETS.accounts)}`, ACCOUNT_REFUSALS],
+  [`Les onglets ${q(SHEETS.snapshots)} et ${q(SHEETS.contributions)}`, SNAPSHOT_REFUSALS],
+  [`L’onglet ${q(SHEETS.goals)}`, GOAL_REFUSALS],
+  [`L’onglet ${q(SHEETS.settings)}`, SETTING_REFUSALS],
+]
+function refusalLines(): string[] {
+  return REFUSAL_GROUPS.flatMap(([heading, refusals]) => [`### ${heading}`, ...Object.values(refusals).map((r) => `- ${r}`)])
 }
 
 // The words for the person, at the top of the sheet « Pour une IA ».
@@ -322,41 +341,62 @@ const PERSON_LINES = [
 // screen, which carries them whole so that nothing has to be joined (ChatGPT's free plan takes
 // three files a day). The person does as little as possible: what they already have comes
 // first, the questions come once, at the end, never line by line.
+// The points an assistant most often misses, said at the top and again at the end (OpenAI's guide for
+// long prompts: instructions at both ends; review of 11 November 2026 by three experts of Claude,
+// ChatGPT and Gemini).
+const KEEP_IN_MIND = [
+  `Rends un seul fichier .xlsx avec tous les onglets, jamais un CSV (il n’a qu’un onglet).`,
+  `Fais un seul relevé par défaut, qui contient tous les placements.`,
+  `N’oublie pas les crédits${NB}: s’ils manquent, redemande-les une fois avant de rendre le fichier. Ils s’écrivent en négatif.`,
+  `Ne devine jamais un montant, une date ni un taux${NB}; dis à la fin ce qui reste sans chiffre.`,
+  `Avant de rendre le fichier, vérifie chaque point de ${q('Ce qui fait refuser le fichier')}.`,
+]
+
 function assistantLines(): string[] {
   return [
-    'Consignes pour l’assistant',
-    `Ton but${NB}: créer un fichier Excel (.xlsx) qui s’importe sans erreur dans Oseil, avec ces onglets et ces titres de colonnes exacts, les titres en première ligne. Si on t’a joint le modèle, remplis-le et laisse ${q(SHEETS.guide)} et ${q(SHEETS.ai)} tels quels${NB}; sinon, crée le fichier de zéro.`,
-    'Comment t’y prendre',
-    `Demande d’abord à la personne ce qu’elle a déjà, et prends ce qui lui demande le moins d’effort${NB}: un tableau à elle (Excel, Google Sheets, Numbers, un export d’une autre appli), sinon des captures d’écran de ses applis de banque ou ses relevés en PDF, tous d’un coup, sinon une liste tapée en vrac («${NB}Livret A, environ 12${NB}000${NB}€${NB}»).`,
-    `Dis-lui qu’elle peut masquer ses numéros de compte, son nom et son adresse avant de te les donner${NB}: ils ne servent pas.`,
-    `Un relevé contient tous les placements, jamais une partie. Par défaut, fais-en un seul, daté des chiffres les plus récents${NB}: un chiffre plus ancien (un relevé de banque d’un autre jour, un compte vu le mois d’avant) y entre aussi, avec sa propre date dans ${title('snapshots', 'seenOn')}. Ne crée jamais un relevé par document ou par date de document.`,
-    `Une date plus ancienne ne devient un relevé que si la personne a les chiffres de tout ce qu’elle avait à cette date, souvent dans son propre tableau${NB}: chaque date de ce tableau qui donne tout devient alors un relevé. Sinon, n’en fais pas un relevé.`,
-    `Ne pose pas les questions ligne par ligne. Quand tout est lu, demande en une seule fois ce qui manque encore pour remplir les cases obligatoires, et ce qu’on oublie souvent${NB}: un crédit (immobilier, à la consommation), l’épargne salariale (PEE, PERCOL), une assurance-vie, un PER, des parts d’une société non cotée, un compte dans une autre banque, de l’or ou de la crypto. Ne rien inventer${NB}: une valeur inconnue reste vide quand la colonne le permet, sinon demande-la. Ne devine jamais un montant, une date ni un taux.`,
-    `Les crédits ne se sautent pas${NB}: sans eux, le patrimoine net est faux, trop haut. Si la personne demande le fichier sans avoir répondu sur ses crédits, redemande-le une fois, en une phrase, avant de le rendre.`,
-    `Ce que tu sais exister sans en avoir le chiffre (un crédit sans capital restant dû, un PEE sans valeur, un chiffre dont tu ne connais pas la date) va quand même dans ${q(SHEETS.accounts)}, sans ligne dans ${q(SHEETS.snapshots)}${NB}: Oseil le signale à l’import et le demande à la prochaine mise à jour. Ne le laisse jamais de côté. Termine en disant à la personne lesquels sont sans chiffre.`,
-    `N’y mets aucune ligne de la banque ${q(EXAMPLE_BANK)}${NB}: un fichier qui en contient encore est refusé.`,
-    `Rends le fichier .xlsx à télécharger. Si tu ne peux pas créer de fichier, donne, onglet par onglet, un tableau à copier dans un tableur, les titres de colonnes en première ligne.`,
-    'Les onglets',
-    ...TABLES.map((kind) => `${q(SHEETS[kind])}${NB}: ${ROLES[kind]}`),
-    ...TABLES.flatMap((kind) => [`Les colonnes de ${q(SHEETS[kind])}`, ...columnLines(kind)]),
-    'Les mots acceptés, écrits exactement (majuscules et accents ne comptent pas)',
-    ...wordLines(),
-    'Chaque type de compte, ses façons de compter (la première est celle par défaut) et sa catégorie',
-    ...typeLines(),
-    'Les règles',
-    `Un compte se reconnaît à Banque + Compte, un placement à Banque + Compte + Ligne. ${title('accounts', 'type')}, ${title('accounts', 'residence')}, ${title('accounts', 'unlockOn')}, ${title('accounts', 'slow')} et ${title('accounts', 'financedLine')} se répètent sur chaque ligne d’un compte, sans changer (une case vide sur une ligne et remplie sur une autre est un changement, sauf dans ${title('accounts', 'residence')}, où une case vide et ${MAIN_RESIDENCE} disent la même chose).`,
-    `Une nouvelle ligne d’un compte existant n’a pas besoin de l’identifiant${NB}: ses Banque et Compte suffisent, tant qu’un seul compte porte ces noms.`,
-    `Un ${typeLabel('loan')} s’écrit en négatif dans ${q(SHEETS.snapshots)}${NB}: la somme de ${title('snapshots', 'euroValue')} d’un relevé donne alors le patrimoine net.`,
-    `${title('snapshots', 'fx')} dit combien vaut une unité de la devise en euros${NB}: la valeur en euros est le montant multiplié par le taux.`,
-    `${title('snapshots', 'number')}${NB}: vide, c’est la date qui fait le relevé. Rempli, c’est le numéro.`,
-    `${title('snapshots', 'seenOn')}${NB}: jamais après la date du relevé. ${title('snapshots', 'opened')}${NB}: ne compte que sur un relevé où la ligne n’était pas au relevé précédent.`,
-    `Un relevé sans aucun placement s’écrit sur une seule ligne${NB}: sa date et son ${title('snapshots', 'number')} (obligatoire ici), toutes les autres cases vides. Une ligne qui n’a que sa date, sans numéro, est refusée.`,
-    `Un placement absent d’un relevé n’est pas compté à cette date. Un placement fermé porte sa date dans ${title('accounts', 'closedOn')}, qui s’écrit telle quelle, même après le dernier relevé.`,
-    `${title('accounts', 'financedLine')} désigne un placement d’un compte ${typeLabel('home')}, ouvert ou non.`,
-    'Ce qui fait refuser le fichier',
-    refusalSentence(),
-    'Un petit exemple complet (deux relevés, trois placements dont un crédit)',
+    '# Consignes pour l’assistant',
+    '## À retenir',
+    ...KEEP_IN_MIND.map((line) => `- ${line}`),
+    '## Ton but',
+    `Créer un fichier Excel (.xlsx) qui s’importe sans erreur dans Oseil, avec ces onglets et ces titres de colonnes exacts, les titres en première ligne. Si on t’a joint le modèle, remplis-le et laisse ${q(SHEETS.guide)} et ${q(SHEETS.ai)} tels quels${NB}; sinon, crée le fichier de zéro.`,
+    '## Comment t’y prendre',
+    `- Demande d’abord à la personne ce qu’elle a déjà, et prends ce qui lui demande le moins d’effort${NB}: un tableau à elle (Excel, Google Sheets, Numbers, un export d’une autre appli), sinon des captures d’écran de ses applis de banque ou ses relevés en PDF, tous d’un coup, sinon une liste tapée en vrac («${NB}Livret A, environ 12${NB}000${NB}€${NB}»).`,
+    `- Dis-lui qu’elle peut masquer ses numéros de compte, son nom et son adresse avant de te les donner${NB}: ils ne servent pas.`,
+    `- Un relevé contient tous les placements, jamais une partie. Par défaut, fais-en un seul, daté des chiffres les plus récents${NB}: un chiffre plus ancien (un relevé de banque d’un autre jour, un compte vu le mois d’avant) y entre aussi, avec sa propre date dans ${title('snapshots', 'seenOn')}. Ne crée jamais un relevé par document ou par date de document.`,
+    `- Une date plus ancienne ne devient un relevé que si la personne a les chiffres de tout ce qu’elle avait à cette date, souvent dans son propre tableau${NB}: chaque date de ce tableau qui donne tout devient alors un relevé. Sinon, n’en fais pas un relevé.`,
+    `- Ne pose pas les questions ligne par ligne. Quand tout est lu, demande en une seule fois ce qui manque encore pour remplir les cases obligatoires, et ce qu’on oublie souvent${NB}: un crédit (immobilier, à la consommation), l’épargne salariale (PEE, PERCOL), une assurance-vie, un PER, des parts d’une société non cotée, un compte dans une autre banque, de l’or ou de la crypto. Ne rien inventer${NB}: une valeur inconnue reste vide quand la colonne le permet, sinon demande-la. Ne devine jamais un montant, une date ni un taux.`,
+    `- Les crédits ne se sautent pas${NB}: sans eux, le patrimoine net est faux, trop haut. Si la personne demande le fichier sans avoir répondu sur ses crédits, redemande-le une fois, en une phrase, avant de le rendre.`,
+    `- Ce que tu sais exister sans en avoir le chiffre (un crédit sans capital restant dû, un PEE sans valeur, un chiffre dont tu ne connais pas la date) va quand même dans ${q(SHEETS.accounts)}, sans ligne dans ${q(SHEETS.snapshots)}${NB}: Oseil le signale à l’import et le demande à la prochaine mise à jour. Ne le laisse jamais de côté. Termine en disant à la personne lesquels sont sans chiffre.`,
+    `- N’y mets aucune ligne de la banque ${q(EXAMPLE_BANK)}${NB}: un fichier qui en contient encore est refusé.`,
+    `- Dans le fichier, un montant peut être un nombre (500,5) ou du texte (${q('500,50')}), une date une vraie date Excel ou du texte jj/mm/aaaa${NB}: les deux sont acceptés.`,
+    `- Rends un seul fichier .xlsx à télécharger, avec tous les onglets. Jamais de CSV, qui n’a qu’un onglet. Si tu ne peux pas créer de fichier, donne un tableau par onglet, titres en première ligne, et explique à la personne comment les coller dans Google Sheets (un onglet par tableau, nommé comme ici), puis Fichier › Télécharger › Microsoft Excel (.xlsx).`,
+    '## Les onglets',
+    ...TABLES.map((kind) => `- ${q(SHEETS[kind])}${NB}: ${ROLES[kind]}`),
+    ...TABLES.flatMap((kind) => [`## Les colonnes de ${q(SHEETS[kind])}`, ...columnLines(kind).map((line) => `- ${line}`)]),
+    '## La règle des parts (onglet Objectifs)',
+    `Chaque part est en pour cent, un nombre simple (25 pour 25${NB}%). Les parts d’une ligne font 100, ${title('goals', 'rental')} compris. Une ligne dont le total fait 1 est lue en fractions (0,25 pour 25${NB}%)${NB}; une ligne d’une seule part à 1 et des autres à 0 est refusée, écris alors 100.`,
+    '## Les mots acceptés, écrits exactement (majuscules et accents ne comptent pas)',
+    ...wordLines().map((line) => `- ${line}`),
+    '## Chaque type de compte, ses façons de compter (la première est celle par défaut) et sa catégorie',
+    ...typeLines().map((line) => `- ${line}`),
+    '## Les règles',
+    `- Un compte se reconnaît à Banque + Compte, un placement à Banque + Compte + Ligne. ${title('accounts', 'type')}, ${title('accounts', 'residence')}, ${title('accounts', 'unlockOn')}, ${title('accounts', 'slow')} et ${title('accounts', 'financedLine')} se répètent sur chaque ligne d’un compte, sans changer (une case vide sur une ligne et remplie sur une autre est un changement, sauf dans ${title('accounts', 'residence')}, où une case vide et ${MAIN_RESIDENCE} disent la même chose).`,
+    `- Une nouvelle ligne d’un compte existant n’a pas besoin de l’identifiant${NB}: ses Banque et Compte suffisent, tant qu’un seul compte porte ces noms.`,
+    `- Un ${typeLabel('loan')} s’écrit en négatif dans ${q(SHEETS.snapshots)}${NB}: la somme de ${title('snapshots', 'euroValue')} d’un relevé donne alors le patrimoine net.`,
+    `- ${title('snapshots', 'fx')} dit combien vaut une unité de la devise en euros${NB}: la valeur en euros est le montant multiplié par le taux.`,
+    `- ${title('snapshots', 'number')}${NB}: vide, c’est la date qui fait le relevé. Rempli, c’est le numéro.`,
+    `- ${title('snapshots', 'seenOn')}${NB}: jamais après la date du relevé. ${title('snapshots', 'opened')}${NB}: ne compte que sur un relevé où la ligne n’était pas au relevé précédent.`,
+    `- Un relevé sans aucun placement s’écrit sur une seule ligne${NB}: sa date et son ${title('snapshots', 'number')} (obligatoire ici), toutes les autres cases vides. Une ligne qui n’a que sa date, sans numéro, est refusée.`,
+    `- Un placement absent d’un relevé n’est pas compté à cette date. Un placement fermé porte sa date dans ${title('accounts', 'closedOn')}, qui s’écrit telle quelle, même après le dernier relevé.`,
+    `- ${title('accounts', 'financedLine')} désigne un placement d’un compte ${typeLabel('home')}, ouvert ou non.`,
+    '## Ce qui fait refuser le fichier',
+    ...refusalLines(),
+    '## Un petit exemple complet (deux relevés, quatre placements dont un crédit et des actions en dollars)',
     ...exampleLines(),
+    '## Avant de rendre le fichier',
+    `Relis ${q('Ce qui fait refuser le fichier')} point par point et corrige ce qui ne va pas, sans le demander. Puis rappelle-toi${NB}:`,
+    ...KEEP_IN_MIND.slice(0, 4).map((line) => `- ${line}`),
+    `Dis enfin à la personne que tu as fait cette vérification, et lesquels de ses placements sont sans chiffre.`,
   ]
 }
 
@@ -369,7 +409,7 @@ export function aiNote(): string[] {
 // it is the same text for everyone, and Oseil never sends it anywhere.
 // The one sentence the import copies (Nicolas, 11 November 2026): the AI reads the whole instructions at
 // /consignes-ia.md (app/consignes-ia.md/route.ts). AI_PROMPT stays for an AI that cannot open a link.
-export const AI_LINK_PROMPT = `Lis les consignes de ${SITE_URL}/consignes-ia.md et suis-les à la lettre${NB}: elles expliquent comment faire, à partir des relevés que je vais te donner, le fichier Excel à importer dans Oseil.`
+export const AI_LINK_PROMPT = `Ouvre ${SITE_URL}/consignes-ia.md et suis ses consignes à la lettre${NB}: elles expliquent comment faire, à partir des relevés que je vais te donner, le fichier Excel à importer dans Oseil. Pour me montrer que tu l’as lue, cite-moi d’abord les noms des onglets du fichier. Si tu ne peux pas l’ouvrir, dis-le-moi sans rien inventer.`
 
 export const AI_PROMPT = [
   `Aide-moi à mettre mon patrimoine dans Oseil, un site de suivi de patrimoine, par un fichier Excel à importer. Voici comment faire.`,

@@ -394,13 +394,14 @@ describe('readImport: the template and the example of the note', () => {
 
   it('imports the example of « Pour une IA », written then read as a file', async () => {
     const { data, summary } = success(readImport(await readWorkbook(await writeWorkbook(AI_EXAMPLE)), counter()))
-    // 30/09: 20 × 500,50 + 250 000 − 180 000 = 80 010 €. 31/10: 20 × 512,30 + 250 000 − 179 200 = 81 046 €.
+    // 30/09: 20 × 500,50 + 250 000 − 180 000 + 10 × 230 $ × 0,90 = 82 080 €.
+    // 31/10: 20 × 512,30 + 250 000 − 179 200 + 10 × 240 $ × 0,92 = 83 254 €.
     expect(summary.relevés).toEqual([
-      { takenOn: '2026-09-30', total: 8001000, placements: 3 },
-      { takenOn: '2026-10-31', total: 8104600, placements: 3 },
+      { takenOn: '2026-09-30', total: 8208000, placements: 4 },
+      { takenOn: '2026-10-31', total: 8325400, placements: 4 },
     ])
-    expect(data.snapshots.map((s) => computeSituation(data.profile, s.value).net)).toEqual([8001000, 8104600])
-    expect(summary).toMatchObject({ banks: 2, bankNames: ['Ma banque', 'Chez toi'], lines: 3, goals: 0 })
+    expect(data.snapshots.map((s) => computeSituation(data.profile, s.value).net)).toEqual([8208000, 8325400])
+    expect(summary).toMatchObject({ banks: 2, bankNames: ['Ma banque', 'Chez toi'], lines: 4, goals: 0 })
   })
 })
 

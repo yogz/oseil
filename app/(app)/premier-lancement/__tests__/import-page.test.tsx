@@ -126,7 +126,12 @@ test('the AI way says who reads the figures, shows the short sentence and copies
   expect(screen.getByText('Tes chiffres seront lus par cette IA, pas par Oseil.')).toBeInTheDocument()
   expect(screen.getByTestId('ai-prompt').textContent).toBe(AI_LINK_PROMPT)
   expect(AI_LINK_PROMPT).toContain('https://oseil.fr/consignes-ia.md')
-  expect(AI_LINK_PROMPT.length).toBeLessThan(300)
+  expect(AI_LINK_PROMPT.length).toBeLessThan(400)
+  // A proof of reading, and nothing invented when the page cannot be opened (review of 11 November 2026).
+  expect(AI_LINK_PROMPT).toContain('cite-moi d’abord les noms des onglets')
+  expect(AI_LINK_PROMPT).toContain('sans rien inventer')
+  // Claude and Le Chat open a link only with their web search on (their own help pages).
+  expect(screen.getByText('Sur Claude ou Le Chat, active d’abord la recherche web.')).toBeInTheDocument()
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copier la consigne' }))
   })

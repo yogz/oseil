@@ -307,6 +307,8 @@ function AiPrompt() {
       >
         {AI_LINK_PROMPT}
       </p>
+      {/* Claude and Le Chat open a link only with their web search on (their help pages, 11 November 2026). */}
+      <p className="text-caption leading-normal text-ink-muted">Sur Claude ou Le Chat, active d’abord la recherche web.</p>
       <Button variant="secondary" onClick={() => copy('short')}>
         {copied === 'short' ? 'Consigne copiée' : 'Copier la consigne'}
       </Button>

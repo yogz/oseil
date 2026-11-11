@@ -294,7 +294,7 @@ describe('guideNote', () => {
 // ChatGPT file put Air Liquide shares held « au nominatif pur » there (Nicolas, 10 November 2026).
 describe('the bank column says what « Chez toi » may hold', () => {
   const text = read(aiNote())
-  const bankHelp = text.split('\n').find((line) => line.startsWith('« Banque » ('))!
+  const bankHelp = text.split('\n').find((line) => line.startsWith('- « Banque » ('))!
   const home = { id: '', name: HOME_NAME, kind: 'home' as const }
 
   it('names exactly the types the site keeps at home', () => {
@@ -353,7 +353,7 @@ describe('the prompt keeps a relevé whole, asks for what is forgotten, spells t
 
 describe('AI_PROMPT', () => {
   const prompt = AI_PROMPT.replace(/\u00a0/g, ' ')
-  const assistantPart = aiNote().slice(aiNote().indexOf('Consignes pour l’assistant'))
+  const assistantPart = aiNote().slice(aiNote().indexOf('# Consignes pour l’assistant'))
 
   it('holds every line the sheet gives the assistant, so no file has to be joined', () => {
     expect(assistantPart.length).toBeGreaterThan(20)
@@ -424,16 +424,20 @@ describe('aiNote', () => {
     const names = AI_EXAMPLE.map((s) => s.name)
     expect(names).toEqual([SHEETS.accounts, SHEETS.snapshots])
     const lines = sheet(AI_EXAMPLE, SHEETS.accounts).rows
-    expect(lines).toHaveLength(3)
+    expect(lines).toHaveLength(4)
+    // A line in dollars, with its rate in « Relevés » (review of 11 November 2026).
+    expect(lines.some((row) => cell(row, 'accounts', 'currency') === 'USD')).toBe(true)
     expect(lines.some((row) => cell(row, 'accounts', 'type') === ACCOUNT_TYPES.loan.label)).toBe(true)
     const relevés = sheet(AI_EXAMPLE, SHEETS.snapshots).rows
     expect(new Set(relevés.map((row) => (cell(row, 'snapshots', 'date') as Date).getTime())).size).toBe(2)
     for (const row of relevés) {
       if (cell(row, 'snapshots', 'line') === 'Prêt immobilier') expect(cell(row, 'snapshots', 'amount')).toBeLessThan(0)
     }
-    expect(text).toContain('Banque : Ma banque')
-    expect(text).toContain('Montant : -180000')
-    expect(text).toContain('Date du relevé : 30/09/2026')
+    // As Markdown tables, one per sheet, with only the columns the example fills.
+    expect(text).toContain('### Onglet « Comptes »')
+    expect(text).toContain('| Banque | Compte | Ligne |')
+    expect(text).toContain('| -180000 |')
+    expect(text).toContain('| 30/09/2026 |')
   })
 })
 
