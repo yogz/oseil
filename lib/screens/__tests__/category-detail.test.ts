@@ -147,11 +147,11 @@ describe('the ways into a line’s fiche', () => {
     expect(owedOf(view)).toEqual([{ lineId: 'mortgage-line', name: 'Crédit', owed: '180 000 €' }])
     // « dont » would put 180 000 € inside 100 000 €: no sentence, the header and the row say it.
     expect(view.debtSentence).toBeNull()
-    expect(plain(view.euros)).toBe('-80 000 €')
+    expect(plain(view.euros)).toBe('−80 000 €')
     // No square: its figure stays in euros, never a share of the grid.
     expect(view.percent).toBe(view.euros)
     expect(view.lines.map((l) => ({ lineId: l.lineId, squares: l.squares, euros: plain(l.euros) }))).toEqual([
-      { lineId: 'house-line', squares: 0, euros: '-80 000 €' },
+      { lineId: 'house-line', squares: 0, euros: '−80 000 €' },
     ])
     expect(view.tooSmall).toEqual([])
   })
@@ -303,7 +303,7 @@ test('a line valued zero or less keeps its euro text in percent mode', () => {
   expect(empty.percent).toBe(empty.euros)
   expect(plain(empty.euros)).toBe('0 €')
   expect(overdraft.percent).toBe(overdraft.euros)
-  expect(plain(overdraft.euros)).toBe('-200 €')
+  expect(plain(overdraft.euros)).toBe('−200 €')
   expect(overdraft.squares).toBe(0)
 })
 

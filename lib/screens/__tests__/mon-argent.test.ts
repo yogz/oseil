@@ -281,7 +281,7 @@ describe('the board', () => {
     expect(b.warnings).toContain('La grille montre ce qui est positif.')
     // It still has a goal: listed with what it really totals, no square, and its detail opens all the same.
     const available = b.categories.find((c) => c.category === 'available')!
-    expect(plain(available.euros)).toBe('-2 000 €')
+    expect(plain(available.euros)).toBe('−2 000 €')
     expect(plain(available.percent)).toBe('0 %')
     expect(available.goal?.actual).toBe(0)
     expect(available.linked).toBe(true)

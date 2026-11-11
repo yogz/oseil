@@ -137,7 +137,7 @@ describe('the Immobilier row of a person with a rental', () => {
       {
         pocket: 'location',
         name: 'En location',
-        euros: '-50 000 €',
+        euros: '−50 000 €',
         percent: '0 %',
         // 25 squares to share, half each: the tie goes to the first share.
         goal: { actual: 0, target: 12, words: 'rien pour l’instant' },
@@ -159,7 +159,7 @@ describe('the Immobilier row of a person with a rental', () => {
     expect(plain(row.euros)).toBe('100 000 €')
     expect(plain(row.percent)).toBe('50 %')
     expect(shown(row.pockets!).map((r) => [r.pocket, r.euros, r.percent])).toEqual([
-      ['chez-toi', '-100 000 €', '0 %'],
+      ['chez-toi', '−100 000 €', '0 %'],
       ['location', '100 000 €', '50 %'],
     ])
     expect(b.excluded.map((e) => plain(e.sentence))).toEqual([
@@ -174,8 +174,8 @@ describe('the Immobilier row of a person with a rental', () => {
     const row = property(b)
     expect(plain(row.euros)).toBe('0 €')
     expect(shown(row.pockets!).map((r) => [r.pocket, r.euros, r.percent, r.goal])).toEqual([
-      ['chez-toi', '-50 000 €', '0 %', null],
-      ['location', '-50 000 €', '0 %', { actual: 0, target: 50, words: 'rien pour l’instant' }],
+      ['chez-toi', '−50 000 €', '0 %', null],
+      ['location', '−50 000 €', '0 %', { actual: 0, target: 50, words: 'rien pour l’instant' }],
     ])
     expect(board(modelOf(withRental, statement(200_000, 100_000, 150_000, 100_000, 150_000), [goalOf({ available: 100 })])).categories.find(
       (c) => c.category === 'property',
@@ -220,7 +220,7 @@ describe('a rental alone, under its loan (review, fix round 1)', () => {
       {
         pocket: 'location',
         name: 'En location',
-        euros: '-50 000 €',
+        euros: '−50 000 €',
         percent: '0 %',
         goal: { actual: 0, target: 20, words: 'rien pour l’instant' },
         note: null,

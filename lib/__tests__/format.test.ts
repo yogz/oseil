@@ -22,11 +22,11 @@ describe('formatEuros', () => {
     expect(formatEuros(17_200_000)).toBe(`172${NNBSP}000${NBSP}€`)
   })
   test('negative amounts', () => {
-    expect(formatEuros(-20_000)).toBe(`-200${NBSP}€`)
+    expect(formatEuros(-20_000)).toBe(`−200${NBSP}€`)
   })
   test('rounds symmetrically', () => {
     expect(formatEuros(150)).toBe(`2${NBSP}€`)
-    expect(formatEuros(-150)).toBe(`-2${NBSP}€`)
+    expect(formatEuros(-150)).toBe(`−2${NBSP}€`)
     expect(formatEuros(-20)).toBe(`0${NBSP}€`)
   })
   test('zero', () => {
@@ -53,7 +53,7 @@ describe('formatMoney', () => {
   test('rounds like formatEuros', () => {
     expect(formatMoney(-150, 'EUR')).toBe(formatEuros(-150))
     expect(formatMoney(17_200_000, 'EUR')).toBe(formatEuros(17_200_000))
-    expect(formatMoney(-150, 'USD')).toMatch(/^-2\s\$US$/)
+    expect(formatMoney(-150, 'USD')).toMatch(/^−2\s\$US$/)
     expect(formatMoney(-20, 'USD')).toMatch(/^0\s\$US$/)
   })
 })

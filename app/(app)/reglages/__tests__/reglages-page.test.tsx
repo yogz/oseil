@@ -140,7 +140,7 @@ test('the goals as a small bar and the spending with its basis, each leading to 
   )
   const spending = section('Mes dépenses par mois')
   expect(spending).toHaveTextContent(/2\s200\s€/)
-  expect(spending).toHaveTextContent('ton salaire')
+  expect(spending).toHaveTextContent('tes revenus')
   expect(within(spending).getByRole('link', { name: 'Modifier' })).toHaveAttribute(
     'href',
     '/premier-lancement/depenses?depuis=reglages',

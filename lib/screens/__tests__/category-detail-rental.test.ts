@@ -112,8 +112,8 @@ describe('the detail of Immobilier with a rental', () => {
     expect(home.percent).toBe('75 %')
     expect(rental).toMatchObject({
       id: 'location',
-      euros: '-50 000 €',
-      percent: '-50 000 €',
+      euros: '−50 000 €',
+      percent: '−50 000 €',
       sub: '1 ligne',
       aim: 'Ton logement en location vaut moins que ce qu’il reste à rembourser : pas de carré pour l’instant.',
     })
@@ -236,8 +236,8 @@ describe('a goal with a rental share and no rental any more', () => {
       {
         id: 'chez-toi',
         label: 'Pour y vivre',
-        euros: '-50 000 €',
-        percent: '-50 000 €',
+        euros: '−50 000 €',
+        percent: '−50 000 €',
         sub: '1 ligne',
         aim: 'pas d’objectif',
         goal: null,

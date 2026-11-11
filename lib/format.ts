@@ -57,9 +57,9 @@ export function formatShortMonthYear(date: IsoDate): string {
 export function formatEurosCompact(cents: number): string {
   const euros = Math.round(cents / 100)
   if (Math.abs(euros) >= 1_000_000) {
-    return `${(euros / 1_000_000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}\u00A0M€`
+    return withMinus(`${(euros / 1_000_000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}\u00A0M€`)
   }
-  return `${Math.round(euros / 1_000).toLocaleString('fr-FR')}\u00A0k€`
+  return withMinus(`${Math.round(euros / 1_000).toLocaleString('fr-FR')}\u00A0k€`)
 }
 
 const monthYear = new Intl.DateTimeFormat('fr-FR', {
@@ -67,6 +67,12 @@ const monthYear = new Intl.DateTimeFormat('fr-FR', {
   year: 'numeric',
   timeZone: 'UTC',
 })
+
+// French typography writes a loss with the minus sign (−), not the hyphen Intl gives (-): « −1 000 € »
+// (the review of the figures, 11 November 2026). Only what is shown: a field never reads one back.
+function withMinus(text: string): string {
+  return text.replace(/^-/, '\u2212')
+}
 
 // Intl writes "-0" for -0 and for tiny negatives rounded to zero; a zero has no sign.
 function withoutNegativeZero(text: string): string {
@@ -88,7 +94,7 @@ export function setAmountsHidden(hidden: boolean): void {
 function formatWhole(cents: Cents, currency: CurrencyCode): string {
   // Symmetric rounding: -150 cents gives -2 €, like 150 gives 2 €. `|| 0` drops -0.
   const whole = Math.sign(cents) * Math.round(Math.abs(cents) / 100) || 0
-  return formatterFor(moneyFormats, currency, { maximumFractionDigits: 0 }).format(whole)
+  return withMinus(formatterFor(moneyFormats, currency, { maximumFractionDigits: 0 }).format(whole))
 }
 
 // Whole units, in hundredths of `currency` (« 1 200 $US »). Never masked.
@@ -125,7 +131,7 @@ export function formatUnits(value: number): string {
 }
 
 export function formatPercent1(value: number): string {
-  return `${withoutNegativeZero(percent1.format(value))}${NARROW_NBSP}%`
+  return `${withMinus(withoutNegativeZero(percent1.format(value)))}${NARROW_NBSP}%`
 }
 
 // A whole percent, 0 included: a goal of 0 % is a goal, not « moins de 1 % ».

@@ -84,7 +84,7 @@ describe('the cushion', () => {
   test('counts in months of salaire when that is what was given', () => {
     const view = ready(cushionModel({ basis: 'salary', monthly: 550_000 }))
     expect(view.cushion).toMatchObject({
-      sentence: "Si tes revenus s’arrêtaient, ton argent disponible couvrirait environ 2 mois de salaire.",
+      sentence: "Si tes revenus s’arrêtaient, ton argent disponible couvrirait environ 2 mois de revenus.",
       months: 2,
       filled: 2,
     })

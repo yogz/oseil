@@ -330,9 +330,9 @@ describe('a person without a rental sees the detail of a category as before', ()
     expect(detailShape(underWater, 'property')).toEqual({
       header: 'Ton immobilier vaut moins que ce qu’il reste à rembourser : il n’a pas de carré pour l’instant.',
       goal: null,
-      euros: '-30 000 €',
-      percent: '-30 000 €',
-      lines: [['house', '-30 000 €', 0, null]],
+      euros: '−30 000 €',
+      percent: '−30 000 €',
+      lines: [['house', '−30 000 €', 0, null]],
       tooSmall: [],
       chapters: null,
     })

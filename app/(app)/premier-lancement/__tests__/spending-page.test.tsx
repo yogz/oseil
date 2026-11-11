@@ -111,7 +111,7 @@ test('« Je ne connais pas mes dépenses » switches to the net salary', async (
   render(<DepensesPage />)
   await userEvent.click(screen.getByRole('button', { name: 'Je ne connais pas mes dépenses' }))
   expect(screen.getByText(/Il est sur ta fiche de paie\. Si tu dépenses moins que tu gagnes, le calcul sera un peu prudent, ce qui est mieux que l’inverse\./)).toBeInTheDocument()
-  await userEvent.type(screen.getByLabelText('Ton salaire net par mois'), '2200')
+  await userEvent.type(screen.getByLabelText('Tes revenus nets par mois'), '2200')
   await userEvent.click(screen.getByRole('button', { name: 'Terminer' }))
   expect(mocks.saveSettings).toHaveBeenCalledWith(
     client,
@@ -179,7 +179,7 @@ test('opened from the settings, it starts from the saved budget and its way out 
   mocks.params.current = new URLSearchParams('depuis=reglages')
   mocks.state.current = ready({ ...DEFAULT_SETTINGS, budget: { basis: 'salary', monthly: 310_000 } })
   render(<DepensesPage />)
-  expect(screen.getByLabelText('Ton salaire net par mois')).toHaveValue('3\u202f100')
+  expect(screen.getByLabelText('Tes revenus nets par mois')).toHaveValue('3\u202f100')
   expect(screen.queryByRole('button', { name: 'Plus tard' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Annuler' }))
   expect(mocks.push).toHaveBeenCalledWith('/reglages')

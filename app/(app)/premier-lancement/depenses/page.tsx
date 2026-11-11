@@ -114,7 +114,7 @@ function Form({
   return (
     <form onSubmit={submit} noValidate className="mt-6 flex flex-col gap-4">
       <TextField
-        label={expenses ? 'Tes dépenses par mois' : 'Ton salaire net par mois'}
+        label={expenses ? 'Tes dépenses par mois' : 'Tes revenus nets par mois'}
         type="text"
         inputMode="decimal"
         value={text}

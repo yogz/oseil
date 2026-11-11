@@ -39,7 +39,7 @@ export function cushionBeyond(months: number): string | null {
 }
 
 export function cushionSentence(months: number, basis: Budget['basis'], short = false): string {
-  const of = basis === 'salary' ? 'salaire' : 'dépenses'
+  const of = basis === 'salary' ? 'revenus' : 'dépenses'
   // Nothing available, or under half a month: no « environ », and never « 0 mois ».
   if (short) return `Si tes revenus s’arrêtaient, ton argent disponible ne couvrirait pas un demi-mois de ${of}.`
   return `Si tes revenus s’arrêtaient, ton argent disponible couvrirait environ ${monthsWords(months)} de ${of}.`
