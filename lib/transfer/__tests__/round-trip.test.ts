@@ -173,6 +173,13 @@ const VARIANTS: Record<string, () => ExportInput> = {
     ]
     return input
   },
+  // docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md: a typed rate of purchases goes and comes back.
+  'a line in dollars with a typed rate of purchases': () => {
+    const input = fixtureInput()
+    const usd = input.profile.lines.find((l) => l.currency !== 'EUR' && l.kind === 'units')
+    if (usd) usd.purchase = { perEuro: 1.2 }
+    return input
+  },
   'two goals on the same day': () => {
     const input = fixtureInput()
     input.goals = [

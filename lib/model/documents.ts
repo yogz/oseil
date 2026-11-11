@@ -94,6 +94,22 @@ function parseAccount(raw: unknown): Account | null {
   return { ...raw } as Account
 }
 
+// The rate of a line's purchases, typed (« 1 € = x » between 0,01 and 1 000), or its average price in euros;
+// only on a line in another currency (docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md).
+export const PURCHASE_RATE_MIN = 0.01
+export const PURCHASE_RATE_MAX = 1000
+function isPurchase(value: unknown, currency: unknown): boolean {
+  if (currency === 'EUR' || !isObject(value)) return false
+  if (value.inEuros === true) return Object.keys(value).length === 1
+  return (
+    Object.keys(value).length === 1 &&
+    typeof value.perEuro === 'number' &&
+    Number.isFinite(value.perEuro) &&
+    value.perEuro >= PURCHASE_RATE_MIN &&
+    value.perEuro <= PURCHASE_RATE_MAX
+  )
+}
+
 function parseLine(raw: unknown): Line | null {
   if (!isObject(raw)) return null
   if (!isId(raw.id) || !isId(raw.accountId) || !isText(raw.name)) return null
@@ -102,6 +118,7 @@ function parseLine(raw: unknown): Line | null {
   if (!isOptional(raw.category, isCategory)) return null
   if (!isOptional(raw.group, isGroup)) return null
   if (!isOptional(raw.quoteSymbol, isId) || !isOptional(raw.closedOn, isDate)) return null
+  if (raw.purchase !== undefined && !isPurchase(raw.purchase, raw.currency)) return null
   return { ...raw } as Line
 }
 

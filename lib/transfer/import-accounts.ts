@@ -15,7 +15,7 @@ import {
 } from '@/lib/catalog'
 import { SLOW_BY_TYPE, canHold } from '@/lib/correct/profile-changes'
 import { SYMBOL } from '@/lib/market/types'
-import { parseProfile } from '@/lib/model/documents'
+import { PURCHASE_RATE_MAX, PURCHASE_RATE_MIN, parseProfile } from '@/lib/model/documents'
 import type {
   Account,
   AccountTypeId,
@@ -34,10 +34,12 @@ import {
   HOME_NAME,
   KIND_NAMES,
   PATH_SEPARATOR,
+  PURCHASE_IN_EUROS_WORD,
   SETTING_VALUES,
   SHEETS,
   normalizeWord,
   readDate,
+  readDecimal,
   readText,
   readYesNo,
   wordLookup,
@@ -80,7 +82,7 @@ const catalogIdOf = wordLookup<string>([
 const LOAN = q(ACCOUNT_TYPES.loan.label)
 const title = (key: string) => q((COLUMNS.accounts as readonly Column[]).find((c) => c.key === key)!.title)
 const ACCOUNT_KEYS = ['type', 'residence', 'unlockOn', 'slow', 'financedLine', 'accountReference']
-const LINE_KEYS = ['category', 'group', 'kind', 'currency', 'symbol', 'closedOn', 'reference']
+const LINE_KEYS = ['category', 'group', 'kind', 'currency', 'symbol', 'closedOn', 'purchase', 'reference']
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const dayText = (date: IsoDate) => `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`
@@ -118,6 +120,7 @@ type LineCells = {
   currency: CurrencyCode | null | undefined
   symbol: string | null | undefined
   closedOn: IsoDate | null | undefined
+  purchase: Line['purchase'] | undefined
 }
 type Row = { row: number; bank: string; bankKey: string; account: AccountCells | null; line: LineCells | null }
 
@@ -209,6 +212,20 @@ function readRow(table: TableRow, fail: Fail): Row | null {
     fail('badSymbol', row, `dans ${title('symbol')}, ${q(symbol)} n’est pas un symbole boursier${NB}: des lettres, des chiffres, des points et des tirets, par exemple CW8.PA.`)
     symbol = undefined
   }
+  // The rate of purchases: « euros », or what 1 € was worth in the line's currency.
+  let purchase: Line['purchase'] | undefined
+  const purchaseCell = cell('purchase')
+  if (purchaseCell !== undefined && !isEmpty(purchaseCell)) {
+    const typed = shown(purchaseCell)
+    const rate = readDecimal(purchaseCell)
+    const unitsElsewhere = (currency ?? 'EUR') !== 'EUR' && kind !== 'amount'
+    if (unitsElsewhere && normalizeWord(typed) === normalizeWord(PURCHASE_IN_EUROS_WORD)) purchase = { inEuros: true }
+    else if (unitsElsewhere && rate.ok && rate.value !== null && rate.value >= PURCHASE_RATE_MIN && rate.value <= PURCHASE_RATE_MAX) {
+      purchase = { perEuro: rate.value }
+    } else {
+      fail('badPurchase', row, `dans ${title('purchase')}, ${q(typed)} n’est pas un taux d’achat${NB}: pour un placement en parts dans une autre devise que l’euro, ce que valait 1${NB}€, de 0,01 à 1${NB}000 (par exemple 1,08), ou ${q(PURCHASE_IN_EUROS_WORD)}.`)
+    }
+  }
   const line: LineCells = {
     name: lineName,
     key: normalizeWord(lineName),
@@ -218,6 +235,7 @@ function readRow(table: TableRow, fail: Fail): Row | null {
     currency,
     symbol,
     closedOn: date('closedOn'),
+    purchase,
     reference: text('reference'),
   }
   return { row, bank, bankKey, account, line }
@@ -540,6 +558,7 @@ function assemble(
       ...(line.group ? { group: line.group } : {}),
       ...(line.symbol ? { quoteSymbol: line.symbol } : {}),
       ...(line.closedOn ? { closedOn: line.closedOn } : {}),
+      ...(line.purchase ? { purchase: line.purchase } : {}),
     })
   }
   for (const [group, account] of accounts) {

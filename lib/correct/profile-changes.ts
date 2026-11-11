@@ -230,3 +230,15 @@ function fileLineKeepingChapter(profile: Profile, lineId: string, to: string | n
   if (line.category !== undefined || before === null || categoryOf(moved, findAccount(next, moved.accountId)) === before) return next
   return mapLine(next, lineId, (l) => ({ ...l, category: before }))
 }
+
+// The rate of a line's purchases (docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md): typed,
+// said to be in euros, or cleared (null) for the rate the snapshots give. Only a line in parts in another currency.
+export function setPurchase(profile: Profile, lineId: string, purchase: Line['purchase'] | null): Profile {
+  const line = findLine(profile, lineId)
+  if (line.currency === 'EUR' || line.kind !== 'units') throw new Error('Only a line in parts in another currency has a purchase rate')
+  return mapLine(profile, lineId, (l) => {
+    const rest = { ...l }
+    delete rest.purchase
+    return purchase ? { ...rest, purchase } : rest
+  })
+}

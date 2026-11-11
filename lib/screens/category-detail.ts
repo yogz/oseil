@@ -11,6 +11,7 @@ import {
   formatUnits,
   formatWholePercent,
 } from '@/lib/format'
+import { purchaseCost } from '@/lib/model/purchase-cost'
 import { gapWords, goalInEffect, goalTargets, hasSteeredSquares, splitsProperty } from '@/lib/model/goals'
 import {
   categoryOf,
@@ -269,7 +270,10 @@ export function categoryDetailView(
       const parts = [`${formatUnits(snapshotEntry.units)} ${snapshotEntry.units > 1 ? 'parts' : 'part'}`]
       if (snapshotEntry.averagePrice !== null) {
         parts.push(`prix moyen d’achat ${formatPriceShown(snapshotEntry.averagePrice, line.currency)}`)
-        const cost = toEuroCents(snapshotEntry.units * snapshotEntry.averagePrice * 100, line, snapshot.fx)
+        // In another currency, what was paid in euros, from the rates of the snapshots or as the person
+        // set it (lib/model/purchase-cost.ts); without it (a rate missing), the price at today's rate.
+        const paid = purchaseCost(line, model.snapshots.map((s) => s.value))
+        const cost = paid ? Math.round(paid.cost) : toEuroCents(snapshotEntry.units * snapshotEntry.averagePrice * 100, line, snapshot.fx)
         const gain = entryValue(snapshotEntry, line, snapshot.fx) - cost
         // A cost of zero (0 units, or an average price of 0) leaves no percent to give: such a line
         // is counted « sans prix » and says « prix d’achat manquant », like a line with no price

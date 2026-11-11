@@ -45,6 +45,10 @@ export type Line = {
   group?: GroupId // absent: never ranged
   quoteSymbol?: string
   closedOn?: IsoDate
+  // A line in another currency: the rate of its purchases typed by the person (« 1 € = 1,20 $ »), or its
+  // average price said to be in euros already. Absent: the rate comes from the snapshots
+  // (lib/model/purchase-cost.ts, docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md).
+  purchase?: { perEuro: number } | { inEuros: true }
 }
 
 // Progress of the first launch, kept in the profile so it can be resumed.

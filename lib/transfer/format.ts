@@ -88,6 +88,9 @@ export const COLUMNS = {
     col('slow', 'Long à récupérer', 'text', 16),
     col('financedLine', 'Logement financé', 'text', 18),
     col('closedOn', 'Fermée le', 'date', 13),
+    // Added 11 November 2026 (docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md): a line in another
+    // currency, the rate of its purchases typed by the person, or « euros » for an average price in euros.
+    col('purchase', 'Taux d’achat (1 € = …)', 'text', 16),
     col('reference', 'Identifiant (laisser vide)', 'text', 16, false, { quiet: true }),
     col('accountReference', 'Identifiant du compte (laisser vide)', 'text', 20, false, { quiet: true }),
   ],
@@ -141,7 +144,11 @@ const accountsTitle = (key: string) => titleOf('accounts', key)
 // test makes the import produce each of them: the note and the import cannot drift apart.
 // Grouped by the import that makes them, so each group's test can list a case per key.
 // The sheet « Comptes » and the reading of a table (shared by every sheet).
+// The word of « Taux d’achat » for an average price already in euros.
+export const PURCHASE_IN_EUROS_WORD = 'euros'
+
 export const ACCOUNT_REFUSALS = {
+  badPurchase: 'un taux d’achat illisible, hors de 0,01 à 1 000, ou sur un placement qui n’est pas en parts dans une autre devise que l’euro',
   missingSheet: 'un onglet obligatoire absent',
   missingColumn: 'une colonne obligatoire manquante',
   duplicateColumn: 'deux colonnes du même titre dans un onglet',

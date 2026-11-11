@@ -18,6 +18,7 @@ import {
   HOME_NAME,
   KIND_NAMES,
   PATH_SEPARATOR,
+  PURCHASE_IN_EUROS_WORD,
   SETTING_NAMES,
   SETTING_VALUES,
   SHEETS,
@@ -125,6 +126,7 @@ function accountRows(profile: Profile): Cell[][] {
       currency: line.currency,
       symbol: line.quoteSymbol ?? null,
       closedOn: line.closedOn ? dateCell(line.closedOn) : null,
+      purchase: line.purchase ? ('inEuros' in line.purchase ? PURCHASE_IN_EUROS_WORD : line.purchase.perEuro) : null,
       reference: line.id,
     })
   const accountRowsOf = (account: Account) => {

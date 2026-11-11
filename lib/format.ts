@@ -156,3 +156,16 @@ export function formatShortDayMonth(date: IsoDate): string {
 export function formatMonthYear(date: IsoDate): string {
   return monthYear.format(utcDate(date))
 }
+
+// « 1,08 », « 1,0872 »: a rate of exchange, two to four decimals (a field keeps them all). `short`: two.
+const rate = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+const rateShort = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+export function formatRate(value: number, short = false): string {
+  return (short ? rateShort : rate).format(value)
+}
+
+// « $US », « £GB », « CHF »: the sign of a currency as the prices of the site write it.
+export function currencySymbol(currency: CurrencyCode): string {
+  const parts = new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).formatToParts(1)
+  return parts.find((p) => p.type === 'currency')?.value ?? currency
+}

@@ -1,16 +1,17 @@
 // What the fiche of one line shows, as words and figures. Pure: no React, no database.
 
 import type { Model } from '@/lib/app/use-model'
-import { ACCOUNT_TYPES, CATEGORIES, GROUP_LABELS, isRanged } from '@/lib/catalog'
+import { ACCOUNT_TYPES, CATEGORIES, CURRENCIES, GROUP_LABELS, isRanged } from '@/lib/catalog'
 import { placeChoices } from '@/lib/correct/profile-changes'
 import { closingBounds, closingUnfinished, deleteLine } from '@/lib/correct/snapshot-changes'
 import type { StoredSnapshot } from '@/lib/correct/types'
-import { formatDayMonth, formatEurosShown, formatPriceShown, formatShortDayMonth, formatUnits } from '@/lib/format'
+import { currencySymbol, formatDayMonth, formatEurosShown, formatPriceShown, formatRate, formatShortDayMonth, formatUnits } from '@/lib/format'
 import { convertible, usablePrices, withPrices } from '@/lib/market/live'
 import type { Market } from '@/lib/market/types'
 import { lastKnownPrice } from '@/lib/market/words'
+import { purchaseCost, type PurchaseCost } from '@/lib/model/purchase-cost'
 import { categoryOf, entryValue } from '@/lib/model/situation'
-import type { CategoryId, GroupId, IsoDate, Residence } from '@/lib/model/types'
+import type { CategoryId, CurrencyCode, GroupId, IsoDate, Residence } from '@/lib/model/types'
 import { chapterOf } from '@/lib/screens/chapters'
 import { isStale } from '@/lib/update/draft'
 import { loweredCategory } from '@/lib/screens/debts'
@@ -23,6 +24,11 @@ import {
   NO_HOME,
   NO_RATE_AMOUNT,
   OWED_LABEL,
+  PURCHASE_COMPUTED,
+  PURCHASE_EUROS,
+  PURCHASE_IN_EUROS_VALUE,
+  PURCHASE_TYPED,
+  purchaseLabel,
   UNITS_LABEL,
 } from '@/lib/screens/line-words'
 import { titleRows } from '@/lib/screens/titles'
@@ -38,6 +44,18 @@ export type SheetRow =
   | { kind: 'unlock'; year: number | null } // only for an employee-savings account
   | { kind: 'slow'; slow: boolean } // not for a home, a PER, employee savings or a loan: their type decides
   | { kind: 'residence'; residence: Residence } // only for a home; absent on the account reads 'main'
+  // Only a line in parts in another currency with a purchase price: the rate of its purchases
+  // (docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md).
+  | {
+      kind: 'purchase'
+      label: string // « Le dollar à l’achat »
+      value: string
+      note: string
+      source: PurchaseCost['source']
+      perEuro: number | null
+      currency: CurrencyCode
+      words: string // « dollars américains »
+    }
 
 export type LineSheetView = {
   lineId: string
@@ -138,6 +156,22 @@ export function lineSheetView(model: Model, lineId: string, today: IsoDate, mark
     }
     if (!['home', 'per', 'employee-savings', 'loan'].includes(account.type)) {
       rows.push({ kind: 'slow', slow: account.slow === true })
+    }
+    const paid = purchaseCost(line, model.snapshots.map((s) => s.value))
+    if (paid) {
+      rows.push({
+        kind: 'purchase',
+        label: purchaseLabel(line.currency),
+        value:
+          paid.perEuro === null
+            ? PURCHASE_IN_EUROS_VALUE
+            : `1\u00A0€\u00A0=\u00A0${formatRate(paid.perEuro, true)}\u00A0${currencySymbol(line.currency)}`,
+        note: paid.source === 'computed' ? PURCHASE_COMPUTED : paid.source === 'typed' ? PURCHASE_TYPED : PURCHASE_EUROS,
+        source: paid.source,
+        perEuro: paid.perEuro,
+        currency: line.currency,
+        words: CURRENCIES.find((c) => c.code === line.currency)?.words ?? line.currency,
+      })
     }
   }
 

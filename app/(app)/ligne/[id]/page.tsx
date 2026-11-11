@@ -14,6 +14,7 @@ import { NameEdit } from '@/components/line/NameEdit'
 import { PlaceEdit } from '@/components/line/PlaceEdit'
 import { ResidenceEdit } from '@/components/line/ResidenceEdit'
 import { SlowEdit } from '@/components/line/SlowEdit'
+import { PurchaseEdit } from '@/components/line/PurchaseEdit'
 import { UnlockYearEdit } from '@/components/line/UnlockYearEdit'
 import { Button } from '@/components/ui/Button'
 import { PageColumns } from '@/components/ui/PageColumns'
@@ -22,7 +23,7 @@ import { useMenuFromModel } from '@/components/ui/use-menu-from-model'
 import { VaultWait } from '@/components/ui/VaultWait'
 import { useModel, type ModelState } from '@/lib/app/use-model'
 import { saveCorrection, type CorrectionState } from '@/lib/correct/save'
-import { fileLine, placeChoices, renameLine, setFinanced, setGroups, setResidence, setSlow, setUnlockYear } from '@/lib/correct/profile-changes'
+import { fileLine, placeChoices, renameLine, setFinanced, setGroups, setPurchase, setResidence, setSlow, setUnlockYear } from '@/lib/correct/profile-changes'
 import {
   closeLine,
   closingBounds,
@@ -182,6 +183,7 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
   const slow = view.rows.find((r) => r.kind === 'slow')
   const residence = view.rows.find((r) => r.kind === 'residence')
   const group = view.rows.find((r) => r.kind === 'group')
+  const purchase = view.rows.find((r) => r.kind === 'purchase')
 
   const bounds = closingBounds(model.snapshots, lineId, today)
 
@@ -215,6 +217,19 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
       )
     } else if (editing === 'name') {
       form = <NameEdit name={view.name} saveError={said} onSave={(name) => profileWrite((p) => renameLine(p, lineId, name))} onCancel={leave} />
+    } else if (editing === 'purchase' && purchase?.kind === 'purchase') {
+      form = (
+        <PurchaseEdit
+          perEuro={purchase.perEuro}
+          source={purchase.source}
+          label={purchase.label}
+          currency={purchase.currency}
+          words={purchase.words}
+          saveError={said}
+          onSave={(next) => profileWrite((p) => setPurchase(p, lineId, next))}
+          onCancel={leave}
+        />
+      )
     } else if (editing === 'unlock' && unlock?.kind === 'unlock') {
       form = (
         <UnlockYearEdit

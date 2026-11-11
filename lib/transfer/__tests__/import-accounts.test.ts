@@ -551,6 +551,10 @@ const REFUSAL_CASES: Record<keyof typeof ACCOUNT_REFUSALS, { errors: () => Impor
   kindNotAllowed: { errors: () => errorsOf(run({ ...livret, kind: 'Parts' })), says: 'ne se compte pas en' },
   loanCurrency: { errors: () => errorsOf(run({ ...loan, currency: 'CHF' })), says: 'se compte en euros' },
   badSymbol: { errors: () => errorsOf(run({ ...livret, symbol: 'É' })), says: 'n’est pas un symbole boursier' },
+  badPurchase: {
+    errors: () => errorsOf(run({ bank: 'Trade Republic', account: 'CTO', line: 'Apple', type: 'Compte-titres', currency: 'usd', purchase: '0' })),
+    says: 'n’est pas un taux d’achat',
+  },
   financedNotLoan: { errors: () => errorsOf(run(house, { ...livret, financedLine: 'Chez toi › Ma maison › Ma maison' })), says: 'ne se remplit que' },
   residenceNotHome: {
     errors: () => errorsOf(run({ ...loan, residence: 'Investissement locatif' })),
@@ -590,5 +594,19 @@ describe('the « Pour une IA » note and the import agree on what is refused', (
     for (const text of [note, plain(guideNote({ profile: 0, snapshots: 0, goals: 0, settings: 0 }).join('\n'))]) {
       expect(text).toContain('Une banque ou un compte encore vide a aussi sa ligne')
     }
+  })
+})
+
+// docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md: the rate of a line's purchases.
+describe('the rate of purchases of a line in another currency', () => {
+  const apple = { bank: 'Trade Republic', account: 'CTO', line: 'Apple', type: 'Compte-titres', currency: 'usd' }
+  const lineOf = (purchase: string) => success(run({ ...apple, purchase })).profile.lines.find((l) => l.name === 'Apple')
+  it('reads a rate, or « euros »', () => {
+    expect(lineOf('1,2')?.purchase).toEqual({ perEuro: 1.2 })
+    expect(lineOf('euros')?.purchase).toEqual({ inEuros: true })
+    expect(lineOf('')).not.toHaveProperty('purchase')
+  })
+  it('refuses a rate on a line in euros', () => {
+    expect(messages(run({ ...livret, purchase: '1,2' })).join(' ')).toContain('n’est pas un taux d’achat')
   })
 })

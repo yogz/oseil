@@ -174,7 +174,7 @@ describe('names', () => {
   it('lists the columns in the order of the spec', () => {
     expect(COLUMNS.accounts.map((c) => c.title)).toEqual([
       'Banque', 'Compte', 'Ligne', 'Type de compte', 'Type de logement', 'Catégorie', 'Chapitre', 'Façon de compter', 'Devise',
-      'Symbole suivi', 'Débloqué le', 'Long à récupérer', 'Logement financé', 'Fermée le',
+      'Symbole suivi', 'Débloqué le', 'Long à récupérer', 'Logement financé', 'Fermée le', 'Taux d’achat (1 € = …)',
       'Identifiant (laisser vide)', 'Identifiant du compte (laisser vide)',
     ])
     expect(COLUMNS.snapshots.map((c) => c.title)).toEqual([

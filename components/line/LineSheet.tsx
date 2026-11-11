@@ -59,6 +59,8 @@ function rowLabel(row: SheetRow): string {
       return SLOW_LABEL
     case 'residence':
       return RESIDENCE_LABEL
+    case 'purchase':
+      return row.label
   }
 }
 
@@ -78,6 +80,8 @@ function rowValue(row: SheetRow): string {
       return row.slow ? 'non' : 'oui'
     case 'residence':
       return RESIDENCE_LABELS[row.residence]
+    case 'purchase':
+      return row.value
   }
 }
 
@@ -219,9 +223,18 @@ function Row({
   locked: boolean
   onEdit: (editing: Editing) => void
 }) {
-  const label = <span className="text-body text-ink">{rowLabel(row)}</span>
+  // The rate of purchases says under its name where it comes from: Oseil, the person, or euros.
+  const label =
+    row.kind === 'purchase' ? (
+      <span className="flex flex-col py-2">
+        <span className="text-body text-ink">{rowLabel(row)}</span>
+        <span className="text-caption text-ink-muted">{row.note}</span>
+      </span>
+    ) : (
+      <span className="text-body text-ink">{rowLabel(row)}</span>
+    )
   const value = (
-    <span className="min-w-0 truncate text-right text-body text-ink-muted">
+    <span className={`min-w-0 truncate text-right text-body text-ink-muted ${row.kind === 'purchase' ? 'tabular-nums' : ''}`}>
       {rowValue(row)}
       {locked ? null : <span aria-hidden="true"> ›</span>}
     </span>

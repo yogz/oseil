@@ -392,7 +392,8 @@ describe('aiNote', () => {
     for (const name of Object.values(SETTING_NAMES)) expect(text).toContain(`« ${name} »`)
     for (const kind of ['accounts', 'snapshots', 'contributions', 'goals', 'settings'] as const) {
       expect(text).toContain(`« ${SHEETS[kind]} »`)
-      for (const column of COLUMNS[kind]) expect(text).toContain(`« ${column.title} »`)
+      // The text is read with plain spaces; a title may hold no-break ones (« 1 € = … »).
+      for (const column of COLUMNS[kind]) expect(text).toContain(`« ${column.title.replace(/[\u00a0\u202f]/g, ' ')} »`)
     }
   })
 

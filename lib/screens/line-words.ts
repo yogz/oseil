@@ -2,7 +2,7 @@
 // the rest is builder copy, in the specs' tone, listed to Nicolas at the end of the lot.
 
 import type { CorrectionOutcome } from '@/lib/correct/save'
-import type { AccountTypeId } from '@/lib/model/types'
+import type { AccountTypeId, CurrencyCode } from '@/lib/model/types'
 import { SAVE_FAILED } from '@/lib/screens/words'
 
 // The board.
@@ -109,3 +109,23 @@ export function outcomeSentence(outcome: CorrectionOutcome | 'failed'): string |
       return SAVE_FAILED
   }
 }
+
+// The rate of a line's purchases (docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md), in words
+// with no « taux » (review of the screens, 11 November 2026): the currency is named.
+const CURRENCY_ONE: Partial<Record<CurrencyCode, { the: string; of: string }>> = {
+  USD: { the: 'Le dollar', of: 'du dollar' },
+  GBP: { the: 'La livre', of: 'de la livre' },
+  CHF: { the: 'Le franc suisse', of: 'du franc suisse' },
+}
+export const purchaseLabel = (currency: CurrencyCode) => `${CURRENCY_ONE[currency]?.the ?? 'La devise'} à l’achat`
+export const PURCHASE_COMPUTED = 'calculé par Oseil'
+export const PURCHASE_TYPED = 'ton chiffre'
+export const PURCHASE_EUROS = 'prix moyen en euros'
+export const PURCHASE_IN_EUROS_VALUE = 'en euros'
+export const PURCHASE_QUESTION = 'Sur ton relevé de courtier, ton prix moyen d’achat est en\u00A0:'
+export const purchaseField = (words: string) => `Quand tu as acheté, 1\u00A0€ valait combien de ${words}\u00A0?`
+export const purchaseHelp = (currency: CurrencyCode) =>
+  `Oseil prend le cours ${CURRENCY_ONE[currency]?.of ?? 'de la devise'} le jour de chaque relevé\u00A0: exact si tu as acheté ce jour-là, proche sinon. Le chiffre exact est sur l’avis d’achat de ton courtier.`
+export const PURCHASE_RESET = 'Revenir au calcul d’Oseil'
+export const PURCHASE_UNREADABLE = 'Ce chiffre n’est pas lisible.'
+export const purchaseOutOfBounds = (words: string) => `Écris combien de ${words} valait 1\u00A0€, par exemple 1,08.`

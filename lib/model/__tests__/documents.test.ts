@@ -337,3 +337,22 @@ describe('parseUpdateDraft', () => {
     expect(parseUpdateDraft('draft')).toBeNull()
   })
 })
+
+// docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md: the rate of a line's purchases.
+describe('parseProfile: the purchase of a line in another currency', () => {
+  const withLine = (purchase: unknown, currency = 'USD') => {
+    const profile = clone(exampleProfile) as unknown as { lines: Record<string, unknown>[] }
+    profile.lines[0] = { ...profile.lines[0], currency, purchase }
+    return profile
+  }
+  test('keeps a typed rate, or an average price in euros', () => {
+    expect(parseProfile(withLine({ perEuro: 1.2 }))?.lines[0].purchase).toEqual({ perEuro: 1.2 })
+    expect(parseProfile(withLine({ inEuros: true }))?.lines[0].purchase).toEqual({ inEuros: true })
+  })
+  test('refuses a rate out of bounds, any other shape, or a purchase on a line in euros', () => {
+    for (const bad of [{ perEuro: 0 }, { perEuro: 5000 }, { perEuro: '1,2' }, { inEuros: false }, { perEuro: 1.2, inEuros: true }]) {
+      expect(parseProfile(withLine(bad))).toBeNull()
+    }
+    expect(parseProfile(withLine({ perEuro: 1.2 }, 'EUR'))).toBeNull()
+  })
+})
