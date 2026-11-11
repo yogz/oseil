@@ -9,7 +9,7 @@ import type { Profile } from '@/lib/model/types'
 import type { ImportResult, ImportSummary } from '@/lib/transfer/import'
 import type { ImportError } from '@/lib/transfer/import-types'
 import ImportPage from '../importer/page'
-import { AI_PROMPT } from '@/lib/transfer/instructions'
+import { AI_LINK_PROMPT, AI_PROMPT } from '@/lib/transfer/instructions'
 
 const mocks = vi.hoisted(() => ({
   state: { current: { status: 'loading' } as unknown },
@@ -117,18 +117,36 @@ test('before a choice: how to export from Numbers, the pill over a hidden file f
 })
 
 // The AI way (Nicolas, 10 November 2026): the person is told, before anything, that the AI reads
-// their figures; the words to paste are on screen whole, and copied by a touch.
-test('the AI way says who reads the figures, shows the whole prompt and copies it', async () => {
+// their figures. Since 11 November 2026 (Nicolas: « trop long à copier ») what is copied is one short
+// sentence that sends the AI to the instructions at /consignes-ia.md; it is on screen whole.
+test('the AI way says who reads the figures, shows the short sentence and copies it', async () => {
   const writeText = vi.fn().mockResolvedValue(undefined)
   vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
   render(<ImportPage />)
   expect(screen.getByText('Tes chiffres seront lus par cette IA, pas par Oseil.')).toBeInTheDocument()
-  expect(screen.getByTestId('ai-prompt').textContent).toBe(AI_PROMPT)
+  expect(screen.getByTestId('ai-prompt').textContent).toBe(AI_LINK_PROMPT)
+  expect(AI_LINK_PROMPT).toContain('https://oseil.fr/consignes-ia.md')
+  expect(AI_LINK_PROMPT.length).toBeLessThan(300)
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copier la consigne' }))
   })
-  expect(writeText).toHaveBeenCalledWith(AI_PROMPT)
+  expect(writeText).toHaveBeenCalledWith(AI_LINK_PROMPT)
   expect(screen.getByRole('button', { name: 'Consigne copiée' })).toBeInTheDocument()
+  vi.unstubAllGlobals()
+})
+
+// For an AI that cannot open a link: the whole instructions, copied by a touch, folded.
+test('the whole instructions stay one touch away, for an AI that opens no link', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+  render(<ImportPage />)
+  const details = screen.getByTestId('ai-prompt-full').closest('details')!
+  expect(details.open).toBe(false)
+  expect(screen.getByTestId('ai-prompt-full').textContent).toBe(AI_PROMPT)
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Copier la consigne complète' }))
+  })
+  expect(writeText).toHaveBeenCalledWith(AI_PROMPT)
   vi.unstubAllGlobals()
 })
 
@@ -156,13 +174,6 @@ test('the AI way is marked experimental, in three steps, and asks for no templat
   expect(hand.compareDocumentPosition(download) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
 
-test('the whole prompt is folded under « Lire la consigne », one touch away', () => {
-  render(<ImportPage />)
-  const details = screen.getByTestId('ai-prompt').closest('details')!
-  expect(details.open).toBe(false)
-  expect(screen.getByText('Lire la consigne')).toBeInTheDocument()
-})
-
 test('without a clipboard, the prompt stays on screen and nothing breaks', async () => {
   vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText: vi.fn().mockRejectedValue(new Error('refused')) } })
   render(<ImportPage />)
@@ -170,8 +181,8 @@ test('without a clipboard, the prompt stays on screen and nothing breaks', async
     fireEvent.click(screen.getByRole('button', { name: 'Copier la consigne' }))
   })
   expect(screen.getByRole('button', { name: 'Copier la consigne' })).toBeInTheDocument()
-  expect(screen.getByTestId('ai-prompt').textContent).toBe(AI_PROMPT)
-  expect(screen.getByTestId('ai-prompt').closest('details')!.open).toBe(true)
+  // The short sentence is on screen, whole, to be selected by hand.
+  expect(screen.getByTestId('ai-prompt').textContent).toBe(AI_LINK_PROMPT)
   vi.unstubAllGlobals()
 })
 

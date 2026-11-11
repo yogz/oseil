@@ -23,7 +23,7 @@ import type { Model, ModelState } from '@/lib/app/use-model'
 import { useModel } from '@/lib/app/use-model'
 import { downloadBlob } from '@/lib/transfer/download'
 import { TEMPLATE_FILE_NAME, templateSheets } from '@/lib/transfer/export'
-import { AI_PROMPT } from '@/lib/transfer/instructions'
+import { AI_LINK_PROMPT, AI_PROMPT } from '@/lib/transfer/instructions'
 import { importFile, type ImportedData, type ImportSummary } from '@/lib/transfer/import'
 import type { ImportError } from '@/lib/transfer/import-types'
 import { isVaultEmpty, saveImport, VaultNotEmptyError } from '@/lib/transfer/save-import'
@@ -283,31 +283,42 @@ function Steps({ ready }: { ready: Ready }) {
   )
 }
 
-// The words to paste into the AI, copied by a touch. The whole text stays one touch away under
-// « Lire la consigne » (what is pasted is never hidden), folded since it carries the file's whole
-// instructions. Without a clipboard (refused, an old browser), the text opens, selected by a touch.
+// The words to paste into the AI, copied by a touch: one short sentence that sends the AI to the
+// instructions at /consignes-ia.md (Nicolas, 11 November 2026: the whole text was too long to copy on a
+// phone). The sentence is on screen whole: what is pasted is never hidden. For an AI that opens no link,
+// the whole instructions stay one touch away, folded, with their own copy.
 function AiPrompt() {
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<'short' | 'full' | null>(null)
   const [open, setOpen] = useState(false)
-  async function copy() {
+  async function copy(which: 'short' | 'full') {
     try {
-      await navigator.clipboard.writeText(AI_PROMPT)
-      setCopied(true)
+      await navigator.clipboard.writeText(which === 'short' ? AI_LINK_PROMPT : AI_PROMPT)
+      setCopied(which)
     } catch {
-      setOpen(true)
+      // Without a clipboard the short sentence is on screen to select; the whole text opens.
+      if (which === 'full') setOpen(true)
     }
   }
   return (
-    <div className="mt-2 flex flex-col items-start gap-1">
-      <Button variant="secondary" onClick={copy}>
-        {copied ? 'Consigne copiée' : 'Copier la consigne'}
+    <div className="mt-2 flex flex-col items-start gap-2">
+      <p
+        data-testid="ai-prompt"
+        className="self-stretch rounded-control bg-field p-3 text-caption leading-normal text-ink-soft select-all"
+      >
+        {AI_LINK_PROMPT}
+      </p>
+      <Button variant="secondary" onClick={() => copy('short')}>
+        {copied === 'short' ? 'Consigne copiée' : 'Copier la consigne'}
       </Button>
       <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className="self-stretch">
         <summary className={`${TEXT_LINK} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
-          {open ? 'Replier la consigne' : 'Lire la consigne'}
+          Ton IA n’ouvre pas les liens ?
         </summary>
+        <button type="button" className={`${TEXT_LINK} mt-1 block`} onClick={() => copy('full')}>
+          {copied === 'full' ? 'Consigne complète copiée' : 'Copier la consigne complète'}
+        </button>
         <p
-          data-testid="ai-prompt"
+          data-testid="ai-prompt-full"
           className="mt-2 max-h-64 overflow-y-auto whitespace-pre-line rounded-control bg-field p-3 text-caption leading-normal text-ink-soft select-all"
         >
           {AI_PROMPT}

@@ -3,6 +3,7 @@
 // comes from the catalogue and from COLUMNS, the constants the import reads: the
 // instructions cannot say a word the import refuses.
 import { ACCOUNT_TYPES, BANKS, CATEGORIES, CURRENCIES, GROUP_LABELS, OTHER_BANKS, RANGED_GROUPS, RESIDENCE_LABELS } from '@/lib/catalog'
+import { SITE_URL } from '@/lib/app/site-metadata'
 import { canHold } from '@/lib/correct/profile-changes'
 import type { AccountTypeId, CategoryId } from '@/lib/model/types'
 import {
@@ -366,6 +367,10 @@ export function aiNote(): string[] {
 // What the person pastes into ChatGPT or Claude (the import screen's « Copier la consigne »): the
 // whole of the assistant's part of « Pour une IA », so no file has to be joined. No figure in it:
 // it is the same text for everyone, and Oseil never sends it anywhere.
+// The one sentence the import copies (Nicolas, 11 November 2026): the AI reads the whole instructions at
+// /consignes-ia.md (app/consignes-ia.md/route.ts). AI_PROMPT stays for an AI that cannot open a link.
+export const AI_LINK_PROMPT = `Lis les consignes de ${SITE_URL}/consignes-ia.md et suis-les à la lettre${NB}: elles expliquent comment faire, à partir des relevés que je vais te donner, le fichier Excel à importer dans Oseil.`
+
 export const AI_PROMPT = [
   `Aide-moi à mettre mon patrimoine dans Oseil, un site de suivi de patrimoine, par un fichier Excel à importer. Voici comment faire.`,
   ...assistantLines(),
