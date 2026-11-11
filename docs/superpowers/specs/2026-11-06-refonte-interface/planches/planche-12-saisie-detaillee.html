@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 12 — la saisie détaillée</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .board-head { max-width: 980px; margin: 0 auto 28px; }
+  .board-head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .board-head p { color: #a3a4a8; font-size: 15px; line-height: 1.55; }
+  .board-head p + p { margin-top: 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 32px 24px; justify-content: center; align-items: flex-start; }
+  .col { width: 372px; display: flex; flex-direction: column; gap: 14px; }
+  .caption h2 { font-size: 16px; font-weight: 600; }
+  .caption h2 span { color: #8a8b90; font-weight: 500; margin-right: 6px; }
+  .caption p { color: #a3a4a8; font-size: 13.5px; line-height: 1.5; margin-top: 4px; min-height: 100px; }
+
+  .phone { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --field: rgba(255,255,255,0.05); --gain: #3FD182;
+    width: 372px; border: 1px solid #2c2d31; border-radius: 34px; overflow: hidden; background: var(--bg); color: var(--text); display: flex; flex-direction: column; font-variant-numeric: tabular-nums; position: relative; }
+  .screen { padding: 14px 18px 22px; flex: 1; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 4px 14px; }
+  .muted { color: var(--muted); }
+  .gain { color: var(--gain); }
+  .topline { display: flex; justify-content: space-between; align-items: center; min-height: 36px; font-size: 14px; color: var(--muted); }
+  .title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin-top: 6px; }
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 14px; }
+  .steps i { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.14); }
+  .steps i.now { background: var(--soft); opacity: .6; }
+  .lead { font-size: 14px; color: var(--soft); line-height: 1.55; margin-top: 12px; }
+
+  .field-row { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .field-row .lbl { display: flex; justify-content: space-between; font-size: 15px; }
+  .field-row .lbl small { font-size: 12.5px; color: var(--muted); }
+  .ctl { display: flex; gap: 8px; margin-top: 9px; align-items: center; }
+  .input { flex: 1; height: 48px; border-radius: 10px; background: var(--field); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: flex-end; padding: 0 14px; font-size: 17px; }
+  .input.edited { border-color: var(--text); }
+  .input .unit { color: var(--muted); font-size: 13px; margin-right: auto; }
+  .pill { height: 48px; padding: 0 14px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.22); background: transparent; color: var(--text); font: 500 13px Inter, sans-serif; white-space: nowrap; }
+  .pill.on { background: rgba(255,255,255,0.12); border-color: transparent; }
+  .calc { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .calc b { color: var(--text); font-weight: 500; font-size: 14px; }
+  .link { font-size: 13px; color: var(--soft); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,0.3); }
+  .actions { padding-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .primary { height: 52px; border-radius: 26px; background: var(--text); color: var(--bg); border: none; font: 600 15px Inter, sans-serif; }
+
+  /* bottom sheet */
+  .dim { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #12151b; border-radius: 22px 22px 0 0; padding: 10px 18px 26px; border-top: 1px solid rgba(255,255,255,0.1); }
+  .grab { width: 40px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.25); margin: 0 auto 14px; }
+  .sheet h3 { font-size: 18px; font-weight: 600; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 14px; background: rgba(255,255,255,0.06); border-radius: 24px; padding: 4px; }
+  .seg span { text-align: center; padding: 11px 0; border-radius: 20px; font-size: 14px; color: var(--muted); }
+  .seg span.on { background: var(--text); color: var(--bg); font-weight: 600; }
+  .q { font-size: 14px; margin-top: 16px; }
+  .result { margin-top: 16px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.05); font-size: 14px; line-height: 1.55; color: var(--soft); }
+  .result b { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="board-head">
+    <h1>Planche 12 — la saisie détaillée des actions et des fonds</h1>
+    <p>Le principe : <strong>chaque mise à jour ne demande toujours qu'un chiffre par ligne.</strong> Pour un livret, c'est le montant. Pour une action ou un fonds, c'est son prix du jour : le nombre de parts est déjà connu, et l'application calcule la valeur.</p>
+    <p>Le nombre de parts et le prix moyen d'achat ne changent que quand tu achètes ou vends. Ils ont donc leur propre geste, « J'ai acheté ou vendu », à part de la mise à jour. Ce sont eux qui permettent d'afficher « a gagné 3 329 € depuis l'achat ».</p>
+  </div>
+  <div class="row" id="row"></div>
+
+<script>
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+  const steps = `<div class="steps"><i class="now"></i><i></i><i></i><i></i><i></i></div>`;
+
+  const stock = (name, where, parts, price, oldPrice, value, edited) => `
+    <div class="field-row">
+      <div class="lbl"><span>${name}</span><small>${where}</small></div>
+      <div class="ctl"><span class="input ${edited ? 'edited' : ''}"><span class="unit">prix d'une part</span>${price}</span><button class="pill ${edited ? '' : 'on'}">Inchangé</button></div>
+      <div class="calc"><span>${parts} parts${edited ? ` · avant ${oldPrice}` : ''}</span><b>= ${value}</b></div>
+      <div style="margin-top:8px"><span class="link">J'ai acheté ou vendu</span></div>
+    </div>`;
+
+  const bankStep = `
+    <div class="screen">${status}
+      <div class="topline"><span>‹ Retour</span><span>1 sur 5</span></div>
+      <div class="title">BoursoBank</div>
+      ${steps}
+      <div class="field-row">
+        <div class="lbl"><span>Livret A</span><small>livret</small></div>
+        <div class="ctl"><span class="input edited">11 000 €</span><button class="pill">Inchangé</button></div>
+        <div class="calc"><span>avant 10 000 €</span><span></span></div>
+      </div>
+      ${stock('iShares MSCI World', 'PEA', '3 800', '5,89 €', '5,53 €', '22 382 €', true)}
+      ${stock('Air Liquide', 'PEA', '38', '171,05 €', '', '6 500 €', false)}
+      ${stock('LVMH', 'PEA', '6', '650,00 €', '700,00 €', '3 900 €', true)}
+      <div class="actions"><button class="primary">Suivant : Linxea</button></div>
+    </div>`;
+
+  const sheet = `
+    <div class="screen">${status}
+      <div class="topline"><span>‹ Retour</span><span>1 sur 5</span></div>
+      <div class="title">BoursoBank</div>
+      ${steps}
+      ${stock('iShares MSCI World', 'PEA', '3 800', '5,89 €', '5,53 €', '22 382 €', true)}
+    </div>
+    <div class="dim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <h3>iShares MSCI World</h3>
+      <div class="muted" style="font-size:13px;margin-top:3px">PEA chez BoursoBank · 3 800 parts aujourd'hui</div>
+      <div class="seg"><span class="on">J'ai acheté</span><span>J'ai vendu</span></div>
+      <div class="q">Combien de parts ?</div>
+      <div class="ctl"><span class="input edited">200</span></div>
+      <div class="q">À quel prix l'une ?</div>
+      <div class="ctl"><span class="input edited">5,80 €</span></div>
+      <div class="result">Tu auras <b>4 000 parts</b>, achetées en moyenne <b>4,71 €</b> l'une (avant : 4,65 €).</div>
+      <div class="actions"><button class="primary">Valider l'achat</button></div>
+    </div>`;
+
+  const SCREENS = [
+    { l: '1', t: 'Une banque, avec ses actions', d: 'Le Livret A se met à jour par son montant. Chaque action ou fonds, par son prix du jour : on recopie le cours que montre l\'appli de la banque, et l\'écran calcule la valeur (3 800 parts × 5,89 € = 22 382 €). Toujours un seul chiffre par ligne.', h: bankStep },
+    { l: '2', t: 'J\'ai acheté ou vendu', d: 'Un volet qui monte depuis le bas. On dit combien de parts et à quel prix ; l\'écran montre le nouveau nombre de parts et le nouveau prix moyen d\'achat avant de valider. Ce geste existe aussi en dehors de la mise à jour, depuis le détail d\'une ligne.', h: sheet, tall: true },
+  ];
+  document.getElementById('row').innerHTML = SCREENS.map((s) => `
+    <div class="col"><div class="caption"><h2><span>${s.l}</span>${s.t}</h2><p>${s.d}</p></div><div class="phone" style="${s.tall ? 'height:828px' : ''}">${s.h}</div></div>`).join('');
+</script>
+</body>
+</html>

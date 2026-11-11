@@ -1,0 +1,84 @@
+// The goals the person sets at first launch, in whole percents of the money
+// outside Chez toi. Pure: no React, no database. Chez toi has no goal: its
+// monthly repayments and new estimates would otherwise move the gap on their own.
+
+import { GOAL_CATEGORIES, GOAL_PRESETS } from '@/lib/catalog'
+import { heldValue } from '@/lib/model/goals'
+import type { Situation } from '@/lib/model/situation'
+import { largestRemainder, type Grid } from '@/lib/model/squares'
+import type { Cents, GoalAllocation, GoalCategory, IsoDate, Profile } from '@/lib/model/types'
+
+type GridOnly = Extract<Grid, { kind: 'grid' }>
+
+// The sentence of the editor when every square is Chez toi's. `homes`: how many homes Chez toi holds
+// (chezToiHomes); none (a property line on another account alone) reads as one.
+export function nothingToSplit(homes: number): string {
+  const where = homes > 1 ? 'dans tes logements' : 'dans ton logement'
+  return `Tout ton argent est ${where} : il n’y a rien à répartir pour l’instant.`
+}
+
+// The homes of Chez toi in this situation: the lines of its pocket held on a home, a rental never.
+export function chezToiHomes(profile: Profile, situation: Situation): number {
+  const held = situation.categories.find((c) => c.pockets)?.pockets?.['chez-toi'].lines ?? []
+  return held.filter((h) => {
+    const line = profile.lines.find((l) => l.id === h.lineId)
+    return line !== undefined && profile.accounts.find((a) => a.id === line.accountId)?.type === 'home'
+  }).length
+}
+
+export type GoalsDraft = Record<GoalCategory, number> // whole percents of the money outside the home, totalling 100
+export type GoalPreset = 'current' | keyof typeof GOAL_PRESETS
+
+const WHOLE = 100
+
+// The goal shares a saved goal shows (the Réglages): the rental share only once it is above 0, so a
+// person without one sees today's four.
+export function shownGoalCategories(shares: Record<GoalCategory, number>): GoalCategory[] {
+  return GOAL_CATEGORIES.filter((c) => c !== 'rental' || shares[c] > 0)
+}
+
+// The rows of the editor, and the parts of its bar: one rule for both, fixed when it opens, so that a
+// share brought down to 0 keeps its row. The rental row when the person has a rental, or when the
+// goal saved gives it a part (without the row, the sum on screen would not make 100).
+export function editorCategories(hasRental: boolean, saved: Record<GoalCategory, number> | null): GoalCategory[] {
+  return GOAL_CATEGORIES.filter((c) => c !== 'rental' || hasRental || (saved?.rental ?? 0) > 0)
+}
+
+// What the goals are shared out of: every goal share, Chez toi left out, the rental included. The
+// grid holds only what is positive: a rental under its loans counts for nothing here.
+export function outsideHome(grid: GridOnly): Cents {
+  return GOAL_CATEGORIES.reduce((sum, c) => sum + heldValue(grid, c), 0)
+}
+
+// Today's split of the money outside the home; null when there is none.
+export function startGoals(grid: GridOnly): GoalsDraft | null {
+  if (outsideHome(grid) <= 0) return null
+  const parts = largestRemainder(
+    GOAL_CATEGORIES.map((c) => heldValue(grid, c)),
+    WHOLE,
+  )
+  return Object.fromEntries(GOAL_CATEGORIES.map((c, i) => [c, parts[i]])) as GoalsDraft
+}
+
+// An example takes its shares exactly; « current » goes back to today's split.
+export function applyPreset(preset: GoalPreset, current: GoalsDraft): GoalsDraft {
+  if (preset === 'current') return { ...current }
+  return { ...GOAL_PRESETS[preset].shares }
+}
+
+export function remaining(draft: GoalsDraft): number {
+  return WHOLE - GOAL_CATEGORIES.reduce((sum, c) => sum + draft[c], 0)
+}
+
+// One percent at a time: never below 0, never more than 100 in total.
+export function step(draft: GoalsDraft, category: GoalCategory, delta: 1 | -1): GoalsDraft {
+  const next = draft[category] + delta
+  if (next < 0 || (delta === 1 && remaining(draft) <= 0)) return draft
+  return { ...draft, [category]: next }
+}
+
+// The shares saved are the percents shown, as they are.
+export function toAllocation(draft: GoalsDraft, today: IsoDate): GoalAllocation {
+  if (remaining(draft) !== 0) throw new Error('Every percent must be placed before saving')
+  return { schema: 1, validFrom: today, shares: { ...draft } }
+}

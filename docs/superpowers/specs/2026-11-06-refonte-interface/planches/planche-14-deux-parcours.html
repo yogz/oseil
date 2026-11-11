@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 14 — les parcours de mise à jour</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .board-head { max-width: 1000px; margin: 0 auto 32px; }
+  .board-head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .board-head p { color: #a3a4a8; font-size: 15px; line-height: 1.55; }
+  section { max-width: 1000px; margin: 0 auto 56px; padding-top: 28px; border-top: 1px solid #34353a; }
+  section h2 { font-size: 20px; font-weight: 600; }
+  section h2 span { display: inline-block; min-width: 30px; height: 30px; line-height: 30px; text-align: center; border-radius: 15px; background: #e8e8ea; color: #111; font-size: 15px; margin-right: 10px; padding: 0 8px; }
+  section .sub { color: #a3a4a8; font-size: 14.5px; line-height: 1.55; margin: 8px 0 6px; max-width: 860px; }
+  .pc { display: flex; gap: 28px; font-size: 14px; line-height: 1.5; color: #a3a4a8; margin: 10px 0 22px; max-width: 900px; }
+  .pc div { flex: 1; }
+  .pc b { color: #e8e8ea; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .col { width: 372px; display: flex; flex-direction: column; gap: 10px; }
+  .col .cap { font-size: 13.5px; color: #a3a4a8; line-height: 1.5; min-height: 40px; }
+  .col .cap b { color: #e8e8ea; font-weight: 600; }
+
+  .phone { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --field: rgba(255,255,255,0.05); --gain: #3FD182;
+    width: 372px; border: 1px solid #2c2d31; border-radius: 34px; overflow: hidden; background: var(--bg); color: var(--text); display: flex; flex-direction: column; font-variant-numeric: tabular-nums; position: relative; }
+  .screen { padding: 14px 18px 22px; flex: 1; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 4px 14px; }
+  .muted { color: var(--muted); }
+  .topline { display: flex; justify-content: space-between; align-items: center; min-height: 36px; font-size: 14px; color: var(--muted); }
+  .title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin-top: 6px; }
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 14px; }
+  .steps i { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.14); }
+  .steps i.now { background: var(--soft); opacity: .6; }
+  .lead { font-size: 14px; color: var(--soft); line-height: 1.55; margin-top: 12px; }
+  .field-row { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .lbl { display: flex; justify-content: space-between; font-size: 15px; }
+  .lbl small { font-size: 12.5px; color: var(--muted); }
+  .ctl { display: flex; gap: 8px; margin-top: 9px; align-items: center; }
+  .input { flex: 1; height: 48px; border-radius: 10px; background: var(--field); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: flex-end; padding: 0 14px; font-size: 17px; }
+  .input.edited { border-color: var(--text); }
+  .input .unit { color: var(--muted); font-size: 13px; margin-right: auto; }
+  .pill { height: 48px; padding: 0 14px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.22); background: transparent; color: var(--text); font: 500 13px Inter, sans-serif; white-space: nowrap; }
+  .pill.on { background: rgba(255,255,255,0.12); border-color: transparent; }
+  .calc { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .calc b { color: var(--text); font-weight: 500; font-size: 14px; }
+  .link { font-size: 13px; color: var(--soft); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,0.3); margin-top: 8px; display: inline-block; }
+  .actions { padding-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .primary { height: 52px; border-radius: 26px; background: var(--text); color: var(--bg); border: none; font: 600 15px Inter, sans-serif; }
+  .trio { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 9px; }
+  .trio > div { display: flex; flex-direction: column; gap: 4px; }
+  .trio span { font-size: 11.5px; color: var(--muted); }
+  .trio .input, .duo .input { flex: none; }
+  .trio .input { font-size: 15px; padding: 0 10px; }
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.04); }
+  .duo > div { display: flex; flex-direction: column; gap: 4px; }
+  .duo span { font-size: 12px; color: var(--muted); }
+  .duo .input { font-size: 15px; }
+  .duo p { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+
+  .dim { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #12151b; border-radius: 22px 22px 0 0; padding: 10px 18px 26px; border-top: 1px solid rgba(255,255,255,0.1); }
+  .grab { width: 40px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.25); margin: 0 auto 14px; }
+  .sheet h3 { font-size: 18px; font-weight: 600; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 14px; background: rgba(255,255,255,0.06); border-radius: 24px; padding: 4px; }
+  .seg span { text-align: center; padding: 11px 0; border-radius: 20px; font-size: 14px; color: var(--muted); }
+  .seg span.on { background: var(--text); color: var(--bg); font-weight: 600; }
+  .q { font-size: 14px; margin-top: 16px; }
+  .result { margin-top: 16px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.05); font-size: 14px; line-height: 1.55; color: var(--soft); }
+  .result b { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="board-head">
+    <h1>Planche 14 — mettre à jour une action : les trois parcours côte à côte</h1>
+    <p>Dans les trois cas, la première fois qu'on ajoute une action, on donne tout : parts, prix moyen d'achat, prix du jour. Ce qui change, c'est ce qu'on tape <strong>à chaque mise à jour</strong>. Même exemple partout : BoursoBank, iShares MSCI World dont tu as acheté 200 parts depuis la dernière fois.</p>
+  </div>
+
+  <section>
+    <h2><span>A</span>Un seul prix, et un geste pour les achats</h2>
+    <p class="sub">À chaque mise à jour, une seule case par action : son prix du jour. Si tu as acheté ou vendu, tu touches « J'ai acheté ou vendu » et tu dis combien de parts, à quel prix : l'écran recalcule le prix moyen.</p>
+    <div class="pc"><div><b>Pour</b> : la mise à jour la plus courte, une case par ligne.</div><div><b>Contre</b> : un calcul que la banque a déjà fait, et le prix moyen calculé ne compte pas les frais : il peut s'écarter un peu de celui de ta banque.</div></div>
+    <div class="row" id="row-a"></div>
+  </section>
+
+  <section>
+    <h2><span>B</span>Tout recopier à chaque fois</h2>
+    <p class="sub">À chaque mise à jour, trois cases par action : parts, prix moyen d'achat, prix du jour. Tout est déjà rempli avec la dernière fois ; tu recopies ce que montre ta banque.</p>
+    <div class="pc"><div><b>Pour</b> : aucun calcul, le prix moyen est exactement celui de la banque, frais compris.</div><div><b>Contre</b> : trois cases par ligne, une mise à jour plus longue, et plus intimidante pour un débutant.</div></div>
+    <div class="row" id="row-b"></div>
+  </section>
+
+  <section>
+    <h2><span>A + B</span>Le mélange (ma recommandation)</h2>
+    <p class="sub">Par défaut, une seule case par action, comme A. Sous chaque action, « Les parts ou le prix moyen ont changé ? » ouvre les deux autres cases, déjà remplies, où tu recopies ce que montre ta banque, comme B.</p>
+    <div class="pc"><div><b>Pour</b> : simple pour un débutant, exact pour toi, et pas de calculateur d'achat.</div><div><b>Contre</b> : il faut penser à ouvrir les deux cases quand tu as acheté ou vendu.</div></div>
+    <div class="row" id="row-m"></div>
+  </section>
+
+<script>
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+  const head = `<div class="topline"><span>‹ Retour</span><span>1 sur 5</span></div><div class="title">BoursoBank</div><div class="steps"><i class="now"></i><i></i><i></i><i></i><i></i></div>`;
+  const livret = `
+    <div class="field-row">
+      <div class="lbl"><span>Livret A</span><small>livret</small></div>
+      <div class="ctl"><span class="input edited">11 000 €</span><button class="pill">Inchangé</button></div>
+      <div class="calc"><span>avant 10 000 €</span><span></span></div>
+    </div>`;
+  const priceOnly = (name, parts, price, value, edited, linkText) => `
+    <div class="field-row">
+      <div class="lbl"><span>${name}</span><small>PEA</small></div>
+      <div class="ctl"><span class="input ${edited ? 'edited' : ''}"><span class="unit">prix d'une part</span>${price}</span><button class="pill ${edited ? '' : 'on'}">Inchangé</button></div>
+      <div class="calc"><span>${parts} parts</span><b>= ${value}</b></div>
+      <span class="link">${linkText}</span>
+    </div>`;
+  const trio = (name, parts, pru, price, value, ed) => `
+    <div class="field-row">
+      <div class="lbl"><span>${name}</span><small>PEA</small></div>
+      <div class="trio">
+        <div><span>parts</span><div class="input ${ed.includes('p') ? 'edited' : ''}">${parts}</div></div>
+        <div><span>prix moyen d'achat</span><div class="input ${ed.includes('m') ? 'edited' : ''}">${pru}</div></div>
+        <div><span>prix du jour</span><div class="input ${ed.includes('j') ? 'edited' : ''}">${price}</div></div>
+      </div>
+      <div class="calc"><span>${ed ? 'modifié' : 'inchangé'}</span><b>= ${value}</b></div>
+    </div>`;
+  const phone = (body, cap, tall) => `<div class="col"><div class="cap">${cap}</div><div class="phone" style="${tall ? 'height:' + tall + 'px' : ''}">${body}</div></div>`;
+
+  /* ---------- A ---------- */
+  const A1 = `<div class="screen">${status}${head}${livret}
+    ${priceOnly('iShares MSCI World', '3 800', '5,89 €', '22 382 €', true, 'J\'ai acheté ou vendu')}
+    ${priceOnly('Air Liquide', '38', '171,05 €', '6 500 €', false, 'J\'ai acheté ou vendu')}
+    <div class="actions"><button class="primary">Suivant : Linxea</button></div></div>`;
+  const A2 = `<div class="screen">${status}${head}
+    ${priceOnly('iShares MSCI World', '3 800', '5,89 €', '22 382 €', true, 'J\'ai acheté ou vendu')}</div>
+    <div class="dim"></div>
+    <div class="sheet"><div class="grab"></div>
+      <h3>iShares MSCI World</h3>
+      <div class="muted" style="font-size:13px;margin-top:3px">3 800 parts aujourd'hui</div>
+      <div class="seg"><span class="on">J'ai acheté</span><span>J'ai vendu</span></div>
+      <div class="q">Combien de parts ?</div><div class="ctl"><span class="input edited">200</span></div>
+      <div class="q">À quel prix l'une ?</div><div class="ctl"><span class="input edited">5,80 €</span></div>
+      <div class="result">Tu auras <b>4 000 parts</b>, achetées en moyenne <b>4,71 €</b> l'une (avant : 4,65 €).</div>
+      <div class="actions"><button class="primary">Valider l'achat</button></div>
+    </div>`;
+  document.getElementById('row-a').innerHTML =
+    phone(A1, '<b>1.</b> Une case par action : le prix du jour. L\'écran calcule la valeur.') +
+    phone(A2, '<b>2.</b> Après « J\'ai acheté ou vendu » : un volet qui recalcule parts et prix moyen.', 760);
+
+  /* ---------- B ---------- */
+  const B1 = `<div class="screen">${status}${head}${livret}
+    ${trio('iShares MSCI World', '4 000', '4,71 €', '5,89 €', '23 560 €', 'pmj')}
+    ${trio('Air Liquide', '38', '149,00 €', '171,05 €', '6 500 €', '')}
+    <div class="actions"><button class="primary">Suivant : Linxea</button></div></div>`;
+  document.getElementById('row-b').innerHTML =
+    phone(B1, '<b>1.</b> Trois cases par action, déjà remplies. Tu changes celles qui ont bougé : ici, les trois pour iShares.');
+
+  /* ---------- Mélange ---------- */
+  const M1 = `<div class="screen">${status}${head}${livret}
+    ${priceOnly('iShares MSCI World', '3 800', '5,89 €', '22 382 €', true, 'Les parts ou le prix moyen ont changé ?')}
+    ${priceOnly('Air Liquide', '38', '171,05 €', '6 500 €', false, 'Les parts ou le prix moyen ont changé ?')}
+    <div class="actions"><button class="primary">Suivant : Linxea</button></div></div>`;
+  const M2 = `<div class="screen">${status}${head}
+    <div class="field-row">
+      <div class="lbl"><span>iShares MSCI World</span><small>PEA</small></div>
+      <div class="ctl"><span class="input edited"><span class="unit">prix d'une part</span>5,89 €</span><button class="pill">Inchangé</button></div>
+      <div class="duo">
+        <div><span>parts</span><div class="input edited">4 000</div></div>
+        <div><span>prix moyen d'achat</span><div class="input edited">4,71 €</div></div>
+        <p>Recopie ce que montre ta banque. Avant : 3 800 parts à 4,65 €.</p>
+      </div>
+      <div class="calc"><span>4 000 parts</span><b>= 23 560 €</b></div>
+    </div>
+    ${priceOnly('Air Liquide', '38', '171,05 €', '6 500 €', false, 'Les parts ou le prix moyen ont changé ?')}
+    <div class="actions"><button class="primary">Suivant : Linxea</button></div></div>`;
+  document.getElementById('row-m').innerHTML =
+    phone(M1, '<b>1.</b> Par défaut, comme A : une case par action.') +
+    phone(M2, '<b>2.</b> Après avoir touché le lien sous iShares : les deux cases s\'ouvrent, déjà remplies.');
+</script>
+</body>
+</html>

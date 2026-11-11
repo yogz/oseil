@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 7 — l'écran d'ouverture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .board-head { max-width: 980px; margin: 0 auto 28px; }
+  .board-head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .board-head p { color: #a3a4a8; font-size: 15px; line-height: 1.55; }
+  .stage { display: flex; gap: 40px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+
+  .notes { width: 420px; list-style: none; display: flex; flex-direction: column; gap: 18px; padding-top: 8px; }
+  .notes li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; }
+  .notes .num { width: 24px; height: 24px; border-radius: 50%; background: #e8e8ea; color: #111; font: 600 13px Inter, sans-serif; display: flex; align-items: center; justify-content: center; }
+  .notes h3 { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .notes p { font-size: 14px; color: #a3a4a8; line-height: 1.5; }
+  .notes .open { color: #e0a244; }
+
+  /* ---------- Phone ---------- */
+  .phone { --bg: #06080c; --text: #f1f5f9; --muted: #7e8b9b; --rule: rgba(255,255,255,0.08); --rule-strong: rgba(255,255,255,0.22); --debt: #FF5C7A; --gain: #3FD182;
+    width: 392px; border: 1px solid #2c2d31; border-radius: 34px; background: var(--bg); flex-shrink: 0; margin-left: 40px; }
+  .screen { padding: 14px 16px 28px; color: var(--text); }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 6px 14px; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .pin { position: relative; }
+  .pin::before { content: attr(data-n); position: absolute; left: -38px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%; background: #e8e8ea; color: #111; font: 600 12px Inter, sans-serif; display: flex; align-items: center; justify-content: center; }
+  .head { padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+  .brand { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+  .fresh { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 12px; }
+  .fresh .when { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+  .fresh .when b { color: var(--text); font-weight: 500; }
+  .update { flex-shrink: 0; min-height: 40px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: 4px; background: transparent; color: var(--text); font: 500 13px Inter, sans-serif; }
+  .ledger { padding: 18px 0 16px; border-bottom: 1px solid var(--rule); }
+  .ledger-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; padding: 3px 0; }
+  .ledger-row .lbl { color: var(--muted); }
+  .ledger-row .debt { color: var(--debt); }
+  .ledger-total { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--rule-strong); }
+  .ledger-total .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .net { font: 600 40px/1.1 'JetBrains Mono', monospace; letter-spacing: -0.03em; margin-top: 4px; }
+  .square-value { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .square-value .main { font-size: 15px; }
+  .square-value .main b { font-weight: 600; }
+  .gain { color: var(--gain); font-size: 13px; margin-left: 6px; }
+  .square-value .sub { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  .switches { display: flex; justify-content: space-between; padding: 4px 0; }
+  .tabs { display: flex; gap: 2px; }
+  .tab { padding: 12px 10px; min-height: 44px; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tab.on { color: var(--text); border-bottom-color: var(--text); }
+  .tabs:first-child .tab:first-child { padding-left: 0; }
+  .verdict { font-size: 15px; font-weight: 600; padding: 16px 0 4px; }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin: 12px 0 18px; }
+  .cell { aspect-ratio: 1; border-radius: 2px; }
+  .legend { border-top: 1px solid var(--rule); }
+  .line { display: grid; grid-template-columns: 12px 1fr auto; column-gap: 10px; row-gap: 6px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--rule); min-height: 48px; }
+  .sw { width: 12px; height: 12px; border-radius: 2px; }
+  .name { font-size: 14.5px; }
+  .name small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .amt { font-size: 14px; text-align: right; }
+  .gap { grid-column: 3; font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
+  .bar { grid-column: 2; display: flex; align-items: stretch; height: 6px; }
+  .bar .tick { width: 2px; background: var(--text); }
+</style>
+</head>
+<body>
+  <div class="board-head">
+    <h1>Planche 7 — l'écran d'ouverture, tout assemblé</h1>
+    <p>Tout ce qu'on a décidé jusqu'ici, réuni sur un seul écran : celui qui s'ouvre pour constater. Les numéros renvoient aux explications à droite. Ce qui est en orange n'est pas encore tranché.</p>
+  </div>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="screen" id="screen"></div>
+    </div>
+
+    <ol class="notes">
+      <li><span class="num">1</span><div><h3>La date des chiffres, et la mise à jour juste à côté</h3><p>Pas la date du jour : celle du dernier relevé, et depuis combien de temps. Quand on voit que c'est vieux, le bouton est là. Il ne prend pas plus de place que ça.</p></div></li>
+      <li><span class="num">2</span><div><h3>L'opération, de haut en bas</h3><p>Ce que je possède, moins les crédits, égale le net. Le net est en blanc : le vert est réservé aux gains, le rouge aux crédits et aux pertes.</p></div></li>
+      <li><span class="num">3</span><div><h3>La valeur d'un carré</h3><p>Ta mesure de progrès, et le prochain cap.</p></div></li>
+      <li><span class="num">4</span><div><h3>Deux bascules</h3><p class="open">Reprises telles quelles de la maquette : net ou brut, catégories ou banques. On n'en a pas encore parlé.</p></div></li>
+      <li><span class="num">5</span><div><h3>La réponse avant l'image</h3><p>Combien de carrés ne sont pas là où tes buts les veulent.</p></div></li>
+      <li><span class="num">6</span><div><h3>Les cent carrés</h3><p>Couleurs du site actuel, version profonde, liquidités en turquoise.</p></div></li>
+      <li><span class="num">7</span><div><h3>Chaque catégorie, son but, son écart</h3><p>Le montant, la barre (trait = but, plein après le trait = en trop, contour vide = manquant) et l'écart en euros. <span class="open">Ce qui s'ouvre quand on touche une ligne n'est pas encore dessiné.</span></p></div></li>
+    </ol>
+  </div>
+
+<script>
+  const SQUARE_EUR = 1720;
+  const CATS = [
+    { name: 'Liquidités et livrets',      held: 9,  target: 10, amt: '16 000 €', color: '#2FA8A2' },
+    { name: 'Fonds euros et obligations', held: 14, target: 10, amt: '24 000 €', color: '#6E77E0' },
+    { name: 'Immobilier',                 held: 46, target: 45, amt: '80 000 €', color: '#2A9A68', sub: '260 000 € − 180 000 € de crédit' },
+    { name: 'Actions et bourse',          held: 26, target: 30, amt: '44 000 €', color: '#E85C3E' },
+    { name: 'Crypto, or et alternatifs',  held: 5,  target: 5,  amt: '8 000 €',  color: '#D9A521' },
+  ];
+  const misplaced = CATS.reduce((s, c) => s + Math.max(0, c.held - c.target), 0);
+  const eur = (n) => n.toLocaleString('fr-FR') + ' €';
+  const gapText = (c) => {
+    const d = c.held - c.target;
+    return d === 0 ? 'à sa place' : `${eur(Math.abs(d) * SQUARE_EUR)} ${d > 0 ? 'en trop' : 'manquants'}`;
+  };
+  const SCALE = Math.max(...CATS.map((c) => Math.max(c.held, c.target)));
+  const w = (n) => (n / SCALE) * 100;
+  function bar(c) {
+    const common = Math.min(c.held, c.target);
+    const short = Math.max(0, c.target - c.held);
+    const over = Math.max(0, c.held - c.target);
+    return `<div class="bar">
+      <span style="width:${w(common)}%;background:${c.color}"></span>
+      ${short ? `<span style="width:${w(short)}%;border:1px solid ${c.color}"></span>` : ''}
+      <span class="tick"></span>
+      ${over ? `<span style="width:${w(over)}%;background:${c.color}"></span>` : ''}
+    </div>`;
+  }
+  let cells = '';
+  CATS.forEach((c) => { for (let i = 0; i < c.held; i++) cells += `<div class="cell" style="background:${c.color}"></div>`; });
+
+  document.getElementById('screen').innerHTML = `
+    <div class="status"><span>9:41</span><span>●●●</span></div>
+    <div class="head">
+      <div class="brand">PatriCube</div>
+      <div class="fresh pin" data-n="1">
+        <span class="when">Chiffres du <b>30 sept. 2026</b><br>il y a 5 semaines</span>
+        <button class="update">Mettre à jour</button>
+      </div>
+    </div>
+    <div class="ledger pin" data-n="2">
+      <div class="ledger-row"><span class="lbl">Ce que je possède</span><span class="mono">352 000 €</span></div>
+      <div class="ledger-row"><span class="lbl">Crédits restant dus</span><span class="mono debt">− 180 000 €</span></div>
+      <div class="ledger-total"><div class="lbl">Patrimoine net</div><div class="net">172 000 €</div></div>
+    </div>
+    <div class="square-value pin" data-n="3">
+      <div class="main">1 carré = <b class="mono">1 720 €</b><span class="gain mono">+700 € depuis janv. 2024</span></div>
+      <div class="sub">Prochain cap : 1 carré = 2 000 €, atteint à 86 %</div>
+    </div>
+    <div class="switches pin" data-n="4">
+      <div class="tabs"><span class="tab on">Net</span><span class="tab">Brut</span></div>
+      <div class="tabs"><span class="tab on">Catégories</span><span class="tab">Banques</span></div>
+    </div>
+    <div class="verdict pin" data-n="5">${misplaced} carrés sur 100 au mauvais endroit.</div>
+    <div class="grid pin" data-n="6">${cells}</div>
+    <div class="legend pin" data-n="7">${CATS.map((c) => `
+      <div class="line">
+        <span class="sw" style="background:${c.color}"></span>
+        <span class="name">${c.name}${c.sub ? `<small>${c.sub}</small>` : ''}</span>
+        <span class="amt mono">${c.amt}</span>
+        ${bar(c)}
+        <span class="gap mono">${gapText(c)}</span>
+      </div>`).join('')}
+    </div>`;
+</script>
+</body>
+</html>

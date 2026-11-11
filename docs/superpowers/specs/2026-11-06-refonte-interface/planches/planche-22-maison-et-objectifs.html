@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 22 — la maison et les objectifs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .intro { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 940px; }
+  .intro + .intro { margin-top: 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px 24px; margin-top: 26px; align-items: flex-start; }
+  .col { width: 360px; display: flex; flex-direction: column; gap: 10px; }
+  .cap h2 { font-size: 16px; font-weight: 600; }
+  .cap h2 span { color: #8a8b90; font-weight: 500; margin-right: 6px; }
+  .cap p { font-size: 13.5px; color: #a3a4a8; line-height: 1.5; margin-top: 4px; min-height: 82px; }
+  .pick { align-self: flex-start; padding: 9px 14px; border-radius: 6px; border: 1px solid #44454a; background: transparent; color: #e8e8ea; font: 500 13.5px Inter, sans-serif; cursor: pointer; }
+  .phone { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --gain: #3FD182;
+    width: 360px; border: 1px solid #2c2d31; border-radius: 32px; overflow: hidden; background: var(--bg); color: var(--text); font-variant-numeric: tabular-nums; }
+  .screen { padding: 14px 18px 24px; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 4px 14px; }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin: 4px 0 16px; }
+  .grid i { aspect-ratio: 1; border-radius: 2px; }
+  .goal { font-size: 15px; font-weight: 600; }
+  .goal span { display: block; font-size: 13px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+  .line { display: grid; grid-template-columns: 14px 1fr auto; column-gap: 12px; row-gap: 7px; align-items: center; padding: 12px 0; border-top: 1px solid var(--rule); }
+  .sw { width: 14px; height: 14px; border-radius: 3px; }
+  .name { font-size: 15px; }
+  .amt { font-size: 15px; text-align: right; }
+  .words { grid-column: 2 / 4; font-size: 12.5px; color: var(--muted); }
+  .bar { grid-column: 2 / 4; display: flex; height: 6px; }
+  .bar .tick { width: 2px; background: var(--text); }
+  .group { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 18px 0 2px; }
+  .title { font-size: 22px; font-weight: 600; }
+  .lead { font-size: 14px; color: var(--soft); line-height: 1.55; margin-top: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { height: 38px; padding: 0 13px; border-radius: 19px; border: 1px solid rgba(255,255,255,0.22); display: inline-flex; align-items: center; font-size: 13.5px; }
+  .chip.on { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 500; }
+  .goal-row { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--rule); }
+  .goal-row .nm { font-size: 14.5px; }
+  .goal-row .nm small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stepper { display: flex; align-items: center; border: 1px solid rgba(255,255,255,0.18); border-radius: 22px; height: 42px; }
+  .stepper span { width: 36px; text-align: center; font-size: 18px; color: var(--soft); }
+  .stepper b { min-width: 46px; text-align: center; font-size: 15px; font-weight: 600; }
+  .stack { display: flex; height: 14px; border-radius: 3px; overflow: hidden; margin: 14px 0 6px; }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+  .house { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-top: 1px solid var(--rule); margin-top: 10px; font-size: 14.5px; }
+  .house small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .house > span:last-child { white-space: nowrap; margin-left: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Planche 22 — ta maison doit-elle compter dans tes objectifs ?</h1>
+  <p class="intro">On ne rééquilibre pas sa maison : on ne vend pas une chambre parce que l'immobilier pèse trop. Et chaque mensualité de crédit fait grossir sa part toute seule. En la gardant dans les objectifs, une partie de « l'écart » n'est jamais une décision.</p>
+  <p class="intro">Dans les deux cas, la grille ne change pas : elle montre toujours tout ce qui est à toi, maison comprise. Seuls les objectifs changent.</p>
+  <div class="row" id="row"></div>
+</div>
+
+<script>
+  const C = { liq: '#2FA8A2', fe: '#6E77E0', immo: '#3DB57E', act: '#D04A2E', cry: '#D9A521' };
+  const NAMES = { liq: 'Argent disponible', fe: 'Épargne sécurisée', immo: 'Immobilier', act: 'Placements en bourse', cry: 'Or et crypto' };
+  const V = { liq: '16 000 €', fe: '24 000 €', immo: '80 000 €', act: '44 000 €', cry: '8 000 €' };
+  const NOW = { liq: 9, fe: 14, immo: 46, act: 26, cry: 5 };
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+  let cells = ''; Object.keys(NOW).forEach((k) => { for (let i = 0; i < NOW[k]; i++) cells += `<i style="background:${C[k]}"></i>`; });
+  const grid = `<div class="grid">${cells}</div>`;
+  function words(d) { if (d === 0) return 'pile à ton objectif'; if (Math.abs(d) <= 1) return 'presque à ton objectif'; return d > 0 ? 'un peu au-dessus de ton objectif' : 'un peu en dessous de ton objectif'; }
+  function bar(k, held, target, scale) {
+    const w = (n) => (n / scale) * 100, col = C[k];
+    const common = Math.min(held, target), short = Math.max(0, target - held), over = Math.max(0, held - target);
+    return `<div class="bar"><span style="width:${w(common)}%;background:${col}"></span>${short ? `<span style="width:${w(short)}%;border:1px solid ${col}"></span>` : ''}<span class="tick"></span>${over ? `<span style="width:${w(over)}%;background:${col}"></span>` : ''}</div>`;
+  }
+  const line = (k, held, target, scale, extra = '') => `<div class="line"><span class="sw" style="background:${C[k]}"></span><span class="name">${NAMES[k]}</span><span class="amt">${V[k]}</span>${bar(k, held, target, scale)}<span class="words">${extra}${words(Math.round(held - target))}</span></div>`;
+
+  /* A — the house is a target like the others (today's design). */
+  const TA = { liq: 10, fe: 10, immo: 45, act: 30, cry: 5 };
+  const A = `<div class="screen">${status}${grid}
+    <div class="goal">Proche de tes objectifs<span>À 5 carrés près sur 100.</span></div>
+    <div style="margin-top:10px">${Object.keys(TA).map((k) => line(k, NOW[k], TA[k], 46, k === 'immo' ? 'estimée le 30 sept. · ' : '')).join('')}</div>
+  </div>`;
+
+  /* B — targets cover the money outside the house, in % of it, shown in squares of the grid. */
+  const REST = 54;
+  const TB = { liq: 15, fe: 35, act: 45, cry: 5 }; // % of the money outside the house
+  const tSq = (k) => (TB[k] / 100) * REST; // the same target, in squares of the whole grid
+  const misB = Math.round(['liq', 'fe', 'act', 'cry'].reduce((s, k) => s + Math.max(0, NOW[k] - tSq(k)), 0));
+  const B = `<div class="screen">${status}${grid}
+    <div class="goal">Hors ta maison, proche de tes objectifs<span>À ${misB} carrés près.</span></div>
+    <div style="margin-top:10px">${['liq', 'fe', 'act', 'cry'].map((k) => line(k, NOW[k], tSq(k), 30)).join('')}</div>
+    <div class="house"><span style="display:flex;gap:12px;align-items:center"><span class="sw" style="background:${C.immo}"></span><span>Immobilier<small>estimée le 30 sept. · pas d'objectif pour ta maison</small></span></span><span>80 000 €</span></div>
+  </div>`;
+
+  const ed = `<div class="screen">${status}
+    <div class="title">Tes objectifs</div>
+    <p class="lead">Comment veux-tu répartir ton argent <b style="color:var(--text)">hors maison</b> (92 000 € aujourd'hui) ?</p>
+    <div class="chips"><span class="chip">Ma répartition actuelle</span><span class="chip">Prudent</span><span class="chip on">Équilibré</span><span class="chip">Dynamique</span></div>
+    <div class="stack">${['liq', 'fe', 'act', 'cry'].map((k) => `<span style="width:${TB[k]}%;background:${C[k]}"></span>`).join('')}</div>
+    ${['liq', 'fe', 'act', 'cry'].map((k) => `<div class="goal-row"><span class="sw" style="background:${C[k]}"></span><span class="nm">${NAMES[k]}<small>aujourd'hui ${Math.round((NOW[k] / REST) * 100)} %</small></span><span class="stepper"><span>−</span><b>${TB[k]} %</b><span>+</span></span></div>`).join('')}
+    <p class="note">Ta maison n'a pas d'objectif : ses mensualités et ses réestimations ne fausseront plus ton écart. Les exemples restent des exemples, pas un conseil fait pour toi.</p>
+  </div>`;
+
+  const S = [
+    { id: 'maison-dans-objectifs', l: 'A', t: 'La maison compte dans les objectifs', d: 'Comme dans le document actuel. Simple à expliquer, mais « 1 carré d\'immobilier en trop » vient ici du crédit qui se rembourse, pas d\'un choix.', h: A },
+    { id: 'maison-hors-objectifs', l: 'B', t: 'La maison hors objectifs (ma recommandation)', d: 'Les objectifs portent sur ton argent hors maison. La grille reste entière ; les barres se comparent sur le reste. L\'immobilier est listé à part, sans barre.', h: B },
+    { id: 'editeur-hors-maison', l: 'B', t: 'L\'écran des objectifs, version B', d: 'On répartit son argent hors maison, en pourcentages qui tiennent dans le temps. Les exemples Prudent / Équilibré / Dynamique deviennent simples : ils n\'ont plus à deviner la part de ta maison.', h: ed },
+  ];
+  document.getElementById('row').innerHTML = S.map((s) => `<div class="col"><div class="cap"><h2><span>${s.l}</span>${s.t}</h2><p>${s.d}</p></div><div class="phone">${s.h}</div>${s.id !== 'editeur-hors-maison' ? `<button class="pick" data-choice="${s.id}">Je prends celle-ci</button>` : ''}</div>`).join('');
+</script>
+</body>
+</html>

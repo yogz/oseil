@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 6 — les buts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .board-head { max-width: 1260px; margin: 0 auto 28px; }
+  .board-head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .board-head p { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 860px; }
+  .board-head p + p { margin-top: 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; }
+  .col { width: 392px; display: flex; flex-direction: column; gap: 14px; }
+  .caption h2 { font-size: 16px; font-weight: 600; }
+  .caption h2 span { color: #8a8b90; font-weight: 500; margin-right: 6px; }
+  .caption p { color: #a3a4a8; font-size: 13.5px; line-height: 1.5; margin-top: 4px; min-height: 60px; }
+  .pick { align-self: flex-start; background: transparent; color: #e8e8ea; border: 1px solid #44454a; border-radius: 6px; padding: 10px 16px; font: 500 14px Inter, sans-serif; cursor: pointer; }
+  .pick:hover { border-color: #8a8b90; }
+  .col.chosen .pick { background: #e8e8ea; color: #111; border-color: #e8e8ea; }
+  .col.chosen .phone { outline: 2px solid #e8e8ea; outline-offset: 4px; }
+
+  /* ---------- Phone ---------- */
+  .phone { --bg: #06080c; --text: #f1f5f9; --muted: #7e8b9b; --rule: rgba(255,255,255,0.08); --rule-strong: rgba(255,255,255,0.22); --debt: #FF5C7A; --gain: #3FD182;
+    width: 392px; border: 1px solid #2c2d31; border-radius: 34px; overflow: hidden; background: var(--bg); }
+  .screen { padding: 14px 16px 28px; color: var(--text); }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 6px 14px; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+  .brand { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+  .date { font: 400 12px 'JetBrains Mono', monospace; color: var(--muted); }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .ledger { padding: 18px 0 16px; border-bottom: 1px solid var(--rule); }
+  .ledger-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; padding: 3px 0; }
+  .ledger-row .lbl { color: var(--muted); }
+  .ledger-row .debt { color: var(--debt); }
+  .ledger-total { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--rule-strong); }
+  .ledger-total .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .net { font: 600 40px/1.1 'JetBrains Mono', monospace; letter-spacing: -0.03em; margin-top: 4px; }
+  .square-value { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .square-value .main { font-size: 15px; }
+  .square-value .main b { font-weight: 600; }
+  .gain { color: var(--gain); font-size: 13px; margin-left: 6px; }
+  .square-value .sub { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  .switches { display: flex; justify-content: space-between; padding: 4px 0; }
+  .tabs { display: flex; gap: 2px; }
+  .tab { padding: 12px 10px; min-height: 44px; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tab.on { color: var(--text); border-bottom-color: var(--text); }
+  .tabs:first-child .tab:first-child { padding-left: 0; }
+
+  .verdict { font-size: 15px; font-weight: 600; padding: 16px 0 4px; }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin: 12px 0 18px; }
+  .cell { aspect-ratio: 1; border-radius: 2px; }
+  .twin { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0 18px; }
+  .twin .lbl { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .twin .grid { gap: 2px; margin: 0; }
+
+  .legend { border-top: 1px solid var(--rule); }
+  .line { display: grid; grid-template-columns: 12px 1fr auto; column-gap: 10px; row-gap: 6px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--rule); min-height: 48px; }
+  .sw { width: 12px; height: 12px; border-radius: 2px; }
+  .name { font-size: 14.5px; }
+  .name small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .amt { font-size: 14px; text-align: right; }
+  .gap { grid-column: 3; font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
+  .bar { grid-column: 2; display: flex; align-items: stretch; height: 6px; }
+  .bar .tick { width: 2px; background: var(--text); }
+</style>
+</head>
+<body>
+  <div class="board-head">
+    <h1>Planche 6 — les buts par catégorie</h1>
+    <p>Même écran que la planche 5, avec des buts en plus. Les buts sont inventés pour l'exemple : liquidités 10 %, fonds euros 10 %, immobilier 45 %, actions 30 %, crypto et or 5 %. <strong>Seule la façon de montrer l'écart change</strong> d'un téléphone à l'autre.</p>
+    <p>Dans les trois, la phrase au-dessus de la grille donne la réponse avant l'image, comme sur l'ancien site. Clique sur « Je prends celle-ci » sous ta préférée.</p>
+  </div>
+
+  <div class="row" id="row"></div>
+
+<script>
+  const SQUARE_EUR = 1720;
+  const CATS = [
+    { key: 'liq',  name: 'Liquidités et livrets',      held: 9,  target: 10, amt: '16 000 €', color: '#2FA8A2' },
+    { key: 'fe',   name: 'Fonds euros et obligations', held: 14, target: 10, amt: '24 000 €', color: '#6E77E0' },
+    { key: 'immo', name: 'Immobilier',                 held: 46, target: 45, amt: '80 000 €', color: '#2A9A68', sub: '260 000 € − 180 000 € de crédit' },
+    { key: 'act',  name: 'Actions et bourse',          held: 26, target: 30, amt: '44 000 €', color: '#E85C3E' },
+    { key: 'cry',  name: 'Crypto, or et alternatifs',  held: 5,  target: 5,  amt: '8 000 €',  color: '#D9A521' },
+  ];
+  const misplaced = CATS.reduce((sum, c) => sum + Math.max(0, c.held - c.target), 0);
+
+  const eur = (n) => n.toLocaleString('fr-FR') + ' €';
+  function gapText(c) {
+    const d = c.held - c.target;
+    if (d === 0) return 'à sa place';
+    return `${eur(Math.abs(d) * SQUARE_EUR)} ${d > 0 ? 'en trop' : 'manquants'}`;
+  }
+
+  function cellsFor(key) {
+    let html = '';
+    CATS.forEach((c) => { for (let i = 0; i < c[key]; i++) html += `<div class="cell" style="background:${c.color}"></div>`; });
+    return html;
+  }
+
+  /* Every bar shares one scale, so bars compare with each other: the widest
+     category fills the track. Filled up to the smaller of held/target, an
+     empty outline for what is missing, a white tick at the target, filled
+     again past the tick for what is in excess. */
+  const SCALE = Math.max(...CATS.map((c) => Math.max(c.held, c.target)));
+  const w = (n) => (n / SCALE) * 100;
+  function bar(c) {
+    const common = Math.min(c.held, c.target);
+    const short = Math.max(0, c.target - c.held);
+    const over = Math.max(0, c.held - c.target);
+    return `<div class="bar">
+      <span style="width:${w(common)}%;background:${c.color}"></span>
+      ${short ? `<span style="width:${w(short)}%;border:1px solid ${c.color}"></span>` : ''}
+      <span class="tick"></span>
+      ${over ? `<span style="width:${w(over)}%;background:${c.color}"></span>` : ''}
+    </div>`;
+  }
+
+  const VARIANTS = [
+    {
+      id: 'barre-comme-avant', letter: 'A', title: 'Comme avant : une barre par catégorie',
+      desc: 'La grille ne change pas. Chaque ligne porte une barre, toutes à la même échelle : un trait blanc = le but, plein après le trait = en trop, contour vide = manquant. L\'écart est écrit en euros.',
+      body: () => `
+        <div class="grid">${cellsFor('held')}</div>
+        <div class="legend">${CATS.map((c) => `
+          <div class="line">
+            <span class="sw" style="background:${c.color}"></span>
+            <span class="name">${c.name}${c.sub ? `<small>${c.sub}</small>` : ''}</span>
+            <span class="amt mono">${c.amt}</span>
+            ${bar(c)}
+            <span class="gap mono">${gapText(c)}</span>
+          </div>`).join('')}
+        </div>`,
+    },
+    {
+      id: 'deux-grilles', letter: 'B', title: 'Deux grilles : aujourd\'hui et mon but',
+      desc: 'Deux petites grilles côte à côte, rangées dans le même ordre. On voit d\'un coup d\'œil quelle couleur déborde ou manque. L\'écart est écrit en euros dans la liste.',
+      body: () => `
+        <div class="twin">
+          <div><div class="lbl">Aujourd'hui</div><div class="grid">${cellsFor('held')}</div></div>
+          <div><div class="lbl">Mon but</div><div class="grid">${cellsFor('target')}</div></div>
+        </div>
+        <div class="legend">${CATS.map((c) => `
+          <div class="line">
+            <span class="sw" style="background:${c.color}"></span>
+            <span class="name">${c.name}${c.sub ? `<small>${c.sub}</small>` : ''}</span>
+            <span class="amt mono">${c.amt}</span>
+            <span class="gap mono">${gapText(c)}</span>
+          </div>`).join('')}
+        </div>`,
+    },
+    {
+      id: 'mots-seulement', letter: 'C', title: 'Les mots seulement',
+      desc: 'La grille ne change pas, aucun dessin en plus. Chaque ligne dit sa part aujourd\'hui, son but et l\'écart en euros. Le plus sobre, mais il faut lire.',
+      body: () => `
+        <div class="grid">${cellsFor('held')}</div>
+        <div class="legend">${CATS.map((c) => `
+          <div class="line">
+            <span class="sw" style="background:${c.color}"></span>
+            <span class="name">${c.name}<small class="mono">${c.held} % · but ${c.target} %</small></span>
+            <span class="amt mono">${c.amt}</span>
+            <span class="gap mono">${gapText(c)}</span>
+          </div>`).join('')}
+        </div>`,
+    },
+  ];
+
+  function phone(v) {
+    return `
+    <div class="col" id="col-${v.id}">
+      <div class="caption"><h2><span>${v.letter}</span>${v.title}</h2><p>${v.desc}</p></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>●●●</span></div>
+          <div class="top"><span class="brand">PatriCube</span><span class="date">6 nov. 2026</span></div>
+          <div class="ledger">
+            <div class="ledger-row"><span class="lbl">Ce que je possède</span><span class="mono">352 000 €</span></div>
+            <div class="ledger-row"><span class="lbl">Crédits restant dus</span><span class="mono debt">− 180 000 €</span></div>
+            <div class="ledger-total"><div class="lbl">Patrimoine net</div><div class="net">172 000 €</div></div>
+          </div>
+          <div class="square-value">
+            <div class="main">1 carré = <b class="mono">1 720 €</b><span class="gain mono">+700 € depuis janv. 2024</span></div>
+            <div class="sub">Prochain cap : 1 carré = 2 000 €, atteint à 86 %</div>
+          </div>
+          <div class="switches">
+            <div class="tabs"><span class="tab on">Net</span><span class="tab">Brut</span></div>
+            <div class="tabs"><span class="tab on">Catégories</span><span class="tab">Banques</span></div>
+          </div>
+          <div class="verdict">${misplaced} carrés sur 100 au mauvais endroit.</div>
+          ${v.body()}
+        </div>
+      </div>
+      <button class="pick" data-choice="${v.id}" onclick="choose('${v.id}')">Je prends celle-ci</button>
+    </div>`;
+  }
+
+  document.getElementById('row').innerHTML = VARIANTS.map(phone).join('');
+  function choose(id) {
+    document.querySelectorAll('.col').forEach((c) => c.classList.toggle('chosen', c.id === 'col-' + id));
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,287 @@
+@import "tailwindcss";
+
+/* ---- Layer 1: raw values. The ONLY place in the codebase with colour literals.
+   Dark by default, whatever the device says (Nicolas, 10 November 2026); light when « Clair » is
+   chosen in the Réglages, or when « Comme l’appareil » is and the device asks for it (the two light
+   blocks below, which must say the same; lib/app/theme.ts sets
+   `data-theme` on <html>). Components never know which: they only see the names of layer 2.
+   Theme planches of 10 November 2026, choices of Nicolas: a ground of « vert oseille » (a black
+   barely green, like the name, with the white of the text in the same shade), and the markets in
+   raspberry, away from the red of a loss. Out of the red, the five colours had to move together to
+   stay apart for colour-blind eyes: the closest pair, simulated, now stands at 30 (ΔE) instead of
+   25. Raspberry was preferred to orange because a light version keeps it raspberry, where orange
+   turns brown. */
+:root {
+  color-scheme: dark;
+  --ground: #09110d;
+  --ink: #eef3ee;
+  --ink-soft: #c3cdc5;
+  --ink-muted: #8a988d;
+  /* Planche 6, option B (10 November 2026): 14 %, so a row parts from the next without the line
+     being seen; the outline of a button (`rule-strong`) stays above it. */
+  --hairline: rgba(225, 245, 232, 0.14);
+  --rule-strong: rgba(225, 245, 232, 0.24);
+  --field: rgba(225, 245, 232, 0.05);
+
+  --cat-available: #2BB4D2;
+  --cat-secured: #6A66DC;
+  --cat-property: #8ACB80;
+  --cat-markets: #B4467A;
+  --cat-gold: #EFBE2A;
+
+  --gain: #3FD182;
+  --loss: #F2877A;
+
+  /* The motion vocabulary (planche 0): three durations, one curve to enter, one to leave, no
+     bounce. Every motion of the site is made of these, and only opacity, position, size and a
+     square's colour move: never a shadow, a glow or a gradient. One exception, chosen by Nicolas on
+     11 November 2026: the shooting-star tail of the dots of « Catégorie par catégorie » (TraceComet). */
+  --motion-short: 150ms; /* an answer to a touch */
+  --motion-mid: 350ms; /* one square, one category */
+  --motion-long: 1200ms; /* the whole grid, at most */
+  --motion-enter: cubic-bezier(0.2, 0, 0, 1); /* fast, then slower and slower: a needle settling */
+  --motion-leave: cubic-bezier(0.4, 0, 1, 1); /* slow, then fast */
+}
+
+/* The light theme (planche 5, Nicolas, 10 November 2026): a light ground barely green, the same
+   hue for each category, darker so a square keeps 3:1 on it (closest pair for colour-blind eyes,
+   simulated: 26). The reference line takes the colour of the text, so it turns black here. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    color-scheme: light;
+    --ground: #f1f5f1;
+    --ink: #121a15;
+    --ink-soft: #3a453e;
+    --ink-muted: #59665e;
+    --hairline: rgba(18, 26, 21, 0.14);
+    --rule-strong: rgba(18, 26, 21, 0.28);
+    --field: rgba(18, 26, 21, 0.05);
+    --cat-available: #3B92AD;
+    --cat-secured: #564BC8;
+    --cat-property: #679157;
+    --cat-markets: #A12E69;
+    --cat-gold: #A27C0B;
+    --gain: #187A42;
+    --loss: #B23B2E;
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ground: #f1f5f1;
+  --ink: #121a15;
+  --ink-soft: #3a453e;
+  --ink-muted: #59665e;
+  --hairline: rgba(18, 26, 21, 0.14);
+  --rule-strong: rgba(18, 26, 21, 0.28);
+  --field: rgba(18, 26, 21, 0.05);
+  --cat-available: #3B92AD;
+  --cat-secured: #564BC8;
+  --cat-property: #679157;
+  --cat-markets: #A12E69;
+  --cat-gold: #A27C0B;
+  --gain: #187A42;
+  --loss: #B23B2E;
+}
+
+/* ---- Layer 2: the names the interface uses. Components know these, never layer 1. */
+@theme inline {
+  --color-ground: var(--ground);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+  --color-hairline: var(--hairline);
+  --color-rule-strong: var(--rule-strong);
+  --color-field: var(--field);
+  --color-cat-available: var(--cat-available);
+  --color-cat-secured: var(--cat-secured);
+  --color-cat-property: var(--cat-property);
+  /* « Chez toi » in a grid that also holds a rental (Nicolas, 11 November 2026): the same green, a
+     little toward the ground, so the home steps back from the rental, which counts in the goals. */
+  --color-cat-property-home: color-mix(in srgb, var(--cat-property) 82%, var(--ground));
+  --color-cat-markets: var(--cat-markets);
+  --color-cat-gold: var(--cat-gold);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  /* 3C: the titles of a screen, the one big amount and the name of the mark. Everything else
+     stays in Inter, the numbers of a list included. */
+  --font-display: var(--font-bricolage), var(--font-inter), system-ui, sans-serif;
+}
+
+/* Radii are not colours: they name a utility (`rounded-square`, `rounded-control`)
+   and carry their raw value directly. */
+@theme {
+  --radius-square: 2px;
+  --radius-control: 10px;
+
+  /* One scale of text, five steps, like the colours: the design check refuses any other size.
+     caption: what is said under (a date, a note); body: what is read; subtitle: a section, a box to
+     fill in (16 px at least, or a phone zooms in); title: a screen; hero: the one big amount of a
+     screen. The title and the hero are drawn in the display font; the hero takes its display cut
+     and a tighter spacing (`hero-figure`, below). */
+  --text-caption: 13px;
+  --text-body: 15px;
+  --text-subtitle: 17px;
+  --text-title: 23px;
+  --text-hero: 40px;
+
+  /* B7: the square is the unit of the site, in three sizes only. Large: Mon argent's grid, as wide
+     as its column, or less on a phone whose first screen is too short (lib/app/grid-fit.ts). Medium (`size-square-m`): every other grid and the months of the cushion. Small
+     (`size-square-s`): a line's squares, a key, the small grid kept in sight. */
+  --spacing-square-m: 1.5rem;
+  --spacing-square-s: 0.5rem;
+
+  /* One square arriving (planche 1, « fondu en montée »): it fades in while rising slightly.
+     Staggered per square by the component, the whole grid is there in under a second. */
+  --animate-square-arrive: square-arrive var(--motion-mid) var(--motion-enter) backwards;
+  @keyframes square-arrive {
+    from { opacity: 0; transform: translateY(8px); }
+  }
+
+  /* A board's text when it appears (A10): the same short fade as a square, never a cut. */
+  --animate-board-in: board-in var(--motion-mid) var(--motion-enter) both;
+  @keyframes board-in {
+    from { opacity: 0; }
+  }
+
+  /* The short message at the bottom (planche 4): it rises 8 px as it fades in. Its way out is drawn
+     by components/ui/Toast.tsx. */
+  --animate-toast-in: toast-in var(--motion-short) var(--motion-enter) both;
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+  }
+
+  /* The square of the step just done (planche 6): it fills, from the edge of the current step. */
+  --animate-step-done: step-done var(--motion-mid) var(--motion-enter) both;
+  @keyframes step-done {
+    from { background-color: transparent; border-color: var(--ink); }
+  }
+
+  /* The evolution curve: the line draws itself (its path has pathLength 1), then the veil comes. */
+  --animate-evo-draw: evo-draw 1500ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
+  @keyframes evo-draw {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+  }
+  --animate-evo-fade: evo-fade 900ms ease-out 700ms both;
+  @keyframes evo-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+/* C5 (9 November 2026), then 3C (10 November 2026): the one big amount of a screen is drawn in the
+   display font, Bricolage Grotesque, its `opsz` axis at the top of its range (12 to 96 in
+   app/fonts/BricolageGrotesqueVariable.woff2), with tighter letter-spacing. */
+@utility hero-figure {
+  font-family: var(--font-display);
+  font-variation-settings: 'opsz' 96;
+  letter-spacing: -0.025em;
+}
+
+/* No tabular figures here: they widen the hyphen of Inter (« a - t - il »). They are set on
+   the numbers themselves (`tabular-nums` on an amount, a figure, a box of figures). */
+body {
+  @apply bg-ground text-ink;
+}
+
+/* No word left alone on its last line (Nicolas, 11 November 2026: « les phrases sont souvent coupées
+   au milieu » on a phone). A title spreads its words over even lines; a sentence keeps at least two
+   words on its last one. Where a browser does not know these, it wraps as before. */
+h1, h2, h3, h4, summary {
+  text-wrap: balance;
+}
+p, li, dd, label, figcaption {
+  text-wrap: pretty;
+}
+
+/* 3C: the title of every screen is its h1, at the title size; a sheet that has an h1 under it
+   names itself with an h2 at the same size. Both take the display font. */
+h1, h2.text-title {
+  font-family: var(--font-display);
+}
+
+/* What changes on a square changes with the vocabulary: its colour (a category that changes)
+   at the medium pace; its opacity quickly when it lights up, gently when it dims (`data-dim`). */
+.square-motion {
+  transition-property: opacity, background-color, border-color, transform;
+  transition-duration: var(--motion-short), var(--motion-mid), var(--motion-mid), var(--motion-short);
+  transition-timing-function: var(--motion-enter), var(--motion-enter), var(--motion-enter), var(--motion-leave);
+}
+.square-motion[data-dim] {
+  transition-duration: var(--motion-mid), var(--motion-mid), var(--motion-mid), var(--motion-short);
+}
+
+/* The echo of the bank just updated (10 November 2026): the other squares dim quickly, with the curve
+   to leave, then everything comes back at the medium pace, with the curve to enter. */
+[data-echo='dim'] > .square-motion {
+  transition-duration: var(--motion-short), var(--motion-mid), var(--motion-mid), var(--motion-short);
+  transition-timing-function: var(--motion-leave), var(--motion-enter), var(--motion-enter), var(--motion-leave);
+}
+[data-echo='back'] > .square-motion {
+  transition-duration: var(--motion-mid), var(--motion-mid), var(--motion-mid), var(--motion-short);
+  transition-timing-function: var(--motion-enter), var(--motion-enter), var(--motion-enter), var(--motion-leave);
+}
+
+/* « Montre-moi mes objectifs », option F: the squares seen take the edge of the hover, without growing,
+   with or without the motion. */
+[data-square][data-spot='lit'] {
+  outline: var(--square-edge, 2px) solid var(--ink);
+  outline-offset: calc(-1 * var(--square-edge, 2px));
+}
+/* On a computer, a square under the mouse takes a white edge and grows by 8 % (no shadow): quickly
+   in, and back out with the curve to leave. A finger never sees it. Option 2½ of the hover planche
+   (Nicolas, 9 November 2026): 8 % stays inside the 3 px between squares, so the lines around it
+   never disappear. The small grid draws a thinner edge (`--square-edge`). */
+@media (hover: hover) and (pointer: fine) {
+  .square-motion:hover {
+    transform: scale(1.08);
+    outline: var(--square-edge, 2px) solid var(--ink);
+    outline-offset: calc(-1 * var(--square-edge, 2px));
+    transition-timing-function: var(--motion-enter);
+  }
+}
+
+/* Changing screen (planche 1, option C, Nicolas, 10 November 2026): the screen as seen fades, the
+   old one quickly with the curve to leave, the new one at the medium pace with the curve to enter
+   (components/ui/ScreenTransition.tsx). Nothing travels from one screen to the other: Nicolas asked
+   for the squares to stay still (10 November 2026). A touch during the fade reaches the new screen. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(root) {
+  animation: screen-out var(--motion-short) var(--motion-leave) both;
+}
+::view-transition-new(root) {
+  animation: screen-in var(--motion-mid) var(--motion-enter) both;
+}
+@keyframes screen-out {
+  to { opacity: 0; }
+}
+@keyframes screen-in {
+  from { opacity: 0; }
+}
+
+/* The landing's tour (components/landing/LandingTour.tsx): the squares of the category its step
+   names beat three times, then stay still. Never without end (WCAG 2.2.2). */
+@keyframes tour-pulse {
+  50% { opacity: 0.4; }
+}
+[data-tour-pulse='markets'] [data-category='markets'] {
+  animation: tour-pulse 1.2s var(--motion-enter) 3;
+}
+
+/* Asked for fewer animations: everything is in its final state at once. */
+@media (prefers-reduced-motion: reduce) {
+  .square-motion,
+  [data-tour-pulse] [data-category] {
+    transition: none;
+    animation: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

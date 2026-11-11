@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 17 — la courbe et les carrés des objectifs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .intro { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 900px; }
+  section { margin-top: 36px; padding-top: 26px; border-top: 1px solid #34353a; }
+  section h2 { font-size: 19px; font-weight: 600; }
+  section > p { color: #a3a4a8; font-size: 14.5px; line-height: 1.55; margin-top: 6px; max-width: 900px; }
+  .replay { margin-top: 12px; padding: 9px 14px; border-radius: 18px; border: 1px solid #5a5b60; background: transparent; color: #e8e8ea; font: 500 13px Inter, sans-serif; cursor: pointer; }
+  .row { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 18px; }
+  .card { width: 392px; }
+  .card h3 { font-size: 15px; font-weight: 600; }
+  .card h3 span { color: #8a8b90; font-weight: 500; margin-right: 6px; }
+  .card .d { font-size: 13.5px; color: #a3a4a8; line-height: 1.5; margin: 4px 0 10px; min-height: 40px; }
+  .screen { --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; background: #06080c; border: 1px solid #2c2d31; border-radius: 22px; padding: 18px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .pick { margin-top: 10px; padding: 9px 14px; border-radius: 6px; border: 1px solid #44454a; background: transparent; color: #e8e8ea; font: 500 13.5px Inter, sans-serif; cursor: pointer; }
+
+  .evo .line { stroke-dasharray: var(--len); stroke-dashoffset: 0; }
+  .evo.play .line { animation: draw 1.5s cubic-bezier(.3,.7,.2,1) both; }
+  .evo.play .veil { animation: fade .9s ease-out .7s both; }
+  .evo.play .dot { animation: pop .45s cubic-bezier(.3,1.6,.5,1) both; transform-box: fill-box; transform-origin: center; }
+  @keyframes draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+
+  .lead { font-size: 14px; color: var(--soft); line-height: 1.55; margin-bottom: 10px; }
+  .lead b { color: var(--text); font-weight: 600; }
+  .mis { display: grid; grid-template-columns: 82px 1fr 24px; align-items: center; gap: 8px; padding: 7px 0; font-size: 13px; color: var(--soft); }
+  .mis .n { text-align: right; color: var(--text); }
+  .units { display: flex; flex-wrap: wrap; gap: 2px; }
+  .units i { width: 10px; height: 10px; border-radius: 2px; }
+  .key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+  .key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Planche 17 — deux réglages, une variable à la fois</h1>
+  <p class="intro">En haut, la courbe : seul ce qu'il y a <strong>sous</strong> la ligne change. En bas, les carrés « pas à leur place » : seule leur couleur change.</p>
+
+  <section>
+    <h2>La courbe : avec ou sans dégradé ?</h2>
+    <p>Même ligne arrondie, même animation, même bulle au toucher dans les trois. Clique sur « Rejouer » pour revoir le dessin.</p>
+    <button class="replay" onclick="replay()">Rejouer l'animation</button>
+    <div class="row" id="charts"></div>
+  </section>
+
+  <section>
+    <h2>Les carrés des objectifs : pourquoi gris ?</h2>
+    <p>Ils étaient gris parce qu'un carré « pas à sa place » appartient à une catégorie précise : celle qui en a trop. En le colorant de sa catégorie, la rangée dit aussi <strong>qui</strong> déborde. Aujourd'hui, 4 carrés d'épargne sécurisée et 1 d'immobilier.</p>
+    <div class="row" id="goals"></div>
+  </section>
+</div>
+
+<script>
+  const C = { liq: '#2FA8A2', fe: '#6E77E0', immo: '#3DB57E', act: '#D04A2E', cry: '#D9A521' };
+  const NAMES = { liq: 'Argent disponible', fe: 'Épargne sécurisée', immo: 'Immobilier', act: 'Placements en bourse', cry: 'Or et crypto' };
+  const PTS = [
+    { m: 0, net: 102000 }, { m: 12, net: 134500 }, { m: 24, net: 156000 }, { m: 32, net: 172000 },
+  ];
+  const W = 356, H = 212, L = 6, R = 300, T = 30, B = 182;
+  const x = (m) => L + (m / 33) * (R - L);
+  const y = (v) => B - (v / 200000) * (B - T);
+  function smoothPath(pts) {
+    const n = pts.length, d = [];
+    for (let k = 0; k < n - 1; k++) d.push((pts[k + 1][1] - pts[k][1]) / (pts[k + 1][0] - pts[k][0]));
+    const m = pts.map((_, k) => (k === 0 ? d[0] : k === n - 1 ? d[n - 2] : (d[k - 1] * d[k] <= 0 ? 0 : (d[k - 1] + d[k]) / 2)));
+    for (let k = 0; k < n - 1; k++) {
+      if (d[k] === 0) { m[k] = 0; m[k + 1] = 0; continue; }
+      const a = m[k] / d[k], b = m[k + 1] / d[k], s = a * a + b * b;
+      if (s > 9) { const t = 3 / Math.sqrt(s); m[k] = t * a * d[k]; m[k + 1] = t * b * d[k]; }
+    }
+    let p = `M${pts[0][0]},${pts[0][1]}`;
+    for (let k = 0; k < n - 1; k++) {
+      const h = pts[k + 1][0] - pts[k][0];
+      p += ` C${pts[k][0] + h / 3},${pts[k][1] + (m[k] * h) / 3} ${pts[k + 1][0] - h / 3},${pts[k + 1][1] - (m[k + 1] * h) / 3} ${pts[k + 1][0]},${pts[k + 1][1]}`;
+    }
+    return p;
+  }
+  function chart(id, fill) {
+    const xy = PTS.map((p) => [x(p.m), y(p.net)]);
+    const path = smoothPath(xy);
+    const area = `${path} L${xy[3][0]},${B} L${xy[0][0]},${B} Z`;
+    const veil = fill === 'gradient'
+      ? `<defs><linearGradient id="g-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f5f9" stop-opacity="0.16"/><stop offset="1" stop-color="#f1f5f9" stop-opacity="0"/></linearGradient></defs><path class="veil" d="${area}" fill="url(#g-${id})"/>`
+      : fill === 'flat' ? `<path class="veil" d="${area}" fill="#f1f5f9" fill-opacity="0.07"/>` : '';
+    const grid = [0, 100000, 200000].map((v) => `<line x1="${L}" x2="${R}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(255,255,255,${v === 0 ? 0.25 : 0.08})"/><text x="${R + 8}" y="${y(v) + 4}" font-size="11" fill="#8590a0">${v === 0 ? '0' : (v / 100).toLocaleString('fr-FR') + ' €'}</text>`).join('');
+    const years = [[0, '2024'], [12, '2025'], [24, '2026']].map(([m, t]) => `<text x="${x(m)}" y="${B + 18}" font-size="11" fill="#8590a0">${t}</text>`).join('');
+    const dots = PTS.map((p, i) => `<circle class="dot" style="animation-delay:${0.35 + i * 0.32}s" cx="${x(p.m)}" cy="${y(p.net)}" r="${i === 3 ? 5 : 3.5}" fill="#f1f5f9"/>`).join('');
+    return `<svg class="evo" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="font-family:Inter">
+      ${grid}
+      <line x1="${L}" x2="${R}" y1="${y(200000)}" y2="${y(200000)}" stroke="#f1f5f9" stroke-dasharray="4 4" stroke-width="1.2"/>
+      <text x="${L}" y="${y(200000) - 5}" font-size="11" fill="#c4cbd4">prochain cap : 1 carré = 2 000 €</text>
+      ${veil}
+      <path class="line" d="${path}" fill="none" stroke="#f1f5f9" stroke-width="2.4" stroke-linecap="round"/>
+      ${dots}
+      <text x="${x(32) - 10}" y="${y(172000) - 10}" font-size="12" fill="#f1f5f9" text-anchor="end">172 000 €</text>
+      <text x="${x(0) + 2}" y="${y(102000) + 20}" font-size="12" fill="#8590a0">102 000 €</text>
+      ${years}
+      <text x="${R + 8}" y="10" font-size="10" fill="#8590a0">1 carré</text>
+    </svg>`;
+  }
+  const CH = [
+    { id: 'gradient', l: '1', t: 'Avec le dégradé', d: 'Celui de la planche 16 : un voile clair sous la ligne, qui s\'efface vers le bas.' },
+    { id: 'none', l: '2', t: 'La ligne seule', d: 'Rien sous la ligne. Le plus sobre : tout le regard va à la ligne et aux points.' },
+    { id: 'flat', l: '3', t: 'Un voile uni', d: 'Un aplat très léger, sans dégradé. La surface donne du poids, sans effet.' },
+  ];
+  document.getElementById('charts').innerHTML = CH.map((c) => `
+    <div class="card"><h3><span>${c.l}</span>${c.t}</h3><p class="d">${c.d}</p><div class="screen">${chart(c.id, c.id)}</div>
+    <button class="pick" data-choice="courbe-${c.id}">Je prends celle-ci</button></div>`).join('');
+
+  document.querySelectorAll('.evo .line').forEach((l) => l.style.setProperty('--len', l.getTotalLength()));
+  function replay() {
+    document.querySelectorAll('.evo').forEach((el) => { el.classList.remove('play'); void el.getBoundingClientRect(); el.classList.add('play'); });
+  }
+  replay();
+
+  /* Squares that are not where the targets want them, by snapshot.
+     Each one belongs to the category that holds too many. */
+  const TARGET = { liq: 10, fe: 10, immo: 45, act: 30, cry: 5 };
+  const HIST = [
+    { label: 'janv. 2024', sq: { liq: 21, fe: 18, immo: 45, act: 14, cry: 2 } },
+    { label: 'janv. 2025', sq: { liq: 13, fe: 16, immo: 43, act: 25, cry: 3 } },
+    { label: 'janv. 2026', sq: { liq: 12, fe: 15, immo: 42, act: 27, cry: 4 } },
+    { label: 'sept. 2026', sq: { liq: 9, fe: 14, immo: 46, act: 26, cry: 5 } },
+  ];
+  const excess = (h) => Object.keys(TARGET).flatMap((k) => Array.from({ length: Math.max(0, h.sq[k] - TARGET[k]) }, () => k));
+  function block(colored) {
+    const rows = HIST.map((h) => {
+      const ex = excess(h);
+      return `<div class="mis"><span>${h.label}</span><span class="units">${ex.map((k) => `<i style="background:${colored ? C[k] : 'rgba(241,245,249,0.8)'}"></i>`).join('')}</span><span class="n">${ex.length}</span></div>`;
+    }).join('');
+    const used = [...new Set(HIST.flatMap(excess))];
+    const key = colored ? `<div class="key">${used.map((k) => `<span><i style="background:${C[k]}"></i>${NAMES[k]} en trop</span>`).join('')}</div>` : '';
+    return `<p class="lead"><b>Tu t'en rapproches.</b> En janvier 2024, 19 carrés n'étaient pas à leur place. Aujourd'hui, 5.</p>${rows}${key}`;
+  }
+  document.getElementById('goals').innerHTML = [
+    { l: '1', t: 'Gris (planche 16)', d: 'On voit combien, pas lesquels.', c: false, id: 'gris' },
+    { l: '2', t: 'De la couleur de la catégorie en trop', d: 'On voit combien et lesquels : en 2024, surtout trop d\'argent disponible ; aujourd\'hui, un peu trop d\'épargne sécurisée.', c: true, id: 'couleur' },
+  ].map((g) => `<div class="card"><h3><span>${g.l}</span>${g.t}</h3><p class="d">${g.d}</p><div class="screen">${block(g.c)}</div>
+    <button class="pick" data-choice="objectifs-${g.id}">Je prends celle-ci</button></div>`).join('');
+</script>
+</body>
+</html>

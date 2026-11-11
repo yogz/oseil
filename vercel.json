@@ -1,0 +1,1 @@
+{ "regions": ["dub1"], "crons": [{ "path": "/api/keep-alive", "schedule": "0 7 * * *" }] }

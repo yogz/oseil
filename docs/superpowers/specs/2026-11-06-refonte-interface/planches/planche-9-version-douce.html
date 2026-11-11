@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 9 — version douce</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .board-head { max-width: 1260px; margin: 0 auto 28px; }
+  .board-head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .board-head p { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 920px; }
+  .board-head p + p { margin-top: 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; align-items: flex-start; }
+  .col { width: 392px; display: flex; flex-direction: column; gap: 14px; }
+  .caption h2 { font-size: 16px; font-weight: 600; }
+  .caption h2 span { color: #8a8b90; font-weight: 500; margin-right: 6px; }
+  .caption p { color: #a3a4a8; font-size: 13.5px; line-height: 1.5; margin-top: 4px; min-height: 82px; }
+
+  /* ---------- Phone ---------- */
+  .phone { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --gain: #3FD182; --loss: #F2877A;
+    width: 392px; border: 1px solid #2c2d31; border-radius: 34px; overflow: hidden; background: var(--bg); color: var(--text); display: flex; flex-direction: column;
+    font-variant-numeric: tabular-nums; }
+  .screen { padding: 14px 18px 26px; flex: 1; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 4px 16px; }
+  .muted { color: var(--muted); }
+  .soft { color: var(--soft); }
+  .gain { color: var(--gain); }
+  .loss { color: var(--loss); }
+  .titlebar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .update { flex-shrink: 0; min-height: 40px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.22); border-radius: 20px; background: transparent; color: var(--text); font: 500 13px Inter, sans-serif; }
+  .date { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .hero { padding: 26px 0 22px; }
+  .hero .lbl { font-size: 14px; color: var(--soft); }
+  .hero .num { font-size: 44px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; margin-top: 2px; }
+  .hero p { font-size: 14px; color: var(--soft); line-height: 1.55; margin-top: 10px; }
+  .squareval { display: flex; gap: 14px; align-items: center; padding: 16px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .sample { width: 30px; height: 30px; border-radius: 3px; border: 1.5px solid var(--text); flex-shrink: 0; }
+  .squareval .main { font-size: 15px; }
+  .squareval .main b { font-weight: 600; }
+  .squareval .sub { font-size: 13px; margin-top: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin: 20px 0 14px; }
+  .cell { aspect-ratio: 1; border-radius: 3px; }
+  .goal { font-size: 15px; padding: 2px 0 16px; }
+  .goal b { font-weight: 600; }
+  .goal span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .line { display: grid; grid-template-columns: 14px 1fr auto; column-gap: 12px; align-items: center; padding: 13px 0; border-top: 1px solid var(--rule); min-height: 56px; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; }
+  .name { font-size: 15px; }
+  .name small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .amt { font-size: 15px; text-align: right; }
+  .chev { color: var(--muted); margin-left: 8px; }
+
+  .tabbar { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule); padding: 0 8px 18px; }
+  .tabbar span { text-align: center; font-size: 13px; color: var(--muted); padding: 12px 0 6px; min-height: 48px; border-top: 2px solid transparent; margin-top: -1px; }
+  .tabbar span.on { color: var(--text); border-top-color: var(--text); font-weight: 500; }
+
+  /* detail */
+  .back { font-size: 14px; color: var(--muted); padding: 2px 0 14px; }
+  .dhead { padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
+  .dtitle { display: flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 600; }
+  .dtitle .sw { width: 16px; height: 16px; }
+  .damt { font-size: 34px; font-weight: 600; letter-spacing: -0.02em; margin-top: 10px; }
+  .dsub { font-size: 14px; color: var(--soft); margin-top: 6px; line-height: 1.5; }
+  .pos { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .pos-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 15px; }
+  .pos-where { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .units { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 9px; }
+  .unit { width: 13px; height: 13px; border-radius: 2px; }
+  .pos-note { font-size: 13px; margin-top: 8px; }
+  .more { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--soft); padding: 16px 0 4px; min-height: 48px; }
+  .small-label { font-size: 13px; color: var(--muted); padding: 18px 0 2px; }
+
+  /* repères */
+  .block { padding: 22px 0; border-bottom: 1px solid var(--rule); }
+  .block h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .block p { font-size: 14px; color: var(--soft); line-height: 1.55; }
+  .block p b { color: var(--text); font-weight: 600; }
+  .months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; margin: 14px 0 6px; }
+  .month { aspect-ratio: 1; border-radius: 3px; border: 1px solid rgba(255,255,255,0.18); position: relative; overflow: hidden; }
+  .month i { position: absolute; left: 0; top: 0; bottom: 0; }
+  .months-scale { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; font-size: 11px; color: var(--muted); }
+  .zone { grid-column: 4 / 7; border-top: 2px solid var(--soft); padding-top: 4px; text-align: center; }
+  .mini { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; width: 200px; margin: 14px 0 10px; }
+  .mini .cell { border-radius: 2px; }
+  .keyline { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+  .keyline i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .fact { font-size: 14px; line-height: 1.55; color: var(--soft); padding: 10px 0; }
+  .fact + .fact { border-top: 1px solid var(--rule); }
+  .bank { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 14.5px; padding: 8px 0; }
+  .bank .hbar { grid-column: 1 / -1; display: flex; height: 6px; border-radius: 3px; overflow: hidden; }
+  .bank small { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+  <div class="board-head">
+    <h1>Planche 9 — la version douce (à comparer avec la planche 8)</h1>
+    <p>Les trois mêmes écrans, pour quelqu'un que la finance intimide. <strong>Les carrés parlent, les chiffres se font rares</strong> : un seul montant par ligne, des phrases de tous les jours, pas de rouge pour le crédit, pas de jugement (« un peu en dessous de ton objectif » au lieu de « 6 880 € manquants »).</p>
+    <p>Les détails techniques (quantité, cours, prix de revient) ne disparaissent pas : ils sont rangés derrière « Voir les chiffres détaillés », pour ceux qui les veulent. Même fond noir, mêmes couleurs ; les chiffres ne sont plus en police de terminal.</p>
+  </div>
+  <div class="row" id="row"></div>
+
+<script>
+  const C = { liq: '#2FA8A2', fe: '#6E77E0', immo: '#3DB57E', act: '#D04A2E', cry: '#D9A521' };
+  const eur = (n) => Math.round(n).toLocaleString('fr-FR') + ' €';
+  const CATS = [
+    { key: 'liq',  name: 'Argent disponible',     sub: 'Comptes et livrets',            held: 9,  target: 10, v: 16000 },
+    { key: 'fe',   name: 'Épargne sécurisée',     sub: 'Assurance-vie en fonds euros',  held: 14, target: 10, v: 24000 },
+    { key: 'immo', name: 'Immobilier',            sub: 'Ta maison, estimée le 30 sept.', held: 46, target: 45, v: 80000 },
+    { key: 'act',  name: 'Placements en bourse',  sub: 'Actions et fonds',              held: 26, target: 30, v: 44000 },
+    { key: 'cry',  name: 'Or et crypto',          sub: '',                              held: 5,  target: 5,  v: 8000 },
+  ];
+  function goalWords(c) {
+    const d = c.held - c.target;
+    if (d === 0) return 'pile à ton objectif';
+    if (Math.abs(d) === 1) return 'presque à ton objectif';
+    if (Math.abs(d) <= 5) return d > 0 ? 'un peu au-dessus de ton objectif' : 'un peu en dessous de ton objectif';
+    return d > 0 ? 'au-dessus de ton objectif' : 'en dessous de ton objectif';
+  }
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+  const tabbar = (on) => `<div class="tabbar">${['Mon argent', 'Repères', 'Évolution'].map((t) => `<span class="${t === on ? 'on' : ''}">${t}</span>`).join('')}</div>`;
+
+  /* ---------- 1. Mon argent ---------- */
+  let cells = '';
+  CATS.forEach((c) => { for (let i = 0; i < c.held; i++) cells += `<div class="cell" style="background:${C[c.key]}"></div>`; });
+  const misplaced = CATS.reduce((s, c) => s + Math.max(0, c.held - c.target), 0);
+  const home = `
+    <div class="screen">${status}
+      <div class="titlebar"><div class="title">Mon argent</div><button class="update">Mettre à jour</button></div>
+      <div class="date">Chiffres du 30 septembre</div>
+      <div class="hero">
+        <div class="lbl">Ce qui est vraiment à toi</div>
+        <div class="num">172 000 €</div>
+        <p>Tu possèdes 352 000 €, dont 180 000 € encore prêtés par la banque pour ta maison.</p>
+      </div>
+      <div class="squareval"><span class="sample"></span>
+        <div><div class="main">Un carré vaut <b>1 720 €</b></div><div class="sub gain">700 € de plus qu'en janvier 2024</div></div></div>
+      <div class="grid">${cells}</div>
+      <div class="goal"><b>Proche de ton objectif</b><span>À ${misplaced} carrés près sur 100.</span></div>
+      ${CATS.map((c) => `
+        <div class="line">
+          <span class="sw" style="background:${C[c.key]}"></span>
+          <span class="name">${c.name}<small>${c.key === 'immo' ? 'estimée le 30 sept. · ' : ''}${goalWords(c)}</small></span>
+          <span class="amt">${eur(c.v)}<span class="chev">›</span></span>
+        </div>`).join('')}
+    </div>${tabbar('Mon argent')}`;
+
+  /* ---------- 2. Détail : Placements en bourse ---------- */
+  const POS = [
+    { n: 'iShares MSCI World', w: 'PEA chez BoursoBank', v: 21000, sq: 12, pv: 3329 },
+    { n: 'Air Liquide', w: 'Détenues en direct chez Air Liquide', v: 8500, sq: 5, pv: 1580 },
+    { n: 'Air Liquide', w: 'PEA chez BoursoBank', v: 6500, sq: 4, pv: 838 },
+    { n: 'LVMH', w: 'PEA chez BoursoBank', v: 4200, sq: 3, pv: 330 },
+    { n: 'Sanofi', w: 'PEA chez BoursoBank', v: 2400, sq: 1, pv: 276 },
+    { n: 'OVHcloud', w: 'Épargne salariale, disponible en 2029', v: 900, sq: 1, pv: -204 },
+  ];
+  const pvWords = (p) => p.pv >= 0
+    ? `<span class="gain">a gagné ${eur(p.pv)} depuis l'achat</span>`
+    : `<span class="loss">a perdu ${eur(-p.pv)} depuis l'achat</span>`;
+  const posRow = (p) => `
+    <div class="pos">
+      <div class="pos-top"><span>${p.n}</span><span>${eur(p.v)}</span></div>
+      <div class="pos-where">${p.w}</div>
+      <div class="units">${Array.from({ length: p.sq }, () => `<span class="unit" style="background:${C.act}"></span>`).join('')}</div>
+      <div class="pos-note">${pvWords(p)}</div>
+    </div>`;
+  const act = CATS.find((c) => c.key === 'act');
+  const detail = `
+    <div class="screen">${status}
+      <div class="back">‹ Mon argent</div>
+      <div class="dhead">
+        <div class="dtitle"><span class="sw" style="background:${C.act}"></span>Placements en bourse</div>
+        <div class="damt">44 000 €</div>
+        <div class="dsub">26 carrés sur 100, ${goalWords(act)} (30 carrés).</div>
+      </div>
+      ${POS.map(posRow).join('')}
+      <div class="small-label">Trop petit pour un carré</div>
+      <div class="pos">
+        <div class="pos-top"><span>iShares USA ESG</span><span>500 €</span></div>
+        <div class="pos-where">Épargne retraite, disponible à la retraite</div>
+        <div class="pos-note">${pvWords({ pv: 80 })}</div>
+      </div>
+      <div class="more"><span>Voir les chiffres détaillés</span><span class="chev">›</span></div>
+    </div>${tabbar('Mon argent')}`;
+
+  /* ---------- 3. Repères ---------- */
+  const monthsCovered = 16000 / 2800; // 5.7
+  const monthCells = Array.from({ length: 12 }, (_, i) => {
+    const fill = Math.max(0, Math.min(1, monthsCovered - i));
+    return `<span class="month"><i style="width:${fill * 100}%;background:${C.liq}"></i></span>`;
+  }).join('');
+  // Mini-grid: squares you can get back within a few weeks are lit, the rest dimmed.
+  let mini = '';
+  CATS.forEach((c) => {
+    for (let i = 0; i < c.held; i++) {
+      const lockedLast = c.key === 'act' && i === c.held - 1; // the PEE + PER square
+      const lit = c.key !== 'immo' && !lockedLast;
+      mini += `<div class="cell" style="background:${C[c.key]};opacity:${lit ? 1 : 0.18}"></div>`;
+    }
+  });
+  const BANKS = [
+    { b: 'BoursoBank', parts: [['liq', 16000], ['act', 34600]] },
+    { b: 'Linxea', parts: [['fe', 24000]] },
+    { b: 'Air Liquide', parts: [['act', 8500]] },
+    { b: 'Épargne salariale', parts: [['act', 900]] },
+  ];
+  const bMax = 50600;
+  const reperes = `
+    <div class="screen">${status}
+      <div class="title">Repères</div>
+      <div class="date">Chiffres du 30 septembre</div>
+
+      <div class="block">
+        <h3>Ton coussin de sécurité</h3>
+        <p>Si tes revenus s'arrêtaient, ton argent disponible couvrirait <b>environ 5 mois et demi</b> de dépenses.</p>
+        <div class="months">${monthCells}</div>
+        <div class="months-scale"><span class="zone">3 à 6 mois : ce qu'on conseille souvent</span></div>
+      </div>
+
+      <div class="block">
+        <h3>Ce que tu peux récupérer vite</h3>
+        <p>Un peu plus de la moitié de ce qui est à toi, <b>90 600 €</b>, en quelques semaines si besoin. Le reste est dans ta maison, et une petite part attend ta retraite.</p>
+        <div class="mini">${mini}</div>
+        <div class="keyline"><span><i style="background:#f1f5f9"></i>récupérable vite</span><span><i style="background:#f1f5f9;opacity:.2"></i>pas tout de suite</span></div>
+      </div>
+
+      <div class="block">
+        <h3>Bon à savoir</h3>
+        <div class="fact">Ta maison représente presque la moitié de ce qui est à toi. C'est courant quand on est propriétaire.</div>
+        <div class="fact">Tu as des actions Air Liquide sur deux comptes différents, 15 000 € en tout.</div>
+        <div class="fact">Une petite partie de ton épargne est placée chez ton employeur, OVHcloud.</div>
+      </div>
+
+      <div class="block" style="border-bottom:none">
+        <h3>Où est ton argent</h3>
+        ${BANKS.map((k) => {
+          const tot = k.parts.reduce((s, p) => s + p[1], 0);
+          return `<div class="bank"><span>${k.b}</span><span>${eur(tot)}</span>
+            <div class="hbar">${k.parts.map(([c, v]) => `<span style="width:${(v / bMax) * 100}%;background:${C[c]}"></span>`).join('')}</div></div>`;
+        }).join('')}
+        <div class="bank" style="border-top:1px solid var(--rule);margin-top:8px;padding-top:14px"><span>Chez toi</span><span>268 000 €</span><small>Ta maison, ton or et ta crypto</small></div>
+        <div class="bank"><span>Prêt de la banque pour ta maison</span><span>180 000 €</span></div>
+      </div>
+    </div>${tabbar('Repères')}`;
+
+  const SCREENS = [
+    { l: '1', t: 'Mon argent', d: 'Un seul grand chiffre, expliqué par une phrase. La valeur d\'un carré dite simplement. Chaque catégorie avec un nom de tous les jours, un seul montant, et son objectif en mots plutôt qu\'en euros.', h: home },
+    { l: '2', t: 'Détail : Placements en bourse', d: 'Chaque ligne montre ses carrés au lieu d\'une série de chiffres : on voit d\'un coup d\'œil ce qui pèse lourd. La plus-value devient « a gagné 3 329 € ». Le reste est derrière « Voir les chiffres détaillés ».', h: detail },
+    { l: '3', t: 'Repères (l\'ancien Diagnostic)', d: 'Le coussin de sécurité en 12 cases, une par mois. Ce qu\'on peut récupérer vite, montré en allumant les carrés de la grille. « Bon à savoir » au lieu de « points d\'attention », et aucun scénario qui inquiète.', h: reperes },
+  ];
+  document.getElementById('row').innerHTML = SCREENS.map((s) => `
+    <div class="col"><div class="caption"><h2><span>${s.l}</span>${s.t}</h2><p>${s.d}</p></div><div class="phone">${s.h}</div></div>`).join('');
+</script>
+</body>
+</html>

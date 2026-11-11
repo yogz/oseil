@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 13 — saisir une action</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .board-head { max-width: 980px; margin: 0 auto 28px; }
+  .board-head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .board-head p { color: #a3a4a8; font-size: 15px; line-height: 1.55; }
+  .board-head p + p { margin-top: 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 32px 24px; justify-content: center; align-items: flex-start; }
+  .col { width: 372px; display: flex; flex-direction: column; gap: 14px; }
+  .caption h2 { font-size: 16px; font-weight: 600; }
+  .caption h2 span { color: #8a8b90; font-weight: 500; margin-right: 6px; }
+  .caption p { color: #a3a4a8; font-size: 13.5px; line-height: 1.5; margin-top: 4px; min-height: 120px; }
+  .caption .pc { margin-top: 8px; font-size: 13px; line-height: 1.5; }
+  .caption .pc b { color: #e8e8ea; font-weight: 600; }
+
+  .phone { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --field: rgba(255,255,255,0.05); --gain: #3FD182;
+    width: 372px; border: 1px solid #2c2d31; border-radius: 34px; overflow: hidden; background: var(--bg); color: var(--text); display: flex; flex-direction: column; font-variant-numeric: tabular-nums; }
+  .screen { padding: 14px 18px 22px; flex: 1; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 4px 14px; }
+  .muted { color: var(--muted); }
+  .gain { color: var(--gain); }
+  .topline { display: flex; justify-content: space-between; align-items: center; min-height: 36px; font-size: 14px; color: var(--muted); }
+  .title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin-top: 6px; }
+  .q { font-size: 14.5px; margin-top: 18px; }
+  .q small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+  .input { height: 48px; border-radius: 10px; background: var(--field); border: 1px solid rgba(255,255,255,0.14); display: flex; align-items: center; padding: 0 14px; font-size: 16px; margin-top: 8px; }
+  .input.num { justify-content: flex-end; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .chip { height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.22); display: flex; align-items: center; font-size: 14px; }
+  .chip.on { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 500; }
+  .summary { margin-top: 20px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.05); font-size: 14px; line-height: 1.6; }
+  .summary b { font-weight: 600; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px; background: #D04A2E; margin-right: 6px; vertical-align: -1px; }
+  .actions { padding-top: 18px; }
+  .primary { width: 100%; height: 52px; border-radius: 26px; background: var(--text); color: var(--bg); border: none; font: 600 15px Inter, sans-serif; }
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 14px; }
+  .steps i { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.14); }
+  .steps i.now { background: var(--soft); opacity: .6; }
+  .field-row { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .lbl { display: flex; justify-content: space-between; font-size: 15px; }
+  .lbl small { font-size: 12.5px; color: var(--muted); }
+  .trio { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 9px; }
+  .trio > div { display: flex; flex-direction: column; gap: 4px; }
+  .trio span { font-size: 11.5px; color: var(--muted); }
+  .trio .input { margin-top: 0; justify-content: flex-end; font-size: 15px; padding: 0 10px; }
+  .trio .input.edited { border-color: var(--text); }
+  .calc { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .calc b { color: var(--text); font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="board-head">
+    <h1>Planche 13 — où se saisissent le nombre de parts et les prix</h1>
+    <p><strong>La première fois</strong> qu'on ajoute une action ou un fonds, on donne tout : où il est, combien de parts, à quel prix moyen on les a achetées, et le prix du jour. C'est le téléphone 1.</p>
+    <p><strong>Ensuite, à chaque mise à jour</strong>, deux façons de faire sont possibles. A : on ne tape que le prix du jour, et les achats ou ventes passent par « J'ai acheté ou vendu » (planche 12). B : on recopie à chaque fois les trois chiffres que montre l'appli de la banque (téléphone 2).</p>
+  </div>
+  <div class="row" id="row"></div>
+
+<script>
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+
+  const add = `
+    <div class="screen">${status}
+      <div class="topline"><span>Annuler</span><span></span></div>
+      <div class="title">Ajouter une action ou un fonds</div>
+      <div class="q">Son nom</div>
+      <div class="input">iShares MSCI World</div>
+      <div class="q">Où est-il ?</div>
+      <div class="chips"><span class="chip on">BoursoBank</span><span class="chip">Linxea</span><span class="chip">Autre…</span></div>
+      <div class="chips"><span class="chip on">PEA</span><span class="chip">Compte-titres</span><span class="chip">PER</span><span class="chip">Assurance-vie</span></div>
+      <div class="q">Combien de parts as-tu ?</div>
+      <div class="input num">3 800</div>
+      <div class="q">À quel prix les as-tu achetées, en moyenne ?<small>Ta banque l'affiche souvent sous « prix de revient » ou « PRU ». Tu ne le sais pas ? Laisse vide, on affichera la valeur sans le gain.</small></div>
+      <div class="input num">4,65 €</div>
+      <div class="q">Combien vaut une part aujourd'hui ?</div>
+      <div class="input num">5,53 €</div>
+      <div class="summary">Vaut aujourd'hui <b>21 014 €</b>, <span class="gain">a gagné 3 344 € depuis l'achat</span>.<br><span class="sw"></span>Rangé dans <b>Placements en bourse</b> · <span class="muted" style="text-decoration:underline">changer</span></div>
+      <div class="actions"><button class="primary">Ajouter</button></div>
+    </div>`;
+
+  const trio = (name, where, parts, pru, price, value, edited) => `
+    <div class="field-row">
+      <div class="lbl"><span>${name}</span><small>${where}</small></div>
+      <div class="trio">
+        <div><span>parts</span><div class="input ${edited.includes('p') ? 'edited' : ''}">${parts}</div></div>
+        <div><span>prix moyen d'achat</span><div class="input ${edited.includes('m') ? 'edited' : ''}">${pru}</div></div>
+        <div><span>prix du jour</span><div class="input ${edited.includes('j') ? 'edited' : ''}">${price}</div></div>
+      </div>
+      <div class="calc"><span>${edited ? 'modifié' : 'inchangé'}</span><b>= ${value}</b></div>
+    </div>`;
+  const copyAll = `
+    <div class="screen">${status}
+      <div class="topline"><span>‹ Retour</span><span>1 sur 5</span></div>
+      <div class="title">BoursoBank</div>
+      <div class="steps"><i class="now"></i><i></i><i></i><i></i><i></i></div>
+      <p style="font-size:14px;color:var(--soft);line-height:1.55;margin-top:12px">Recopie les trois chiffres que montre ton application pour chaque ligne. Tout est déjà rempli avec la dernière fois.</p>
+      ${trio('iShares MSCI World', 'PEA', '4 000', '4,71 €', '5,89 €', '23 560 €', 'pmj')}
+      ${trio('Air Liquide', 'PEA', '38', '149,00 €', '171,05 €', '6 500 €', '')}
+      ${trio('LVMH', 'PEA', '6', '645,00 €', '650,00 €', '3 900 €', 'j')}
+      <div class="actions"><button class="primary">Suivant : Linxea</button></div>
+    </div>`;
+
+  const SCREENS = [
+    { l: '1', t: 'Ajouter une action, la première fois', d: 'Une question par chiffre, en mots simples. Le prix moyen d\'achat dit où le trouver, et on peut le laisser vide. En bas, ce que ça donne avant de valider, et la catégorie proposée, qu\'on peut changer.', pc: '', h: add },
+    { l: 'B', t: 'Variante : tout recopier à chaque fois', d: 'À chaque mise à jour, trois cases par action au lieu d\'une : parts, prix moyen d\'achat, prix du jour. On recopie ce que montre la banque, qui a déjà fait les calculs (frais compris).', pc: '<b>Pour</b> : pas de geste « acheté ou vendu », et le prix moyen est exactement celui de la banque. <b>Contre</b> : trois cases par ligne, une mise à jour plus longue, plus intimidante pour un débutant.', h: copyAll },
+  ];
+  document.getElementById('row').innerHTML = SCREENS.map((s) => `
+    <div class="col"><div class="caption"><h2><span>${s.l}</span>${s.t}</h2><p>${s.d}</p>${s.pc ? `<p class="pc">${s.pc}</p>` : ''}</div><div class="phone">${s.h}</div></div>`).join('');
+</script>
+</body>
+</html>

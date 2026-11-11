@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 20 — la version ordinateur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .intro { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 940px; }
+  .cap { margin: 30px 0 10px; font-size: 15px; color: #a3a4a8; line-height: 1.5; }
+  .cap b { color: #e8e8ea; }
+
+  .desk { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --gain: #3FD182; --loss: #F2877A;
+    width: 1180px; border: 1px solid #2c2d31; border-radius: 14px; overflow: hidden; background: var(--bg); color: var(--text); font-variant-numeric: tabular-nums; }
+  .chrome { height: 34px; background: #121418; display: flex; align-items: center; gap: 7px; padding: 0 14px; border-bottom: 1px solid #22252b; }
+  .chrome i { width: 11px; height: 11px; border-radius: 50%; background: #2c2f36; }
+  .top { display: flex; align-items: center; gap: 36px; padding: 18px 40px; border-bottom: 1px solid var(--rule); }
+  .brand { font-weight: 600; font-size: 16px; }
+  .nav { display: flex; gap: 26px; font-size: 14.5px; color: var(--muted); }
+  .nav span.on { color: var(--text); font-weight: 500; box-shadow: 0 2px 0 var(--text); padding-bottom: 4px; }
+  .right { margin-left: auto; display: flex; align-items: center; gap: 18px; font-size: 13.5px; color: var(--muted); }
+  .update { height: 38px; padding: 0 16px; border-radius: 19px; border: 1px solid rgba(255,255,255,0.22); background: transparent; color: var(--text); font: 500 13.5px Inter, sans-serif; }
+  .main { display: grid; grid-template-columns: 470px 1fr; gap: 56px; padding: 34px 40px 40px; }
+  .lbl { font-size: 14px; color: var(--soft); }
+  .num { font-size: 48px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; margin-top: 2px; }
+  .p { font-size: 14.5px; color: var(--soft); line-height: 1.55; margin-top: 8px; }
+  .sq { display: flex; gap: 14px; align-items: center; padding: 14px 0; margin-top: 18px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .sample { width: 28px; height: 28px; border-radius: 3px; border: 1.5px solid var(--text); }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin-top: 22px; }
+  .grid i { aspect-ratio: 1; border-radius: 3px; transition: opacity .2s; }
+  .goal { font-size: 16px; font-weight: 600; }
+  .goal span { display: block; font-size: 13.5px; color: var(--muted); font-weight: 400; margin-top: 3px; }
+  .line { display: grid; grid-template-columns: 14px 1fr auto; column-gap: 12px; row-gap: 7px; align-items: center; padding: 14px 10px; margin: 0 -10px; border-top: 1px solid var(--rule); border-radius: 6px; }
+  .line.hover { background: rgba(255,255,255,0.04); }
+  .sw { width: 14px; height: 14px; border-radius: 3px; }
+  .name { font-size: 15px; }
+  .amt { font-size: 15px; text-align: right; }
+  .chev { color: var(--muted); margin-left: 8px; }
+  .words { grid-column: 2 / 4; font-size: 13px; color: var(--muted); }
+  .bar { grid-column: 2 / 4; display: flex; height: 6px; }
+  .bar .tick { width: 2px; background: var(--text); }
+  .glance { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 26px; }
+  .glance div { border: 1px solid var(--rule); border-radius: 12px; padding: 16px 18px; }
+  .glance small { display: block; font-size: 13px; color: var(--muted); }
+  .glance b { display: block; font-size: 22px; font-weight: 600; margin-top: 6px; }
+  .glance em { font-style: normal; font-size: 13px; color: var(--soft); display: block; margin-top: 4px; }
+  .glance .go { float: right; color: var(--muted); font-size: 13px; }
+  .back { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+  .dtitle { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 600; }
+  .damt { font-size: 34px; font-weight: 600; margin-top: 8px; letter-spacing: -0.02em; }
+  .dsub { font-size: 14px; color: var(--soft); margin-top: 6px; }
+  .pos { display: grid; grid-template-columns: 1fr 170px 130px; gap: 16px; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 14.5px; }
+  .pos small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .units { display: flex; flex-wrap: wrap; gap: 3px; }
+  .units i { width: 11px; height: 11px; border-radius: 2px; }
+  .pos .v { text-align: right; }
+  .pos .v small { color: var(--gain); }
+  .pos .v small.l { color: var(--loss); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Planche 20 — la version ordinateur</h1>
+  <p class="intro">Le même contenu que sur téléphone, en deux colonnes : à gauche ce qui est à toi et la grille, à droite les catégories et leurs objectifs. Les trois onglets deviennent un menu en haut. La place en plus sert à montrer, en bas à droite, un coup d'œil sur les Repères et l'Évolution.</p>
+
+  <div class="cap"><b>1. Mon argent.</b> En passant la souris sur une catégorie, elle s'éclaire.</div>
+  <div class="desk" id="d1"></div>
+
+  <div class="cap"><b>2. Une catégorie ouverte.</b> Sur ordinateur, le détail s'ouvre à droite et la grille reste visible à gauche : seuls les carrés de la catégorie restent allumés.</div>
+  <div class="desk" id="d2"></div>
+</div>
+
+<script>
+  const C = { liq: '#2FA8A2', fe: '#6E77E0', immo: '#3DB57E', act: '#D04A2E', cry: '#D9A521' };
+  const CATS = [
+    { key: 'liq', name: 'Argent disponible', held: 9, target: 10, v: '16 000 €' },
+    { key: 'fe', name: 'Épargne sécurisée', held: 14, target: 10, v: '24 000 €' },
+    { key: 'immo', name: 'Immobilier', held: 46, target: 45, v: '80 000 €', pre: 'estimée le 30 sept. · ' },
+    { key: 'act', name: 'Placements en bourse', held: 26, target: 30, v: '44 000 €' },
+    { key: 'cry', name: 'Or et crypto', held: 5, target: 5, v: '8 000 €' },
+  ];
+  function goalWords(c) {
+    const d = c.held - c.target;
+    if (d === 0) return 'pile à ton objectif';
+    if (Math.abs(d) === 1) return 'presque à ton objectif';
+    return d > 0 ? 'un peu au-dessus de ton objectif' : 'un peu en dessous de ton objectif';
+  }
+  const SCALE = 46, w = (n) => (n / SCALE) * 100;
+  const bar = (c) => {
+    const col = C[c.key], common = Math.min(c.held, c.target), short = Math.max(0, c.target - c.held), over = Math.max(0, c.held - c.target);
+    return `<div class="bar"><span style="width:${w(common)}%;background:${col}"></span>${short ? `<span style="width:${w(short)}%;border:1px solid ${col}"></span>` : ''}<span class="tick"></span>${over ? `<span style="width:${w(over)}%;background:${col}"></span>` : ''}</div>`;
+  };
+  const grid = (focus) => {
+    let h = '';
+    CATS.forEach((c) => { for (let i = 0; i < c.held; i++) h += `<i style="background:${C[c.key]};opacity:${!focus || focus === c.key ? 1 : 0.16}"></i>`; });
+    return `<div class="grid">${h}</div>`;
+  };
+  const chrome = `<div class="chrome"><i></i><i></i><i></i></div>`;
+  const topBar = `<div class="top"><span class="brand">PatriCube</span><span class="nav"><span class="on">Mon argent</span><span>Repères</span><span>Évolution</span></span>
+    <span class="right"><span>Chiffres du 30 septembre</span><button class="update">Mettre à jour</button><span>Réglages</span></span></div>`;
+  const left = (focus) => `<div>
+    <div class="lbl">Ce qui est vraiment à toi</div>
+    <div class="num">172 000 €</div>
+    <p class="p">Tu possèdes 352 000 €, dont 180 000 € encore prêtés par la banque pour ta maison.</p>
+    <div class="sq"><span class="sample"></span><div><div style="font-size:15px">Un carré vaut <b>1 720 €</b></div><div style="font-size:13px;color:var(--gain);margin-top:2px">700 € de plus qu'en janvier 2024</div></div></div>
+    ${grid(focus)}
+  </div>`;
+
+  const home = `${chrome}${topBar}<div class="main">${left(null)}
+    <div>
+      <div class="goal">Proche de tes objectifs<span>À 5 carrés près sur 100.</span></div>
+      <div style="margin-top:14px">${CATS.map((c) => `<div class="line ${c.key === 'act' ? 'hover' : ''}"><span class="sw" style="background:${C[c.key]}"></span><span class="name">${c.name}</span><span class="amt">${c.v}<span class="chev">›</span></span>${bar(c)}<span class="words">${c.pre || ''}${goalWords(c)}</span></div>`).join('')}</div>
+      <div class="glance">
+        <div><span class="go">Repères ›</span><small>Ton coussin de sécurité</small><b>5 mois et demi</b><em>de dépenses</em></div>
+        <div><span class="go">Évolution ›</span><small>Depuis janvier 2024</small><b style="color:var(--gain)">+70 000 €</b><em>sur ce qui est à toi</em></div>
+      </div>
+    </div></div>`;
+
+  const POS = [
+    ['iShares MSCI World', 'PEA chez BoursoBank', 12, '21 000 €', 'a gagné 3 329 €', ''],
+    ['Air Liquide', 'Détenues en direct chez Air Liquide', 5, '8 500 €', 'a gagné 1 580 €', ''],
+    ['Air Liquide', 'PEA chez BoursoBank', 4, '6 500 €', 'a gagné 838 €', ''],
+    ['LVMH', 'PEA chez BoursoBank', 3, '4 200 €', 'a gagné 330 €', ''],
+    ['Sanofi', 'PEA chez BoursoBank', 1, '2 400 €', 'a gagné 276 €', ''],
+    ['OVHcloud', 'Épargne salariale, disponible en 2029', 1, '900 €', 'a perdu 204 €', 'l'],
+  ];
+  const act = CATS[3];
+  const detail = `${chrome}${topBar}<div class="main">${left('act')}
+    <div>
+      <div class="back">‹ Toutes les catégories</div>
+      <div class="dtitle"><span class="sw" style="background:${C.act};width:16px;height:16px"></span>Placements en bourse</div>
+      <div class="damt">44 000 €</div>
+      <div class="dsub">26 carrés sur 100, ${goalWords(act)} (30 carrés).</div>
+      <div style="margin:12px 0 10px">${bar(act).replace('class="bar"', 'class="bar" style="height:7px"')}</div>
+      ${POS.map(([n, wh, sq, v, pv, l]) => `<div class="pos"><span>${n}<small>${wh}</small></span><span class="units">${Array.from({ length: sq }, () => `<i style="background:${C.act}"></i>`).join('')}</span><span class="v">${v}<small class="${l}">${pv}</small></span></div>`).join('')}
+      <div class="pos" style="border-bottom:none;color:var(--muted)"><span>iShares USA ESG<small>Épargne retraite · trop petit pour un carré</small></span><span></span><span class="v" style="color:var(--text)">500 €<small>a gagné 80 €</small></span></div>
+    </div></div>`;
+
+  document.getElementById('d1').innerHTML = home;
+  document.getElementById('d2').innerHTML = detail;
+</script>
+</body>
+</html>

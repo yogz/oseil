@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 8 — trois écrans</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .board-head { max-width: 1260px; margin: 0 auto 28px; }
+  .board-head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .board-head p { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 900px; }
+  .board-head p + p { margin-top: 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; align-items: flex-start; }
+  .col { width: 392px; display: flex; flex-direction: column; gap: 14px; }
+  .caption h2 { font-size: 16px; font-weight: 600; }
+  .caption h2 span { color: #8a8b90; font-weight: 500; margin-right: 6px; }
+  .caption p { color: #a3a4a8; font-size: 13.5px; line-height: 1.5; margin-top: 4px; min-height: 82px; }
+
+  /* ---------- Phone ---------- */
+  .phone { --bg: #06080c; --text: #f1f5f9; --muted: #7e8b9b; --rule: rgba(255,255,255,0.08); --rule-strong: rgba(255,255,255,0.22); --debt: #FF5C7A; --gain: #3FD182; --loss: #FF5C7A; --neutral-bar: rgba(241,245,249,0.55);
+    width: 392px; border: 1px solid #2c2d31; border-radius: 34px; overflow: hidden; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+  .screen { padding: 14px 16px 24px; flex: 1; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 6px 14px; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .head { padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+  .brand { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+  .fresh { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 12px; }
+  .fresh .when { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+  .fresh .when b { color: var(--text); font-weight: 500; }
+  .update { flex-shrink: 0; min-height: 40px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: 4px; background: transparent; color: var(--text); font: 500 13px Inter, sans-serif; }
+  .ledger { padding: 18px 0 16px; border-bottom: 1px solid var(--rule); }
+  .ledger-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; padding: 3px 0; }
+  .ledger-row .lbl { color: var(--muted); }
+  .ledger-row .debt { color: var(--debt); }
+  .ledger-total { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--rule-strong); }
+  .eyebrow { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .net { font: 600 40px/1.1 'JetBrains Mono', monospace; letter-spacing: -0.03em; margin-top: 4px; }
+  .square-value { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .square-value .main { font-size: 15px; }
+  .square-value .main b { font-weight: 600; }
+  .gain { color: var(--gain); }
+  .loss { color: var(--loss); }
+  .square-value .gain { font-size: 13px; margin-left: 6px; }
+  .square-value .sub { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  .verdict { font-size: 15px; font-weight: 600; padding: 18px 0 4px; }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin: 12px 0 18px; }
+  .cell { aspect-ratio: 1; border-radius: 2px; }
+  .legend { border-top: 1px solid var(--rule); }
+  .line { display: grid; grid-template-columns: 12px 1fr auto; column-gap: 10px; row-gap: 6px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--rule); min-height: 48px; }
+  .sw { width: 12px; height: 12px; border-radius: 2px; }
+  .name { font-size: 14.5px; }
+  .name small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .amt { font-size: 14px; text-align: right; }
+  .gap { grid-column: 3; font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
+  .bar { grid-column: 2; display: flex; align-items: stretch; height: 6px; }
+  .bar .tick { width: 2px; background: var(--text); }
+  .chev { color: var(--muted); font-size: 14px; margin-left: 6px; }
+
+  /* tab bar */
+  .tabbar { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule); padding: 0 8px 18px; background: var(--bg); }
+  .tabbar span { text-align: center; font-size: 12.5px; color: var(--muted); padding: 12px 0 6px; min-height: 48px; border-top: 2px solid transparent; margin-top: -1px; }
+  .tabbar span.on { color: var(--text); border-top-color: var(--text); font-weight: 500; }
+
+  /* detail */
+  .back { font-size: 14px; color: var(--muted); padding: 4px 0 12px; min-height: 36px; }
+  .detail-head { padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+  .detail-title { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; }
+  .detail-title .sw { width: 14px; height: 14px; }
+  .detail-amt { font: 600 30px/1.2 'JetBrains Mono', monospace; letter-spacing: -0.02em; margin-top: 8px; }
+  .detail-meta { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; margin-top: 10px; }
+  .pos { padding: 12px 0; border-bottom: 1px solid var(--rule); }
+  .pos-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14.5px; }
+  .pos-env { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .pos-bottom { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 5px; font-size: 12px; }
+  .section-label { font-size: 12px; color: var(--muted); padding: 18px 0 6px; }
+
+  /* diagnostic */
+  .page-title { font-size: 20px; font-weight: 600; }
+  .block { padding: 18px 0; border-bottom: 1px solid var(--rule); }
+  .block h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .big { font: 600 28px/1.2 'JetBrains Mono', monospace; letter-spacing: -0.02em; }
+  .big small { font: 400 14px Inter, sans-serif; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
+  .gauge { position: relative; height: 8px; margin: 14px 0 6px; background: rgba(255,255,255,0.06); }
+  .gauge .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--neutral-bar); }
+  .gauge .mark { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--text); }
+  .gauge-scale { position: relative; height: 16px; font-size: 11px; color: var(--muted); }
+  .gauge-scale span { position: absolute; transform: translateX(-50%); }
+  .note { font-size: 13px; color: var(--muted); line-height: 1.5; margin-top: 6px; }
+  .rows { display: flex; flex-direction: column; gap: 12px; }
+  .r { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 14px; }
+  .r .hbar { grid-column: 1 / -1; display: flex; height: 6px; }
+  .r small { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+  .fact { font-size: 14px; line-height: 1.5; padding: 8px 0; }
+  .fact + .fact { border-top: 1px solid var(--rule); }
+  .fact b { font-weight: 600; }
+  .debtline { display: flex; justify-content: space-between; font-size: 14px; padding-top: 12px; margin-top: 4px; border-top: 1px solid var(--rule); }
+</style>
+</head>
+<body>
+  <div class="board-head">
+    <h1>Planche 8 — l'organisation, en trois écrans</h1>
+    <p>Ce qu'on a décidé après les experts. Les trois onglets en bas : <strong>Patrimoine</strong>, <strong>Diagnostic</strong>, <strong>Historique</strong>. Toucher une catégorie sur Patrimoine ouvre son détail (téléphone du milieu).</p>
+    <p>Les chiffres sont ceux du profil « Équilibré » de ta maquette. L'Historique et la mise à jour viendront dans la planche suivante.</p>
+  </div>
+  <div class="row" id="row"></div>
+
+<script>
+  const C = { liq: '#2FA8A2', fe: '#6E77E0', immo: '#3DB57E', act: '#D04A2E', cry: '#D9A521' };
+  const SQUARE_EUR = 1720;
+  const CATS = [
+    { key: 'liq',  name: 'Liquidités et livrets',      held: 9,  target: 10, amt: '16 000 €' },
+    { key: 'fe',   name: 'Fonds euros et obligations', held: 14, target: 10, amt: '24 000 €' },
+    { key: 'immo', name: 'Immobilier',                 held: 46, target: 45, amt: '80 000 €', sub: 'Estimée le 30 sept. · 260 000 € dont 180 000 € dus' },
+    { key: 'act',  name: 'Actions et bourse',          held: 26, target: 30, amt: '44 000 €' },
+    { key: 'cry',  name: 'Crypto, or et alternatifs',  held: 5,  target: 5,  amt: '8 000 €' },
+  ];
+  const eur = (n) => Math.round(n).toLocaleString('fr-FR') + ' €';
+  const gapText = (c) => { const d = c.held - c.target; return d === 0 ? 'à sa place' : `${eur(Math.abs(d) * SQUARE_EUR)} ${d > 0 ? 'en trop' : 'manquants'}`; };
+  const SCALE = Math.max(...CATS.map((c) => Math.max(c.held, c.target)));
+  const w = (n) => (n / SCALE) * 100;
+  function bar(c) {
+    const col = C[c.key];
+    const common = Math.min(c.held, c.target), short = Math.max(0, c.target - c.held), over = Math.max(0, c.held - c.target);
+    return `<div class="bar"><span style="width:${w(common)}%;background:${col}"></span>${short ? `<span style="width:${w(short)}%;border:1px solid ${col}"></span>` : ''}<span class="tick"></span>${over ? `<span style="width:${w(over)}%;background:${col}"></span>` : ''}</div>`;
+  }
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+  const tabbar = (on) => `<div class="tabbar">${['Patrimoine', 'Diagnostic', 'Historique'].map((t) => `<span class="${t === on ? 'on' : ''}">${t}</span>`).join('')}</div>`;
+
+  /* ---------- 1. Patrimoine ---------- */
+  let cells = '';
+  CATS.forEach((c) => { for (let i = 0; i < c.held; i++) cells += `<div class="cell" style="background:${C[c.key]}"></div>`; });
+  const misplaced = CATS.reduce((s, c) => s + Math.max(0, c.held - c.target), 0);
+  const patrimoine = `
+    <div class="screen">${status}
+      <div class="head"><div class="brand">PatriCube</div>
+        <div class="fresh"><span class="when">Chiffres du <b>30 sept. 2026</b><br>il y a 5 semaines</span><button class="update">Mettre à jour</button></div></div>
+      <div class="ledger">
+        <div class="ledger-row"><span class="lbl">Ce que je possède</span><span class="mono">352 000 €</span></div>
+        <div class="ledger-row"><span class="lbl">Crédits restant dus</span><span class="mono debt">− 180 000 €</span></div>
+        <div class="ledger-total"><div class="eyebrow">Patrimoine net</div><div class="net">172 000 €</div></div>
+      </div>
+      <div class="square-value"><div class="main">1 carré = <b class="mono">1 720 €</b><span class="gain mono">+700 € depuis janv. 2024</span></div>
+        <div class="sub">Prochain cap : 1 carré = 2 000 €, atteint à 86 %</div></div>
+      <div class="verdict">${misplaced} carrés sur 100 au mauvais endroit.</div>
+      <div class="grid">${cells}</div>
+      <div class="legend">${CATS.map((c) => `
+        <div class="line">
+          <span class="sw" style="background:${C[c.key]}"></span>
+          <span class="name">${c.name}${c.sub ? `<small>${c.sub}</small>` : ''}</span>
+          <span class="amt mono">${c.amt}<span class="chev">›</span></span>
+          ${bar(c)}
+          <span class="gap mono">${gapText(c)}</span>
+        </div>`).join('')}
+      </div>
+    </div>${tabbar('Patrimoine')}`;
+
+  /* ---------- 2. Détail : Actions et bourse ---------- */
+  const POS = [
+    { n: 'iShares MSCI World', env: 'PEA · BoursoBank', v: 21000, sq: 12, q: '3 800 × 5,53 €', pru: '4,65 €', pv: 3329, pct: '+18,8 %' },
+    { n: 'Air Liquide', env: 'Nominatif pur · Air Liquide', v: 8500, sq: 5, q: '50 × 170,00 €', pru: '138,40 €', pv: 1580, pct: '+22,8 %' },
+    { n: 'Air Liquide', env: 'PEA · BoursoBank', v: 6500, sq: 4, q: '38 × 171,05 €', pru: '149,00 €', pv: 838, pct: '+14,8 %' },
+    { n: 'LVMH', env: 'PEA · BoursoBank', v: 4200, sq: 3, q: '6 × 700,00 €', pru: '645,00 €', pv: 330, pct: '+8,5 %' },
+    { n: 'Sanofi', env: 'PEA · BoursoBank', v: 2400, sq: 1, q: '24 × 100,00 €', pru: '88,50 €', pv: 276, pct: '+13,0 %' },
+    { n: 'OVHcloud', env: 'PEE · épargne salariale', v: 900, sq: 1, q: '120 × 7,50 €', pru: '9,20 €', pv: -204, pct: '−18,5 %' },
+  ];
+  const MINOR = [{ n: 'iShares USA ESG', env: 'PER · BoursoBank', v: 500, q: '50 × 10,00 €', pru: '8,40 €', pv: 80, pct: '+19,0 %' }];
+  const pvText = (p) => `<span class="${p.pv >= 0 ? 'gain' : 'loss'} mono">${p.pv >= 0 ? '+' : '−'}${eur(Math.abs(p.pv))} (${p.pct})</span>`;
+  const posRow = (p) => `
+    <div class="pos">
+      <div class="pos-top"><span>${p.n}</span><span class="mono">${eur(p.v)}</span></div>
+      <div class="pos-bottom"><span class="muted">${p.env}${p.sq ? ` · ${p.sq} carré${p.sq > 1 ? 's' : ''}` : ''}</span>${pvText(p)}</div>
+      <div class="pos-env mono">${p.q} · prix de revient ${p.pru}</div>
+    </div>`;
+  const act = CATS.find((c) => c.key === 'act');
+  const detail = `
+    <div class="screen">${status}
+      <div class="back">‹ Patrimoine</div>
+      <div class="detail-head">
+        <div class="detail-title"><span class="sw" style="background:${C.act}"></span>Actions et bourse</div>
+        <div class="detail-amt">44 000 €</div>
+        <div class="detail-meta">
+          <span class="muted" style="font-size:13px">26 carrés · but 30</span><span class="gap mono" style="grid-column:2">${gapText(act)}</span>
+          <div style="grid-column:1 / -1">${bar(act).replace('class="bar"', 'class="bar" style="height:6px"')}</div>
+        </div>
+      </div>
+      <div class="section-label">Plus-values depuis l'achat, avant impôt</div>
+      ${POS.map(posRow).join('')}
+      <div class="section-label">Moins d'un carré : absent de la grille, jamais de la liste</div>
+      ${MINOR.map(posRow).join('')}
+    </div>${tabbar('Patrimoine')}`;
+
+  /* ---------- 3. Diagnostic ---------- */
+  const months = 16000 / 2800;
+  const gMax = 12;
+  const pctG = (m) => (m / gMax) * 100;
+  const AVAIL = [
+    { l: 'Tout de suite', v: 16000, s: 'Livrets' },
+    { l: 'En quelques semaines', v: 74600, s: 'Fonds euros, actions, or et crypto' },
+    { l: 'Bloqué', v: 1400, s: 'PEE jusqu\'en 2029, PER jusqu\'à la retraite' },
+    { l: 'La maison', v: 80000, s: 'Net de crédit ; se vend en plusieurs mois' },
+  ];
+  const aMax = Math.max(...AVAIL.map((a) => a.v));
+  const BANKS = [
+    { b: 'BoursoBank', parts: [['liq', 16000], ['act', 34600]] },
+    { b: 'Linxea', parts: [['fe', 24000]] },
+    { b: 'Air Liquide (nominatif)', parts: [['act', 8500]] },
+    { b: 'Épargne salariale', parts: [['act', 900]] },
+  ];
+  const bMax = 50600;
+  const bankRow = (k) => {
+    const tot = k.parts.reduce((s, p) => s + p[1], 0);
+    return `<div class="r"><span>${k.b}</span><span class="mono">${eur(tot)}</span>
+      <div class="hbar">${k.parts.map(([c, v]) => `<span style="width:${(v / bMax) * 100}%;background:${C[c]}"></span>`).join('')}</div>
+      ${k.s ? `<small>${k.s}</small>` : ''}</div>`;
+  };
+  const diagnostic = `
+    <div class="screen">${status}
+      <div class="head"><div class="page-title">Diagnostic</div><div class="muted" style="font-size:12.5px;margin-top:4px">Chiffres du 30 sept. 2026</div></div>
+
+      <div class="block">
+        <h3>Matelas de sécurité</h3>
+        <div class="big">${months.toFixed(1).replace('.', ',')}<small>mois de dépenses</small></div>
+        <div class="gauge"><span class="fill" style="width:${pctG(months)}%"></span><span class="mark" style="left:${pctG(3)}%"></span><span class="mark" style="left:${pctG(6)}%"></span></div>
+        <div class="gauge-scale"><span style="left:0;transform:none">0</span><span style="left:${pctG(3)}%">3 mois</span><span style="left:${pctG(6)}%">6 mois</span><span style="left:100%;transform:translateX(-100%)">12</span></div>
+        <p class="note">16 000 € sur tes livrets, pour 2 800 € de dépenses par mois (ton réglage). Les deux traits : les repères habituels de 3 et 6 mois.</p>
+      </div>
+
+      <div class="block">
+        <h3>Disponible quand ?</h3>
+        <div class="rows">${AVAIL.map((a) => `
+          <div class="r"><span>${a.l}</span><span class="mono">${eur(a.v)}</span>
+            <div class="hbar"><span style="width:${(a.v / aMax) * 100}%;background:var(--neutral-bar)"></span></div>
+            <small>${a.s}</small></div>`).join('')}
+        </div>
+      </div>
+
+      <div class="block">
+        <h3>Points d'attention</h3>
+        <div class="fact"><b>Air Liquide</b> : 15 000 € sur deux comptes, un tiers de tes actions.</div>
+        <div class="fact"><b>OVHcloud</b>, ton employeur : 900 € en PEE, en plus de ton salaire.</div>
+        <div class="fact"><b>Ta maison</b> : 260 000 €, une fois et demie ton patrimoine net. Si elle perd 10 %, ton net perd 15 %.</div>
+      </div>
+
+      <div class="block" style="border-bottom:none">
+        <h3>Où est ton argent</h3>
+        <div class="rows">${BANKS.map(bankRow).join('')}</div>
+        <div class="r" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--rule)"><span>Détenu en direct, hors banque</span><span class="mono">268 000 €</span>
+          <small>Maison 260 000 € · or 5 000 € · crypto 3 000 €</small></div>
+        <div class="debtline"><span>Dû à la banque (crédit immobilier)</span><span class="mono debt">− 180 000 €</span></div>
+      </div>
+    </div>${tabbar('Diagnostic')}`;
+
+  const SCREENS = [
+    { l: '1', t: 'Patrimoine', d: 'L\'écran d\'ouverture validé, corrigé : plus de bascules, « estimée le » sur l\'immobilier, vert et corail ajustés pour les daltoniens, une flèche › sur chaque catégorie pour dire qu\'elle s\'ouvre, et les trois onglets en bas.', h: patrimoine },
+    { l: '2', t: 'Détail : Actions et bourse', d: 'Ce qui s\'ouvre en touchant une catégorie. En tête, la même ligne que sur Patrimoine (montant, but, écart). Puis chaque ligne : son enveloppe, sa banque, quantité × cours, prix de revient et plus-value depuis l\'achat.', h: detail },
+    { l: '3', t: 'Diagnostic', d: 'Des constats, pas des notes. Le matelas avec ses repères à 3 et 6 mois, l\'argent disponible selon le délai, les points d\'attention (des faits, aucun conseil), et la liste des banques en barres aux couleurs des catégories.', h: diagnostic },
+  ];
+  document.getElementById('row').innerHTML = SCREENS.map((s) => `
+    <div class="col"><div class="caption"><h2><span>${s.l}</span>${s.t}</h2><p>${s.d}</p></div><div class="phone">${s.h}</div></div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+// What the fiche of one line shows, as words and figures. Pure: no React, no database.
+
+import type { Model } from '@/lib/app/use-model'
+import { ACCOUNT_TYPES, CATEGORIES, GROUP_LABELS, isRanged } from '@/lib/catalog'
+import { placeChoices } from '@/lib/correct/profile-changes'
+import { closingBounds, closingUnfinished, deleteLine } from '@/lib/correct/snapshot-changes'
+import type { StoredSnapshot } from '@/lib/correct/types'
+import { formatDayMonth, formatEurosShown, formatPriceShown, formatShortDayMonth, formatUnits } from '@/lib/format'
+import { convertible, usablePrices, withPrices } from '@/lib/market/live'
+import type { Market } from '@/lib/market/types'
+import { lastKnownPrice } from '@/lib/market/words'
+import { categoryOf, entryValue } from '@/lib/model/situation'
+import type { CategoryId, GroupId, IsoDate, Residence } from '@/lib/model/types'
+import { chapterOf } from '@/lib/screens/chapters'
+import { isStale } from '@/lib/update/draft'
+import { loweredCategory } from '@/lib/screens/debts'
+import {
+  AMOUNT_LABEL,
+  closeWord,
+  DEBT_SENTENCE,
+  GROUP_TYPE,
+  GROUP_ZONE,
+  NO_HOME,
+  NO_RATE_AMOUNT,
+  OWED_LABEL,
+  UNITS_LABEL,
+} from '@/lib/screens/line-words'
+import { titleRows } from '@/lib/screens/titles'
+import { whereWords } from '@/lib/screens/words'
+
+export type SheetRow =
+  | { kind: 'name'; value: string }
+  | { kind: 'figures'; label: string; value: string } // value: « au 8 nov. »
+  | { kind: 'place'; value: string } // « PEA · BoursoBank », « Chez toi »
+  | { kind: 'group'; label: string; value: string; group: GroupId } // « Zone » (markets) or « Type » (secured): only a ranged category
+  | { kind: 'price'; following: boolean } // only for a line « Tes titres » lists
+  | { kind: 'financed'; value: string } // the home line's name, or NO_HOME
+  | { kind: 'unlock'; year: number | null } // only for an employee-savings account
+  | { kind: 'slow'; slow: boolean } // not for a home, a PER, employee savings or a loan: their type decides
+  | { kind: 'residence'; residence: Residence } // only for a home; absent on the account reads 'main'
+
+export type LineSheetView = {
+  lineId: string
+  category: CategoryId | null // null for a loan
+  back: { href: string; label: string }
+  name: string
+  where: string
+  amount: string | null // null: no rate converts it, said by amountNote
+  amountNote: string | null
+  debt: string | null // « 260 000 € dont 80 000 € dus à la banque », for a line a loan finances
+  detail: string
+  loanAtHome: boolean
+  state: { kind: 'open' } | { kind: 'closed'; on: string } | { kind: 'closing-unfinished'; on: string }
+  rows: SheetRow[] // empty unless state is open
+  close: { label: string; possible: boolean }
+  canDelete: boolean // false: the only entry of a snapshot
+  locked: 'update-running' | 'unreadable' | null
+}
+
+const backTo = (category: CategoryId) => ({ href: `/categorie/${category}`, label: CATEGORIES[category].label })
+
+// `market`: today's prices, when the browser has them: the same overlay as the category detail.
+export function lineSheetView(model: Model, lineId: string, today: IsoDate, market: Market | null): LineSheetView | null {
+  if (model.profile === null || model.snapshots.length === 0) return null
+  const profile = model.profile.value
+  const latest = model.snapshots[model.snapshots.length - 1]
+  const saved = latest.value
+  const savedEntry = saved.entries.find((e) => e.lineId === lineId)
+  if (!savedEntry) return null
+  const line = profile.lines.find((l) => l.id === lineId)
+  const account = line && profile.accounts.find((a) => a.id === line.accountId)
+  const establishment = account && profile.establishments.find((e) => e.id === account.establishmentId)
+  if (!line || !account || !establishment) return null
+
+  const isLoan = account.type === 'loan'
+  const stored: StoredSnapshot[] = model.snapshots.map((s) => ({ id: s.id, value: s.value }))
+  const { prices } = market ? usablePrices(profile, saved, market, today) : { prices: {} }
+  const { snapshot } = convertible(profile, withPrices(saved, prices))
+  const entry = snapshot.entries.find((e) => e.lineId === lineId)
+  const day = formatDayMonth(saved.takenOn, today)
+
+  // A loan's amount is what is owed, positive, never in red.
+  const gross = entry ? entryValue(entry, line, snapshot.fx) : null
+  const amountNote = entry ? null : NO_RATE_AMOUNT
+
+  // A line a loan finances: its figure at the top is the one the category detail gives it, what its
+  // squares are worth, its value less the loan, the same everywhere. The fiche then says what the
+  // whole is and what is owed on it, in the detail's words, the loans of this same snapshot only.
+  // « dont » only when the debt fits in it, as in the detail.
+  const owed = snapshot.entries.reduce((sum, e) => {
+    const loanLine = profile.lines.find((l) => l.id === e.lineId)
+    const loan = loanLine && profile.accounts.find((a) => a.id === loanLine.accountId)
+    return loanLine && loan?.type === 'loan' && loan.financedLineId === lineId ? sum + entryValue(e, loanLine, snapshot.fx) : sum
+  }, 0)
+  const amount = gross === null ? null : formatEurosShown(owed > 0 ? gross - owed : gross)
+  const debt = gross !== null && owed > 0 && owed <= gross ? DEBT_SENTENCE(formatEurosShown(gross), formatEurosShown(owed)) : null
+
+  const financed = isLoan && account.financedLineId ? profile.lines.find((l) => l.id === account.financedLineId) : undefined
+
+  const parts: string[] = []
+  if (isLoan) parts.push('reste à rembourser')
+  else if (savedEntry.kind === 'units') {
+    parts.push(`${formatUnits(savedEntry.units)} ${savedEntry.units > 1 ? 'parts' : 'part'}`)
+    const price = formatPriceShown(entry?.kind === 'units' ? entry.unitPrice : savedEntry.unitPrice, line.currency)
+    // Only a price taken today is « du jour »; any other is the snapshot's own.
+    parts.push(Object.hasOwn(prices, line.id) ? `prix du jour ${price}` : lastKnownPrice(price, day))
+  }
+  parts.push(`relevé du ${day}`)
+
+  const closedOn = line.closedOn
+  const state: LineSheetView['state'] = closingUnfinished(profile, stored, lineId)
+    ? { kind: 'closing-unfinished', on: formatDayMonth(closedOn!, today) }
+    : closedOn !== undefined
+      ? { kind: 'closed', on: formatDayMonth(closedOn, today) }
+      : { kind: 'open' }
+
+  const rows: SheetRow[] = []
+  if (state.kind === 'open') {
+    const label = isLoan ? OWED_LABEL : line.kind === 'units' ? UNITS_LABEL : AMOUNT_LABEL
+    rows.push({ kind: 'name', value: line.name })
+    rows.push({ kind: 'figures', label, value: `au ${formatShortDayMonth(saved.takenOn)}` })
+    if (placeChoices(profile, lineId).moves !== 'none') {
+      const type = account.type === 'other' ? line.name : ACCOUNT_TYPES[account.type].label
+      rows.push({ kind: 'place', value: establishment.kind === 'home' ? establishment.name : `${type} · ${establishment.name}` })
+    }
+    if (account.type === 'home') rows.push({ kind: 'residence', residence: account.residence ?? 'main' })
+    const own = categoryOf(line, account)
+    if (own !== null && isRanged(own)) {
+      const chapter = chapterOf(line, account, own)
+      const group: GroupId = chapter === null ? 'unknown' : (chapter as GroupId)
+      rows.push({ kind: 'group', label: own === 'markets' ? GROUP_ZONE : GROUP_TYPE, value: GROUP_LABELS[group], group })
+    }
+    const followable = titleRows(profile, undefined).find((row) => row.lineId === lineId)
+    if (followable) rows.push({ kind: 'price', following: followable.symbol !== null })
+    if (isLoan) rows.push({ kind: 'financed', value: financed?.name ?? NO_HOME })
+    if (account.type === 'employee-savings') {
+      rows.push({ kind: 'unlock', year: account.unlockOn ? Number(account.unlockOn.slice(0, 4)) : null })
+    }
+    if (!['home', 'per', 'employee-savings', 'loan'].includes(account.type)) {
+      rows.push({ kind: 'slow', slow: account.slow === true })
+    }
+  }
+
+  const unreadable = model.unreadable.profile > 0 || model.unreadable.snapshots > 0
+  const draftRunning = model.unreadable.draft > 0 || (model.draft !== null && !isStale(model.draft.value, latest.id))
+  const deletion = deleteLine(profile, stored, lineId)
+
+  const category = categoryOf(line, account)
+  const where = whereWords(line, account, establishment)
+  return {
+    lineId,
+    category,
+    // A loan goes back to the detail that lists it: the category it lowers, on the same snapshot.
+    back: backTo(category ?? loweredCategory(profile, snapshot, account)),
+    name: line.name,
+    where: financed ? `${where} · il finance « ${financed.name} »` : where,
+    amount,
+    amountNote,
+    debt,
+    detail: parts.join(' · '),
+    loanAtHome: isLoan && establishment.kind === 'home',
+    state,
+    rows,
+    close: {
+      label: closeWord(account.type),
+      possible: closingBounds(stored, lineId, today) !== null,
+    },
+    canDelete: !('refused' in deletion && deletion.refused === 'only-line'),
+    locked: unreadable ? 'unreadable' : draftRunning ? 'update-running' : null,
+  }
+}

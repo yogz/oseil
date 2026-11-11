@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 10 — objectifs et pourcentages</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .board-head { max-width: 1260px; margin: 0 auto 28px; }
+  .board-head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .board-head p { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 940px; }
+  .board-head p + p { margin-top: 6px; }
+  .try { display: inline-block; margin-top: 10px; padding: 8px 12px; border: 1px dashed #5a5b60; border-radius: 6px; color: #e8e8ea; font-size: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; align-items: flex-start; }
+  .col { width: 392px; display: flex; flex-direction: column; gap: 14px; }
+  .caption h2 { font-size: 16px; font-weight: 600; }
+  .caption h2 span { color: #8a8b90; font-weight: 500; margin-right: 6px; }
+  .caption p { color: #a3a4a8; font-size: 13.5px; line-height: 1.5; margin-top: 4px; min-height: 62px; }
+
+  /* ---------- Phone ---------- */
+  .phone { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --gain: #3FD182; --loss: #F2877A;
+    width: 392px; border: 1px solid #2c2d31; border-radius: 34px; overflow: hidden; background: var(--bg); color: var(--text); display: flex; flex-direction: column;
+    font-variant-numeric: tabular-nums; position: relative; }
+  .screen { padding: 14px 18px 26px; flex: 1; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 4px 16px; }
+  .muted { color: var(--muted); }
+  .gain { color: var(--gain); }
+  .loss { color: var(--loss); }
+  .tap { cursor: pointer; text-decoration: underline dotted rgba(255,255,255,0.35); text-underline-offset: 4px; text-decoration-thickness: 1px; }
+  .titlebar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .update { flex-shrink: 0; min-height: 40px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.22); border-radius: 20px; background: transparent; color: var(--text); font: 500 13px Inter, sans-serif; }
+  .date { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .hero { padding: 26px 0 22px; }
+  .hero .lbl { font-size: 14px; color: var(--soft); }
+  .hero .num { font-size: 44px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; margin-top: 2px; }
+  .hero p { font-size: 14px; color: var(--soft); line-height: 1.55; margin-top: 10px; }
+  .squareval { display: flex; gap: 14px; align-items: center; padding: 16px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .sample { width: 30px; height: 30px; border-radius: 3px; border: 1.5px solid var(--text); flex-shrink: 0; }
+  .squareval .main { font-size: 15px; }
+  .squareval .main b { font-weight: 600; }
+  .squareval .sub { font-size: 13px; margin-top: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin: 20px 0 14px; }
+  .cell { aspect-ratio: 1; border-radius: 3px; }
+  .goal { font-size: 15px; padding: 2px 0 16px; }
+  .goal b { font-weight: 600; }
+  .goal span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .line { display: grid; grid-template-columns: 14px 1fr auto; column-gap: 12px; row-gap: 7px; align-items: center; padding: 13px 0; border-top: 1px solid var(--rule); }
+  .sw { width: 14px; height: 14px; border-radius: 3px; }
+  .name { font-size: 15px; }
+  .amt { font-size: 15px; text-align: right; }
+  .chev { color: var(--muted); margin-left: 8px; }
+  .words { grid-column: 2 / 4; font-size: 12.5px; color: var(--muted); }
+  .bar { grid-column: 2 / 4; display: flex; align-items: stretch; height: 6px; }
+  .bar .tick { width: 2px; background: var(--text); }
+  .bar span:first-child { border-radius: 2px 0 0 2px; }
+
+  .tabbar { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule); padding: 0 8px 18px; }
+  .tabbar span { text-align: center; font-size: 13px; color: var(--muted); padding: 12px 0 6px; min-height: 48px; border-top: 2px solid transparent; margin-top: -1px; }
+  .tabbar span.on { color: var(--text); border-top-color: var(--text); font-weight: 500; }
+
+  .back { font-size: 14px; color: var(--muted); padding: 2px 0 14px; }
+  .dhead { padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
+  .dtitle { display: flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 600; }
+  .dtitle .sw { width: 16px; height: 16px; }
+  .damt { font-size: 34px; font-weight: 600; letter-spacing: -0.02em; margin-top: 10px; }
+  .dsub { font-size: 14px; color: var(--soft); margin-top: 6px; line-height: 1.5; }
+  .dhead .bar { margin-top: 12px; height: 7px; }
+  .pos { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .pos-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 15px; }
+  .pos-where { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .units { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 9px; }
+  .unit { width: 13px; height: 13px; border-radius: 2px; }
+  .pos-note { font-size: 13px; margin-top: 8px; }
+  .small-label { font-size: 13px; color: var(--muted); padding: 18px 0 2px; }
+
+  .toast { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); background: #f1f5f9; color: #06080c; font-size: 13px; font-weight: 500; padding: 9px 14px; border-radius: 18px; white-space: nowrap; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+  <div class="board-head">
+    <h1>Planche 10 — les objectifs reviennent, et les pourcentages d'un geste</h1>
+    <p><strong>Les objectifs</strong> : chaque catégorie retrouve sa barre (trait blanc = ton objectif, plein après le trait = au-dessus, contour vide = en dessous), avec les mots de la version douce au lieu des euros manquants.</p>
+    <p><strong>Les pourcentages</strong> : tout chiffre souligné en pointillés se touche. Un toucher fait passer <em>tous</em> les chiffres de l'application en %, un second les remet en euros, et le choix est retenu. En %, une part se lit « 9 % de ce qui est à toi », c'est-à-dire 9 carrés.</p>
+    <div class="try">Essaie : clique sur un chiffre souligné dans l'un des deux premiers téléphones. Le troisième montre le détail déjà en %.</div>
+  </div>
+  <div class="row" id="row"></div>
+
+<script>
+  const C = { liq: '#2FA8A2', fe: '#6E77E0', immo: '#3DB57E', act: '#D04A2E', cry: '#D9A521' };
+  const eur = (n) => Math.round(n).toLocaleString('fr-FR') + ' €';
+  const pct = (n, d = 0) => n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+  const NET = 172000;
+  const CATS = [
+    { key: 'liq',  name: 'Argent disponible',    held: 9,  target: 10, v: 16000 },
+    { key: 'fe',   name: 'Épargne sécurisée',    held: 14, target: 10, v: 24000 },
+    { key: 'immo', name: 'Immobilier',           held: 46, target: 45, v: 80000, pre: 'estimée le 30 sept. · ' },
+    { key: 'act',  name: 'Placements en bourse', held: 26, target: 30, v: 44000 },
+    { key: 'cry',  name: 'Or et crypto',         held: 5,  target: 5,  v: 8000 },
+  ];
+  function goalWords(c) {
+    const d = c.held - c.target;
+    if (d === 0) return 'pile à ton objectif';
+    if (Math.abs(d) === 1) return 'presque à ton objectif';
+    if (Math.abs(d) <= 5) return d > 0 ? 'un peu au-dessus de ton objectif' : 'un peu en dessous de ton objectif';
+    return d > 0 ? 'au-dessus de ton objectif' : 'en dessous de ton objectif';
+  }
+  const SCALE = Math.max(...CATS.map((c) => Math.max(c.held, c.target)));
+  const w = (n) => (n / SCALE) * 100;
+  function bar(c) {
+    const col = C[c.key];
+    const common = Math.min(c.held, c.target), short = Math.max(0, c.target - c.held), over = Math.max(0, c.held - c.target);
+    return `<div class="bar"><span style="width:${w(common)}%;background:${col}"></span>${short ? `<span style="width:${w(short)}%;border:1px solid ${col}"></span>` : ''}<span class="tick"></span>${over ? `<span style="width:${w(over)}%;background:${col}"></span>` : ''}</div>`;
+  }
+  /* A figure that flips between euros and percent. Both texts travel with it;
+     the global mode decides which one shows. */
+  const fig = (e, p, cls = '') => `<span class="tap ${cls}" data-eur="${e}" data-pct="${p}">${e}</span>`;
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+  const tabbar = (on) => `<div class="tabbar">${['Mon argent', 'Repères', 'Évolution'].map((t) => `<span class="${t === on ? 'on' : ''}">${t}</span>`).join('')}</div>`;
+  const toast = `<div class="toast"></div>`;
+
+  /* ---------- 1. Mon argent ---------- */
+  let cells = '';
+  CATS.forEach((c) => { for (let i = 0; i < c.held; i++) cells += `<div class="cell" style="background:${C[c.key]}"></div>`; });
+  const misplaced = CATS.reduce((s, c) => s + Math.max(0, c.held - c.target), 0);
+  const home = `
+    <div class="screen">${status}
+      <div class="titlebar"><div class="title">Mon argent</div><button class="update">Mettre à jour</button></div>
+      <div class="date">Chiffres du 30 septembre</div>
+      <div class="hero">
+        <div class="lbl">Ce qui est vraiment à toi</div>
+        <div class="num">172 000 €</div>
+        <p>Tu possèdes 352 000 €, dont 180 000 € encore prêtés par la banque pour ta maison.</p>
+      </div>
+      <div class="squareval"><span class="sample"></span>
+        <div><div class="main">Un carré vaut <b>1 720 €</b></div>
+        <div class="sub gain">${fig('700 € de plus', '69 % de plus', 'gain')} qu'en janvier 2024</div></div></div>
+      <div class="grid">${cells}</div>
+      <div class="goal"><b>Proche de tes objectifs</b><span>À ${misplaced} carrés près sur 100.</span></div>
+      ${CATS.map((c) => `
+        <div class="line">
+          <span class="sw" style="background:${C[c.key]}"></span>
+          <span class="name">${c.name}</span>
+          <span class="amt">${fig(eur(c.v), pct(c.held))}<span class="chev">›</span></span>
+          ${bar(c)}
+          <span class="words">${c.pre || ''}${goalWords(c)}</span>
+        </div>`).join('')}
+    </div>${tabbar('Mon argent')}${toast}`;
+
+  /* ---------- 2/3. Détail : Placements en bourse ---------- */
+  const POS = [
+    { n: 'iShares MSCI World', w: 'PEA chez BoursoBank', v: 21000, sq: 12, pv: 3329, pvp: 18.8 },
+    { n: 'Air Liquide', w: 'Détenues en direct chez Air Liquide', v: 8500, sq: 5, pv: 1580, pvp: 22.8 },
+    { n: 'Air Liquide', w: 'PEA chez BoursoBank', v: 6500, sq: 4, pv: 838, pvp: 14.8 },
+    { n: 'LVMH', w: 'PEA chez BoursoBank', v: 4200, sq: 3, pv: 330, pvp: 8.5 },
+    { n: 'Sanofi', w: 'PEA chez BoursoBank', v: 2400, sq: 1, pv: 276, pvp: 13.0 },
+    { n: 'OVHcloud', w: 'Épargne salariale, disponible en 2029', v: 900, sq: 1, pv: -204, pvp: -18.5 },
+  ];
+  const pvLine = (p) => p.pv >= 0
+    ? `<span class="gain">a gagné ${fig(eur(p.pv), pct(p.pvp, 1), 'gain')} depuis l'achat</span>`
+    : `<span class="loss">a perdu ${fig(eur(-p.pv), pct(-p.pvp, 1), 'loss')} depuis l'achat</span>`;
+  const posRow = (p) => `
+    <div class="pos">
+      <div class="pos-top"><span>${p.n}</span>${fig(eur(p.v), pct((p.v / NET) * 100, 1))}</div>
+      <div class="pos-where">${p.w}</div>
+      ${p.sq ? `<div class="units">${Array.from({ length: p.sq }, () => `<span class="unit" style="background:${C.act}"></span>`).join('')}</div>` : ''}
+      <div class="pos-note">${pvLine(p)}</div>
+    </div>`;
+  const act = CATS.find((c) => c.key === 'act');
+  const detail = `
+    <div class="screen">${status}
+      <div class="back">‹ Mon argent</div>
+      <div class="dhead">
+        <div class="dtitle"><span class="sw" style="background:${C.act}"></span>Placements en bourse</div>
+        <div class="damt">${fig('44 000 €', '26 %')}</div>
+        <div class="dsub">26 carrés sur 100, ${goalWords(act)} (30 carrés).</div>
+        ${bar(act)}
+      </div>
+      ${POS.map(posRow).join('')}
+      <div class="small-label">Trop petit pour un carré</div>
+      ${posRow({ n: 'iShares USA ESG', w: 'Épargne retraite, disponible à la retraite', v: 500, sq: 0, pv: 80, pvp: 19.0 })}
+    </div>${tabbar('Mon argent')}${toast}`;
+
+  const SCREENS = [
+    { id: 'home', l: '1', t: 'Mon argent, avec ses objectifs', d: 'La barre de chaque catégorie est revenue sous son nom, avec les mots dessous. Touche un montant : toute l\'application passe en %.', h: home },
+    { id: 'detail', l: '2', t: 'Détail, en euros', d: 'Même geste ici : touche « 3 329 € » et il devient « 18,8 % ». La barre d\'objectif de la catégorie est aussi en tête du détail.', h: detail },
+    { id: 'detail-pct', l: '3', t: 'Le même détail, en %', d: 'Ce qu\'on voit après un toucher. Les montants deviennent la part de ce qui est à toi (donc des carrés), les gains deviennent des pourcentages.', h: detail },
+  ];
+  document.getElementById('row').innerHTML = SCREENS.map((s) => `
+    <div class="col"><div class="caption"><h2><span>${s.l}</span>${s.t}</h2><p>${s.d}</p></div><div class="phone" id="ph-${s.id}">${s.h}</div></div>`).join('');
+
+  function apply(root, mode) {
+    root.querySelectorAll('.tap').forEach((el) => { el.textContent = mode === 'pct' ? el.dataset.pct : el.dataset.eur; });
+  }
+  // The third phone is a fixed reference: always in percent.
+  apply(document.getElementById('ph-detail-pct'), 'pct');
+
+  let mode = 'eur';
+  const live = [document.getElementById('ph-home'), document.getElementById('ph-detail')];
+  live.forEach((ph) => ph.addEventListener('click', (e) => {
+    if (!e.target.closest('.tap')) return;
+    mode = mode === 'eur' ? 'pct' : 'eur';
+    live.forEach((p) => {
+      apply(p, mode);
+      const t = p.querySelector('.toast');
+      t.textContent = mode === 'pct' ? 'Chiffres en % partout · touche pour revenir en €' : 'Chiffres en euros partout';
+      t.classList.add('show');
+      clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1800);
+    });
+  }));
+</script>
+</body>
+</html>

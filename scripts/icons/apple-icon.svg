@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <!-- The iPhone home screen icon: the mark of the site (components/ui/Brand.tsx) on the ground
+       colour, full bleed (iOS rounds the corners itself). Colours: tokens of app/globals.css, held
+       by lib/__tests__/icons.test.ts. -->
+  <rect width="180" height="180" fill="#09110d"/>
+  <rect x="36" y="36" width="50" height="50" rx="4" fill="#2BB4D2"/>
+  <rect x="94" y="36" width="50" height="50" rx="4" fill="#6A66DC"/>
+  <rect x="36" y="94" width="50" height="50" rx="4" fill="#8ACB80"/>
+  <rect x="97" y="97" width="44" height="44" rx="1" fill="none" stroke="#eef3ee" stroke-width="6"/>
+</svg>

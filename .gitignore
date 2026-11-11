@@ -1,0 +1,74 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# scripts/audit-visual.mts output (regenerated on every run, not versioned)
+/scripts/.audit/
+# scripts/emails/gen_emails.py output (regenerated)
+/scripts/emails/out/
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# superpowers (local task/plan working files, not part of the app)
+.superpowers/
+
+# agent worktrees (isolated per-agent workspaces)
+.claude/worktrees/
+
+# resolved CLI tokens (never commit); the template is safe and is committed
+.env.tools.local
+!.env.tools.tmpl
+
+# real financial data — the owner's actual portfolio. Never commit it. The app falls back to
+# data/opening-portfolio.example.json, which is fictional and is committed.
+/data/opening-portfolio.json
+!/data/opening-portfolio.example.json
+
+# personal working notes taken while porting the Numbers file: they are the owner's real amounts,
+# not project documentation. Kept on his machine, never committed.
+/docs/reprise/
+
+# execution plans from past sessions: spent working artifacts that quote the real amounts. The
+# design specs in docs/superpowers/specs/ stay committed — those are the actual documentation.
+/docs/superpowers/plans/

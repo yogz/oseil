@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 18 — premier lancement et réglages</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .intro { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 920px; }
+  section { margin-top: 36px; padding-top: 26px; border-top: 1px solid #34353a; }
+  section h2 { font-size: 19px; font-weight: 600; }
+  section > p { color: #a3a4a8; font-size: 14.5px; line-height: 1.55; margin-top: 6px; max-width: 920px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px 24px; margin-top: 18px; align-items: flex-start; }
+  .col { width: 360px; display: flex; flex-direction: column; gap: 10px; }
+  .cap { font-size: 13.5px; color: #a3a4a8; line-height: 1.5; min-height: 60px; }
+  .cap b { color: #e8e8ea; font-weight: 600; }
+
+  .phone { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --field: rgba(255,255,255,0.05); --gain: #3FD182;
+    width: 360px; border: 1px solid #2c2d31; border-radius: 32px; overflow: hidden; background: var(--bg); color: var(--text); font-variant-numeric: tabular-nums; display: flex; flex-direction: column; }
+  .screen { padding: 14px 18px 24px; flex: 1; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 4px 14px; }
+  .muted { color: var(--muted); }
+  .topline { display: flex; justify-content: space-between; align-items: center; min-height: 32px; font-size: 14px; color: var(--muted); }
+  .title { font-size: 23px; font-weight: 600; letter-spacing: -0.01em; margin-top: 6px; line-height: 1.25; }
+  .lead { font-size: 14.5px; color: var(--soft); line-height: 1.55; margin-top: 10px; }
+  .small { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .primary { width: 100%; height: 52px; border-radius: 26px; background: var(--text); color: var(--bg); border: none; font: 600 15px Inter, sans-serif; margin-top: 18px; }
+  .secondary { width: 100%; height: 48px; border-radius: 24px; background: transparent; color: var(--text); border: 1px solid rgba(255,255,255,0.22); font: 500 14px Inter, sans-serif; margin-top: 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.22); display: inline-flex; align-items: center; font-size: 14px; }
+  .chip.on { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 500; }
+  .label { font-size: 14.5px; font-weight: 600; margin-top: 22px; }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+  .grid i { aspect-ratio: 1; border-radius: 2px; }
+  .hero-grid { width: 190px; margin: 26px auto 8px; }
+  .play .grid i { animation: pop .35s cubic-bezier(.3,1.6,.5,1) both; }
+  @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .line { display: flex; justify-content: space-between; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 15px; }
+  .line small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .tile { border: 1px dashed rgba(255,255,255,0.25); border-radius: 12px; padding: 12px; font-size: 13.5px; line-height: 1.35; min-height: 64px; }
+  .tile b { display: block; font-size: 18px; font-weight: 400; color: var(--muted); margin-bottom: 4px; }
+  .legend-mini { margin-top: 14px; }
+  .legend-mini div { display: flex; justify-content: space-between; align-items: center; font-size: 14px; padding: 6px 0; }
+  .legend-mini span:first-child { display: flex; align-items: center; gap: 10px; }
+  .sw { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+  .input { height: 52px; border-radius: 10px; background: var(--field); border: 1px solid var(--text); display: flex; align-items: center; justify-content: flex-end; padding: 0 16px; font-size: 20px; margin-top: 14px; }
+  .goal-row { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+  .goal-row .nm { font-size: 14.5px; }
+  .goal-row .nm small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stepper { display: flex; align-items: center; border: 1px solid rgba(255,255,255,0.18); border-radius: 22px; height: 44px; }
+  .stepper span { width: 40px; text-align: center; font-size: 18px; color: var(--soft); }
+  .stepper b { min-width: 34px; text-align: center; font-size: 16px; font-weight: 600; }
+  .sum { display: flex; justify-content: space-between; align-items: center; padding: 14px 0 0; font-size: 14px; }
+  .sum .ok { color: var(--gain); }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+  .set { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--rule); font-size: 15px; min-height: 56px; }
+  .set small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .set .val { color: var(--soft); font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .set .chev { color: var(--muted); }
+  .seg { display: inline-grid; grid-template-columns: 1fr 1fr; background: rgba(255,255,255,0.08); border-radius: 18px; padding: 3px; }
+  .seg span { padding: 7px 14px; border-radius: 15px; font-size: 13px; color: var(--muted); }
+  .seg span.on { background: var(--text); color: var(--bg); font-weight: 600; }
+  .toggle { width: 46px; height: 28px; border-radius: 14px; background: rgba(255,255,255,0.18); position: relative; }
+  .toggle::after { content: ''; position: absolute; left: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--text); }
+  .group { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 22px; }
+  .mini-bars { display: flex; height: 6px; width: 92px; border-radius: 3px; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Planche 18 — le premier lancement, les objectifs et les réglages</h1>
+  <p class="intro">Le premier lancement fait le tour de ce que tu possèdes, une banque à la fois, puis montre le résultat en carrés. Les objectifs et les dépenses viennent ensuite, et peuvent attendre : « plus tard » est toujours possible. Les mêmes écrans servent ensuite dans les réglages.</p>
+
+  <section>
+    <h2>Le premier lancement</h2>
+    <p>Cinq écrans. La phrase qui revient : tu peux t'arrêter quand tu veux, rien n'est perdu.</p>
+    <div class="row" id="onb"></div>
+  </section>
+
+  <section>
+    <h2>Les objectifs, puis les dépenses</h2>
+    <p>Proposés juste après la grille, et retrouvables dans les réglages. Les objectifs partent de ta répartition actuelle : ce sont les tiens, l'application ne conseille rien.</p>
+    <div class="row" id="goals"></div>
+  </section>
+
+  <section>
+    <h2>Les réglages</h2>
+    <p>On y arrive par un petit lien « Réglages » en haut de « Mon argent ». Peu de choses, toutes compréhensibles sans explication.</p>
+    <div class="row" id="settings"></div>
+  </section>
+</div>
+
+<script>
+  const C = { liq: '#2FA8A2', fe: '#6E77E0', immo: '#3DB57E', act: '#D04A2E', cry: '#D9A521' };
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+  const NOW = { liq: 9, fe: 14, immo: 46, act: 26, cry: 5 };
+  const TARGET = { liq: 10, fe: 10, immo: 45, act: 30, cry: 5 };
+  const NAMES = { liq: 'Argent disponible', fe: 'Épargne sécurisée', immo: 'Immobilier', act: 'Placements en bourse', cry: 'Or et crypto' };
+  const gridOf = (dist, animate) => {
+    let html = '', i = 0;
+    Object.keys(dist).forEach((k) => { for (let j = 0; j < dist[k]; j++) html += `<i style="background:${C[k]};${animate ? `animation-delay:${0.25 + i++ * 0.018}s` : ''}"></i>`; });
+    // Squares not yet placed show as empty outlines: the "missing" mark used everywhere else.
+    const placed = Object.values(dist).reduce((s, v) => s + v, 0);
+    for (let j = placed; j < 100; j++) html += `<i style="border:1px solid rgba(241,245,249,0.5)"></i>`;
+    return `<div class="grid">${html}</div>`;
+  };
+  const col = (cap, body) => `<div class="col"><div class="cap">${cap}</div><div class="phone">${body}</div></div>`;
+
+  /* ---------- Premier lancement ---------- */
+  const welcome = `<div class="screen">${status}
+    <div class="hero-grid play">${gridOf(NOW, true)}</div>
+    <div class="title" style="text-align:center">Ton argent, en 100 carrés</div>
+    <p class="lead" style="text-align:center">Chaque carré, c'est 1 % de ce qui est à toi. D'un coup d'œil, tu vois où est ton argent, et s'il est là où tu le veux.</p>
+    <p class="lead" style="text-align:center">Pour commencer, on fait le tour de ce que tu possèdes. Compte un quart d'heure.</p>
+    <button class="primary">C'est parti</button>
+    <p class="small" style="text-align:center;margin-top:10px">Tu peux t'arrêter quand tu veux, rien n'est perdu.</p>
+  </div>`;
+
+  const where = `<div class="screen">${status}
+    <div class="topline"><span>‹ Retour</span><span></span></div>
+    <div class="title">Où est ton argent ?</div>
+    <p class="lead">Touche tes banques. Tu pourras en ajouter d'autres plus tard.</p>
+    <div class="chips">${['BoursoBank', 'Linxea', 'Crédit Agricole', 'BNP Paribas', 'Société Générale', 'La Banque Postale', 'Caisse d\'Épargne', 'Autre…'].map((b) => `<span class="chip ${['BoursoBank', 'Linxea'].includes(b) ? 'on' : ''}">${b}</span>`).join('')}</div>
+    <div class="label">Et en dehors des banques ?</div>
+    <div class="chips">${['Ma maison', 'Un autre logement', 'De l\'or', 'De la crypto', 'Mon épargne salariale', 'Des actions en direct', 'Un crédit'].map((b) => `<span class="chip ${['Ma maison', 'De l\'or', 'De la crypto', 'Mon épargne salariale', 'Des actions en direct', 'Un crédit'].includes(b) ? 'on' : ''}">${b}</span>`).join('')}</div>
+    <button class="primary">Suivant</button>
+  </div>`;
+
+  const bank = `<div class="screen">${status}
+    <div class="topline"><span>‹ Retour</span><span>1 sur 5</span></div>
+    <div class="title">Qu'as-tu chez BoursoBank ?</div>
+    <p class="lead">Ouvre ton application BoursoBank et ajoute ce que tu y vois, ligne par ligne.</p>
+    <div style="margin-top:8px">
+      <div class="line"><span>Livret A<small>livret</small></span><span>10 000 €</span></div>
+      <div class="line"><span>LDDS<small>livret</small></span><span>6 000 €</span></div>
+      <div class="line"><span>PEA<small>4 actions et fonds</small></span><span>34 100 €</span></div>
+    </div>
+    <div class="label" style="margin-top:18px">Ajouter</div>
+    <div class="tiles">
+      <div class="tile"><b>+</b>Un compte ou un livret</div>
+      <div class="tile"><b>+</b>Des actions ou des fonds</div>
+      <div class="tile"><b>+</b>Une assurance-vie</div>
+      <div class="tile"><b>+</b>Une épargne retraite</div>
+    </div>
+    <button class="primary">J'ai fini avec BoursoBank</button>
+  </div>`;
+
+  const reveal = `<div class="screen">${status}
+    <div class="title" style="text-align:center;margin-top:14px">Voilà ton argent<br>en 100 carrés</div>
+    <div class="hero-grid play" style="width:230px">${gridOf(NOW, true)}</div>
+    <p class="lead" style="text-align:center">Ce qui est vraiment à toi : <b style="color:var(--text)">172 000 €</b>.<br>Un carré vaut 1 720 €.</p>
+    <div class="legend-mini">${Object.keys(NOW).map((k) => `<div><span><i class="sw" style="background:${C[k]}"></i>${NAMES[k]}</span><span class="muted">${NOW[k]} carrés</span></div>`).join('')}</div>
+    <button class="primary">Continuer</button>
+  </div>`;
+
+  document.getElementById('onb').innerHTML =
+    col('<b>1. Bienvenue.</b> La grille se remplit doucement. Une phrase pour dire ce qu\'est un carré, une pour dire combien de temps ça prend.', welcome) +
+    col('<b>2. Où est ton argent ?</b> On touche ses banques, puis ce qu\'on a en dehors (maison, or, crédit…). Ça fixe les étapes de la suite, et de chaque mise à jour.', where) +
+    col('<b>3. Une banque à la fois.</b> On ajoute ses lignes en choisissant ce que c\'est, avec des mots simples. Une action se saisit comme sur la planche 13.', bank) +
+    col('<b>4. La récompense.</b> La grille se construit sous tes yeux, avec ce qui est à toi et la valeur d\'un carré.', reveal);
+
+  /* ---------- Objectifs et dépenses ---------- */
+  const goals = `<div class="screen">${status}
+    <div class="topline"><span>‹ Retour</span><span>Plus tard</span></div>
+    <div class="title">Tes objectifs</div>
+    <p class="lead">Comment aimerais-tu que tes 100 carrés soient répartis ? On part de ta répartition d'aujourd'hui : change ce que tu veux.</p>
+    <div style="width:170px;margin:16px 0 6px">${gridOf(TARGET, false)}</div>
+    ${Object.keys(TARGET).map((k) => `<div class="goal-row"><span class="sw" style="background:${C[k]};width:14px;height:14px"></span>
+      <span class="nm">${NAMES[k]}<small>aujourd'hui ${NOW[k]}</small></span>
+      <span class="stepper"><span>−</span><b>${TARGET[k]}</b><span>+</span></span></div>`).join('')}
+    <div class="sum"><span>Total</span><span class="ok">100 carrés répartis</span></div>
+    <p class="note">Ce sont tes objectifs, pas des conseils. Tu pourras les changer quand tu veux.</p>
+    <button class="primary">Enregistrer</button>
+  </div>`;
+
+  const goalsShort = `<div class="screen">${status}
+    <div class="topline"><span>‹ Retour</span><span>Plus tard</span></div>
+    <div class="title">Tes objectifs</div>
+    <div style="width:170px;margin:16px 0 6px">${gridOf({ liq: 10, fe: 10, immo: 45, act: 27, cry: 5 }, false)}</div>
+    ${Object.keys(TARGET).map((k) => `<div class="goal-row"><span class="sw" style="background:${C[k]};width:14px;height:14px"></span>
+      <span class="nm">${NAMES[k]}<small>aujourd'hui ${NOW[k]}</small></span>
+      <span class="stepper"><span>−</span><b>${k === 'act' ? 27 : TARGET[k]}</b><span>+</span></span></div>`).join('')}
+    <div class="sum"><span>Total</span><span>Il reste <b>3 carrés</b> à placer</span></div>
+    <button class="primary" style="opacity:.35">Enregistrer</button>
+  </div>`;
+
+  const spend = `<div class="screen">${status}
+    <div class="topline"><span>‹ Retour</span><span>Plus tard</span></div>
+    <div class="title">Combien dépenses-tu par mois, à peu près ?</div>
+    <p class="lead">Ça sert à une seule chose : savoir combien de mois ton argent disponible te couvrirait si tes revenus s'arrêtaient.</p>
+    <div class="input">2 800 €</div>
+    <div class="chips">${['1 500 €', '2 000 €', '2 500 €', '3 000 €', '3 500 €'].map((v) => `<span class="chip">${v}</span>`).join('')}</div>
+    <p class="note">Un ordre d'idée suffit. Loyer ou crédit, courses, factures, transports.</p>
+    <button class="primary">Terminer</button>
+  </div>`;
+
+  document.getElementById('goals').innerHTML =
+    col('<b>5. Tes objectifs.</b> Un « − » et un « + » par catégorie, en carrés. La petite grille montre la répartition visée. « Plus tard » en haut à droite.', goals) +
+    col('<b>Tant que le total n\'est pas 100.</b> L\'écran dit combien de carrés il reste à placer, et « Enregistrer » attend.', goalsShort) +
+    col('<b>6. Tes dépenses.</b> Un ordre d\'idée suffit, avec des montants tout prêts. Le coussin de sécurité en dépend.', spend);
+
+  /* ---------- Réglages ---------- */
+  const bars = Object.keys(TARGET).map((k) => `<span style="width:${TARGET[k]}%;background:${C[k]}"></span>`).join('');
+  const settings = `<div class="screen">${status}
+    <div class="topline"><span>‹ Mon argent</span><span></span></div>
+    <div class="title">Réglages</div>
+    <div class="group">Mon argent</div>
+    <div class="set"><span>Mes objectifs</span><span class="val"><span class="mini-bars">${bars}</span><span class="chev">›</span></span></div>
+    <div class="set"><span>Mes dépenses par mois</span><span class="val">2 800 €<span class="chev">›</span></span></div>
+    <div class="set"><span>Mes banques<small>et l'ordre de la mise à jour</small></span><span class="val">5<span class="chev">›</span></span></div>
+    <div class="group">Affichage</div>
+    <div class="set"><span>Chiffres en</span><span class="seg"><span class="on">euros</span><span>%</span></span></div>
+    <div class="set"><span>Masquer les montants<small>pour regarder en public</small></span><span class="toggle"></span></div>
+    <div class="group">Compte</div>
+    <div class="set"><span>Mon compte</span><span class="val"><span class="chev">›</span></span></div>
+  </div>`;
+  document.getElementById('settings').innerHTML =
+    col('<b>Réglages.</b> Tes objectifs (avec leur répartition en petite barre), tes dépenses, tes banques, l\'affichage en euros ou en %, et un interrupteur pour masquer les montants.', settings);
+</script>
+</body>
+</html>

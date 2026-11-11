@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 1 — couleurs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a1b1e;
+    color: #e8e8ea;
+    font-family: Inter, -apple-system, sans-serif;
+    padding: 32px 24px 64px;
+  }
+  .board-head { max-width: 1260px; margin: 0 auto 28px; }
+  .board-head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .board-head p { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 820px; }
+  .board-head p + p { margin-top: 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; }
+  .col { width: 392px; display: flex; flex-direction: column; gap: 14px; }
+  .caption h2 { font-size: 16px; font-weight: 600; }
+  .caption h2 span { color: #8a8b90; font-weight: 500; margin-right: 6px; }
+  .caption p { color: #a3a4a8; font-size: 13.5px; line-height: 1.5; margin-top: 4px; min-height: 60px; }
+  .pick {
+    align-self: flex-start;
+    background: transparent; color: #e8e8ea;
+    border: 1px solid #44454a; border-radius: 6px;
+    padding: 10px 16px; font: 500 14px Inter, sans-serif; cursor: pointer;
+  }
+  .pick:hover { border-color: #8a8b90; }
+  .col.chosen .pick { background: #e8e8ea; color: #111; border-color: #e8e8ea; }
+  .col.chosen .phone { outline: 2px solid #e8e8ea; outline-offset: 4px; }
+
+  /* ---------- Phone ---------- */
+  .phone {
+    width: 392px; border: 1px solid #2c2d31; border-radius: 34px;
+    overflow: hidden; background: var(--bg);
+  }
+  .screen { padding: 14px 16px 28px; color: var(--text); }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; color: var(--text); padding: 2px 6px 14px; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+  .brand { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+  .date { font: 400 12px 'JetBrains Mono', monospace; color: var(--muted); }
+
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .ledger { padding: 18px 0 16px; border-bottom: 1px solid var(--rule); }
+  .ledger-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; padding: 3px 0; }
+  .ledger-row .lbl { color: var(--muted); }
+  .ledger-row .debt { color: var(--debt); }
+  .ledger-total { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--rule-strong); }
+  .ledger-total .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .net { font: 600 40px/1.1 'JetBrains Mono', monospace; letter-spacing: -0.03em; color: var(--net); margin-top: 4px; }
+
+  .square-value { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .square-value .main { font-size: 15px; }
+  .square-value .main b { font-weight: 600; }
+  .gain { color: var(--gain); font-size: 13px; margin-left: 6px; }
+  .square-value .sub { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+
+  .switches { display: flex; justify-content: space-between; padding: 4px 0; }
+  .tabs { display: flex; gap: 2px; }
+  .tab { padding: 12px 10px; min-height: 44px; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tab.on { color: var(--text); border-bottom-color: var(--text); }
+  .tabs:first-child .tab:first-child { padding-left: 0; }
+
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin: 14px 0 18px; }
+  .cell { aspect-ratio: 1; border-radius: 2px; }
+
+  .legend { border-top: 1px solid var(--rule); }
+  .line { display: grid; grid-template-columns: 12px 1fr auto auto; column-gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--rule); min-height: 48px; }
+  .sw { width: 12px; height: 12px; border-radius: 2px; }
+  .name { font-size: 14.5px; }
+  .name small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .pct { font-size: 13px; color: var(--muted); text-align: right; min-width: 40px; }
+  .amt { font-size: 14px; text-align: right; min-width: 92px; }
+</style>
+</head>
+<body>
+  <div class="board-head">
+    <h1>Planche 5 — une seule retouche</h1>
+    <p>Tu as choisi la version profonde. Son défaut : en haut de la grille, le bleu des liquidités et le pervenche des fonds euros se confondent. La retouche donne aux liquidités <strong>le turquoise du site</strong>, la sixième couleur, qui ne servait pas. Rien d'autre ne change.</p>
+  </div>
+
+  <div class="row" id="row"></div>
+
+<script>
+  const CATS = [
+    { key: 'liq',  name: 'Liquidités et livrets',      pct: 9,  amt: '16 000 €' },
+    { key: 'fe',   name: 'Fonds euros et obligations', pct: 14, amt: '24 000 €' },
+    { key: 'immo', name: 'Immobilier',                 pct: 46, amt: '80 000 €', sub: '260 000 € − 180 000 € de crédit' },
+    { key: 'act',  name: 'Actions et bourse',          pct: 26, amt: '44 000 €' },
+    { key: 'cry',  name: 'Crypto, or et alternatifs',  pct: 5,  amt: '8 000 €' },
+  ];
+
+  const BASE = { bg: '#06080c', text: '#f1f5f9', muted: '#7e8b9b', rule: 'rgba(255,255,255,0.08)', ruleStrong: 'rgba(255,255,255,0.22)' };
+
+  const VARIANTS = [
+    {
+      id: 'profond-tel-quel', letter: '2', title: 'Version profonde, telle quelle',
+      desc: 'Celle que tu as choisie. Liquidités en bleu, fonds euros en pervenche.',
+      net: '#f1f5f9', debt: '#FF5C7A', gain: '#3FD182',
+      colors: { liq: '#5E86D8', fe: '#6E77E0', immo: '#2A9A68', act: '#E85C3E', cry: '#D9A521' },
+    },
+    {
+      id: 'profond-retouche', letter: '2′', title: 'Version profonde, retouchée',
+      desc: 'Liquidités en turquoise. Les deux premières bandes de la grille se séparent nettement.',
+      net: '#f1f5f9', debt: '#FF5C7A', gain: '#3FD182',
+      colors: { liq: '#2FA8A2', fe: '#6E77E0', immo: '#2A9A68', act: '#E85C3E', cry: '#D9A521' },
+    },
+  ];
+
+  function phone(v) {
+    let cells = '';
+    CATS.forEach((c) => { for (let i = 0; i < c.pct; i++) cells += `<div class="cell" style="background:${v.colors[c.key]}"></div>`; });
+    const lines = CATS.map((c) => `
+      <div class="line">
+        <span class="sw" style="background:${v.colors[c.key]}"></span>
+        <span class="name">${c.name}${c.sub ? `<small>${c.sub}</small>` : ''}</span>
+        <span class="pct mono">${c.pct} %</span>
+        <span class="amt mono">${c.amt}</span>
+      </div>`).join('');
+    const b = { ...BASE, ...(v.base || {}) };
+    const style = `--bg:${b.bg};--text:${b.text};--muted:${b.muted};--rule:${b.rule};--rule-strong:${b.ruleStrong};--net:${v.net};--debt:${v.debt};--gain:${v.gain};`;
+    return `
+    <div class="col" id="col-${v.id}">
+      <div class="caption"><h2><span>${v.letter}</span>${v.title}</h2><p>${v.desc}</p></div>
+      <div class="phone" style="${style}">
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>●●●</span></div>
+          <div class="top"><span class="brand">PatriCube</span><span class="date">6 nov. 2026</span></div>
+          <div class="ledger">
+            <div class="ledger-row"><span class="lbl">Ce que je possède</span><span class="mono">352 000 €</span></div>
+            <div class="ledger-row"><span class="lbl">Crédits restant dus</span><span class="mono debt">− 180 000 €</span></div>
+            <div class="ledger-total">
+              <div class="lbl">Patrimoine net</div>
+              <div class="net">172 000 €</div>
+            </div>
+          </div>
+          <div class="square-value">
+            <div class="main">1 carré = <b class="mono">1 720 €</b><span class="gain mono">+700 € depuis janv. 2024</span></div>
+            <div class="sub">Prochain cap : 1 carré = 2 000 €, atteint à 86 %</div>
+          </div>
+          <div class="switches">
+            <div class="tabs"><span class="tab on">Net</span><span class="tab">Brut</span></div>
+            <div class="tabs"><span class="tab on">Catégories</span><span class="tab">Banques</span></div>
+          </div>
+          <div class="grid">${cells}</div>
+          <div class="legend">${lines}</div>
+        </div>
+      </div>
+      <button class="pick" data-choice="${v.id}" onclick="choose('${v.id}')">Je prends celle-ci</button>
+    </div>`;
+  }
+
+  document.getElementById('row').innerHTML = VARIANTS.map(phone).join('');
+
+  function choose(id) {
+    document.querySelectorAll('.col').forEach((c) => c.classList.toggle('chosen', c.id === 'col-' + id));
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+// @vitest-environment jsdom
+import '@testing-library/jest-dom/vitest'
+import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import type { AnchorHTMLAttributes } from 'react'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import type { ModelState } from '@/lib/app/use-model'
+import HomePage from '../page'
+
+const mocks = vi.hoisted(() => ({
+  signOut: vi.fn(),
+  loadPage: vi.fn(),
+  state: { current: { status: 'loading' } as ModelState },
+}))
+
+vi.mock('@/lib/auth/account', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth/account')>()),
+  signOut: mocks.signOut,
+}))
+vi.mock('@/lib/supabase/browser', () => ({ createBrowserSupabase: () => ({}) }))
+vi.mock('@/lib/vault/device', () => ({ indexedDbKeyStore: () => ({}) }))
+vi.mock('@/lib/app/use-model', () => ({ useModel: () => mocks.state.current }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn() }) }))
+vi.mock('@/lib/navigation', () => ({ loadPage: mocks.loadPage }))
+vi.mock('next/link', () => ({
+  default: ({ href, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+    <a href={href} {...props} />
+  ),
+}))
+
+beforeEach(() => {
+  mocks.signOut.mockReset()
+  mocks.loadPage.mockReset()
+  mocks.state.current = { status: 'loading' }
+})
+afterEach(cleanup)
+
+// « Se déconnecter » lives in the Réglages (and on the two first-launch screens that cannot reach
+// them): Mon argent, where a person looks at their figures, has no way out of its own.
+test('Mon argent has no « Se déconnecter », and keeps the way to the Réglages', () => {
+  render(<HomePage />)
+  expect(screen.queryByRole('button', { name: 'Se déconnecter' })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')
+})
+
+test('a vault that cannot be opened for now offers to try again', async () => {
+  const user = userEvent.setup()
+  const retry = vi.fn()
+  mocks.state.current = { status: 'unavailable', retry }
+  render(<HomePage />)
+
+  expect(screen.getByText('Tes chiffres n’ont pas pu être chargés.')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Réessayer' }))
+  expect(retry).toHaveBeenCalledOnce()
+})

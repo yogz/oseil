@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 21 — ton effort ou les marchés</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .intro { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 940px; }
+  .intro + .intro { margin-top: 6px; }
+  table { margin-top: 18px; border-collapse: collapse; font-size: 14px; max-width: 940px; width: 100%; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid #34353a; vertical-align: top; }
+  th { color: #8a8b90; font-weight: 500; }
+  td b { color: #e8e8ea; font-weight: 600; }
+  td { color: #c4cbd4; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px 24px; margin-top: 30px; align-items: flex-start; }
+  .col { width: 360px; display: flex; flex-direction: column; gap: 10px; }
+  .cap { font-size: 13.5px; color: #a3a4a8; line-height: 1.5; min-height: 60px; }
+  .cap b { color: #e8e8ea; font-weight: 600; }
+  .phone { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --field: rgba(255,255,255,0.05); --gain: #3FD182;
+    width: 360px; border: 1px solid #2c2d31; border-radius: 32px; overflow: hidden; background: var(--bg); color: var(--text); font-variant-numeric: tabular-nums; }
+  .screen { padding: 14px 18px 24px; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 4px 14px; }
+  .muted { color: var(--muted); }
+  .gain { color: var(--gain); }
+  .title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin-top: 4px; }
+  .big { font-size: 38px; font-weight: 600; letter-spacing: -0.02em; margin-top: 4px; }
+  .lead { font-size: 14px; color: var(--soft); line-height: 1.55; margin-top: 6px; }
+  .h3 { font-size: 15.5px; font-weight: 600; padding: 18px 0 8px; border-top: 1px solid var(--rule); margin-top: 16px; }
+  .split { display: flex; height: 12px; border-radius: 3px; overflow: hidden; margin: 6px 0 12px; gap: 2px; }
+  .part { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; align-items: baseline; padding: 8px 0; font-size: 14.5px; }
+  .part small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .k { width: 12px; height: 12px; border-radius: 2px; align-self: center; }
+  .field-row { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .lbl { display: flex; justify-content: space-between; font-size: 15px; }
+  .lbl small { font-size: 12.5px; color: var(--muted); }
+  .ctl { display: flex; gap: 8px; margin-top: 9px; }
+  .input { flex: 1; height: 48px; border-radius: 10px; background: var(--field); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: flex-end; padding: 0 14px; font-size: 17px; }
+  .input.edited { border-color: var(--text); }
+  .input .unit { color: var(--muted); font-size: 13px; margin-right: auto; }
+  .hint { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-top: 8px; }
+  .primary { width: 100%; height: 52px; border-radius: 26px; background: var(--text); color: var(--bg); border: none; font: 600 15px Inter, sans-serif; margin-top: 18px; }
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 12px; }
+  .steps i { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.14); }
+  .steps i.d { background: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Planche 21 — grâce à ton effort, ou grâce aux marchés ?</h1>
+  <p class="intro">Le principe : <strong>déduire au lieu de demander</strong>. Pour la plupart des lignes, l'application sait déjà séparer les deux à partir de ce que tu saisis. Une seule question nouvelle, et seulement pour l'assurance-vie.</p>
+  <table>
+    <tr><th>Ce qui a bougé</th><th>Comment on le sait</th><th>C'est…</th></tr>
+    <tr><td><b>Actions et fonds</b> (PEA, compte-titres, PER, épargne salariale)</td><td>Le nombre de parts × le prix moyen d'achat dit combien tu y as mis. Le reste de la hausse ou de la baisse, ce sont les marchés.</td><td>effort + marchés</td></tr>
+    <tr><td><b>Or et crypto</b></td><td>Pareil, avec la quantité et le prix d'achat.</td><td>effort + marchés</td></tr>
+    <tr><td><b>Comptes et livrets</b></td><td>Tout ce qui change, c'est toi (les intérêts sont petits ; comptés comme ton effort, à peu près).</td><td>effort</td></tr>
+    <tr><td><b>Crédit remboursé</b></td><td>La baisse de ce que tu dois.</td><td>effort</td></tr>
+    <tr><td><b>Ta maison</b></td><td>Une nouvelle estimation : ni toi ni les marchés boursiers, à part.</td><td>maison réestimée</td></tr>
+    <tr><td><b>Assurance-vie, fonds euros</b></td><td>Impossible à deviner : on demande « As-tu versé de l'argent dessus ? » à la mise à jour. Le reste, ce sont les intérêts.</td><td>effort + intérêts</td></tr>
+  </table>
+  <p class="intro" style="margin-top:14px">Exemple ci-dessous, depuis janvier 2024 : les 70 000 € de progression se partagent entre 43 500 € d'effort (dont 24 000 € de crédit remboursé), 16 500 € de marchés et d'intérêts, et 10 000 € de maison réestimée.</p>
+
+  <div class="row" id="row"></div>
+</div>
+
+<script>
+  const K = { effort: '#f1f5f9', markets: '#8fa3bf', house: '#3DB57E' };
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+  const col = (cap, body) => `<div class="col"><div class="cap">${cap}</div><div class="phone">${body}</div></div>`;
+  const splitBar = (parts, total) => `<div class="split">${parts.map(([k, v]) => `<span style="width:${(v / total) * 100}%;background:${K[k]}"></span>`).join('')}</div>`;
+
+  const result = `<div class="screen">${status}
+    <div class="lead" style="margin-top:6px">C'est à jour. Ce qui est vraiment à toi :</div>
+    <div class="big">176 210 €</div>
+    <div class="gain" style="font-size:15px;margin-top:4px">4 210 € de plus qu'au 30 septembre</div>
+    ${splitBar([['effort', 2600], ['markets', 1610]], 4210)}
+    <div class="part"><span class="k" style="background:${K.effort}"></span><span>Ton effort<small>1 000 € sur ton Livret A, 500 € versés sur ton assurance-vie, 1 100 € de crédit remboursé</small></span><span>2 600 €</span></div>
+    <div class="part"><span class="k" style="background:${K.markets}"></span><span>Les marchés et les intérêts<small>tes actions ont pris 1 210 €, ton assurance-vie a rapporté 400 €</small></span><span>1 610 €</span></div>
+    <button class="primary">Enregistrer</button>
+  </div>`;
+
+  const evo = `<div class="screen">${status}
+    <div class="title">Évolution</div>
+    <div class="muted" style="font-size:13px;margin-top:4px">Depuis ton premier relevé, janvier 2024</div>
+    <div class="big gain" style="font-size:32px;margin-top:14px">+70 000 €</div>
+    <div class="h3">D'où ça vient</div>
+    ${splitBar([['effort', 43500], ['markets', 16500], ['house', 10000]], 70000)}
+    <div class="part"><span class="k" style="background:${K.effort}"></span><span>Ton effort<small>ce que tu as mis de côté, dont 24 000 € de crédit remboursé</small></span><span>43 500 €</span></div>
+    <div class="part"><span class="k" style="background:${K.markets}"></span><span>Les marchés et les intérêts<small>ce que ton argent a rapporté tout seul</small></span><span>16 500 €</span></div>
+    <div class="part"><span class="k" style="background:${K.house}"></span><span>Ta maison réestimée<small>une estimation, pas une vente</small></span><span>10 000 €</span></div>
+    <p class="hint" style="margin-top:14px">Plus bas, comme avant : catégorie par catégorie, et tes relevés.</p>
+  </div>`;
+
+  const av = `<div class="screen">${status}
+    <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--muted);min-height:32px;align-items:center"><span>‹ Retour</span><span>2 sur 5</span></div>
+    <div class="title">Linxea</div>
+    <div class="steps"><i class="d"></i><i class="d"></i><i></i><i></i><i></i></div>
+    <div class="field-row">
+      <div class="lbl"><span>Fonds euros</span><small>assurance-vie</small></div>
+      <div class="ctl"><span class="input edited">24 900 €</span></div>
+      <div class="hint" style="text-align:right">avant : 24 000 €</div>
+    </div>
+    <div class="field-row">
+      <div class="lbl"><span>As-tu versé de l'argent dessus ?</span><small>depuis le 30 sept.</small></div>
+      <div class="ctl"><span class="input edited"><span class="unit">versé</span>500 €</span></div>
+      <p class="hint">Les 400 € restants, ce sont les intérêts. Pas sûr ? Laisse 0 : on comptera tout comme des intérêts, et l'écran le dira.</p>
+    </div>
+    <button class="primary">Suivant : Air Liquide</button>
+  </div>`;
+
+  document.getElementById('row').innerHTML =
+    col('<b>Le résultat d\'une mise à jour.</b> La progression se partage entre ton effort et les marchés, en une barre et deux lignes expliquées.', result) +
+    col('<b>Évolution, « D\'où ça vient ».</b> Le partage depuis le début, en trois : ton effort, les marchés et les intérêts, ta maison réestimée (à part, parce que c\'est une estimation). Le détail par catégorie reste dessous.', evo) +
+    col('<b>La seule question nouvelle.</b> Pour une assurance-vie, à la mise à jour : « As-tu versé de l\'argent dessus ? ». Rempli à 0 par défaut.', av);
+</script>
+</body>
+</html>

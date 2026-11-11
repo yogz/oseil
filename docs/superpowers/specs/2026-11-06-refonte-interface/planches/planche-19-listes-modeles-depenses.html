@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 19 — banques, comptes, modèles d'objectifs, dépenses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .intro { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 920px; }
+  section { margin-top: 36px; padding-top: 26px; border-top: 1px solid #34353a; }
+  section h2 { font-size: 19px; font-weight: 600; }
+  section > p { color: #a3a4a8; font-size: 14.5px; line-height: 1.55; margin-top: 6px; max-width: 920px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px 24px; margin-top: 18px; align-items: flex-start; }
+  .col { width: 360px; display: flex; flex-direction: column; gap: 10px; }
+  .cap { font-size: 13.5px; color: #a3a4a8; line-height: 1.5; min-height: 60px; }
+  .cap b { color: #e8e8ea; font-weight: 600; }
+
+  .phone { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --field: rgba(255,255,255,0.05); --gain: #3FD182;
+    width: 360px; border: 1px solid #2c2d31; border-radius: 32px; overflow: hidden; background: var(--bg); color: var(--text); font-variant-numeric: tabular-nums; }
+  .screen { padding: 14px 18px 24px; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 4px 14px; }
+  .muted { color: var(--muted); }
+  .topline { display: flex; justify-content: space-between; align-items: center; min-height: 32px; font-size: 14px; color: var(--muted); }
+  .title { font-size: 23px; font-weight: 600; letter-spacing: -0.01em; margin-top: 6px; line-height: 1.25; }
+  .lead { font-size: 14.5px; color: var(--soft); line-height: 1.55; margin-top: 10px; }
+  .search { height: 44px; border-radius: 22px; background: var(--field); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; padding: 0 16px; font-size: 14px; color: var(--muted); margin-top: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.22); display: inline-flex; align-items: center; font-size: 14px; }
+  .chip.on { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 500; }
+  .chip.add { border-style: dashed; color: var(--soft); }
+  .label { font-size: 13px; color: var(--muted); margin-top: 20px; text-transform: uppercase; letter-spacing: .06em; }
+  .primary { width: 100%; height: 52px; border-radius: 26px; background: var(--text); color: var(--bg); border: none; font: 600 15px Inter, sans-serif; margin-top: 18px; }
+  .link { font-size: 13.5px; color: var(--soft); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,0.3); }
+  .type { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 15px; min-height: 48px; }
+  .type small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .type .chev { color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+  .grid i { aspect-ratio: 1; border-radius: 2px; }
+  .goal-row { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--rule); }
+  .goal-row .nm { font-size: 14.5px; }
+  .goal-row .nm small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+  .stepper { display: flex; align-items: center; border: 1px solid rgba(255,255,255,0.18); border-radius: 22px; height: 42px; }
+  .stepper span { width: 38px; text-align: center; font-size: 18px; color: var(--soft); }
+  .stepper b { min-width: 32px; text-align: center; font-size: 16px; font-weight: 600; }
+  .stepper.lock { border-style: dashed; color: var(--muted); }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+  .input { height: 52px; border-radius: 10px; background: var(--field); border: 1px solid var(--text); display: flex; align-items: center; justify-content: flex-end; padding: 0 16px; font-size: 20px; margin-top: 14px; }
+  .fallback { margin-top: 18px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.05); }
+  .fallback b { font-size: 14px; font-weight: 600; }
+  .fallback p { font-size: 13px; color: var(--soft); line-height: 1.5; margin-top: 6px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+  .compare div { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px; font-size: 13px; color: var(--soft); line-height: 1.45; }
+  .compare b { display: block; font-size: 20px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Planche 19 — banques et comptes, objectifs tout prêts, dépenses ou salaire</h1>
+  <p class="intro">Trois réponses à tes trois remarques. Les listes de banques et de comptes ne sont pas écrites en dur dans les écrans : elles se règlent, et l'application montre d'abord les plus courantes en France.</p>
+
+  <section>
+    <h2>1. Les banques et les comptes les plus courants, par défaut</h2>
+    <p>Les grandes banques et banques en ligne apparaissent d'emblée ; une recherche trouve les autres, et « Ajouter la mienne » couvre le reste. Même principe pour les comptes : les plus courants en France, rangés en trois familles avec des mots simples.</p>
+    <div class="row" id="lists"></div>
+  </section>
+
+  <section>
+    <h2>2. Des objectifs tout prêts</h2>
+    <p>Des modèles qu'on choisit d'un toucher, puis qu'on ajuste. Ta maison garde sa part actuelle : on ne rééquilibre pas sa maison, les modèles répartissent donc le reste. Présentés comme des exemples, pas comme une recommandation faite pour toi.</p>
+    <div class="row" id="goals"></div>
+  </section>
+
+  <section>
+    <h2>3. Dépenses ou salaire ?</h2>
+    <p>Le coussin de sécurité doit couvrir ce que tu <strong>dépenses</strong> : c'est la mesure juste. Mais beaucoup de gens ne connaissent pas leurs dépenses, alors que leur salaire est écrit sur leur fiche de paie. Proposition : on demande les dépenses, et « je ne sais pas » bascule sur le salaire net.</p>
+    <div class="row" id="spend"></div>
+  </section>
+</div>
+
+<script>
+  const C = { liq: '#2FA8A2', fe: '#6E77E0', immo: '#3DB57E', act: '#D04A2E', cry: '#D9A521' };
+  const NAMES = { liq: 'Argent disponible', fe: 'Épargne sécurisée', immo: 'Immobilier', act: 'Placements en bourse', cry: 'Or et crypto' };
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+  const col = (cap, body) => `<div class="col"><div class="cap">${cap}</div><div class="phone">${body}</div></div>`;
+  const gridOf = (dist) => { let h = ''; Object.keys(dist).forEach((k) => { for (let j = 0; j < dist[k]; j++) h += `<i style="background:${C[k]}"></i>`; }); return `<div class="grid">${h}</div>`; };
+
+  /* ---------- 1. Banks and account types ---------- */
+  const BANKS = ['Crédit Agricole', 'BNP Paribas', 'Société Générale', 'Crédit Mutuel', 'La Banque Postale', 'Caisse d\'Épargne', 'Banque Populaire', 'LCL', 'CIC', 'BoursoBank', 'Fortuneo', 'Revolut'];
+  const banks = `<div class="screen">${status}
+    <div class="topline"><span>‹ Retour</span><span></span></div>
+    <div class="title">Où est ton argent ?</div>
+    <p class="lead">Touche tes banques.</p>
+    <div class="search">Chercher une autre banque…</div>
+    <div class="chips">${BANKS.map((b) => `<span class="chip ${['Crédit Agricole', 'BoursoBank'].includes(b) ? 'on' : ''}">${b}</span>`).join('')}<span class="chip add">+ Ajouter la mienne</span></div>
+    <div class="label">En dehors des banques</div>
+    <div class="chips">${['Ma maison', 'Un autre logement', 'De l\'or', 'De la crypto', 'Mon épargne salariale', 'Un crédit'].map((b) => `<span class="chip ${['Ma maison', 'Mon épargne salariale', 'Un crédit'].includes(b) ? 'on' : ''}">${b}</span>`).join('')}</div>
+    <button class="primary">Suivant</button>
+  </div>`;
+
+  const TYPES = [
+    ['Comptes et livrets', [['Compte courant', ''], ['Livret A', ''], ['LDDS', 'livret développement durable'], ['LEP', 'livret d\'épargne populaire'], ['Livret Jeune', ''], ['PEL ou CEL', 'épargne logement'], ['Autre livret', 'livret de ta banque']]],
+    ['Placements', [['Assurance-vie', ''], ['PEA', 'actions européennes'], ['Compte-titres', 'actions, fonds']]],
+    ['Retraite et entreprise', [['PER', 'épargne retraite'], ['Épargne salariale', 'PEE, PERCO, intéressement']]],
+  ];
+  const types = `<div class="screen">${status}
+    <div class="topline"><span>‹ Retour</span><span>1 sur 3</span></div>
+    <div class="title">Qu'as-tu au Crédit Agricole ?</div>
+    ${TYPES.map(([g, list]) => `<div class="label">${g}</div>${list.map(([n, s]) => `<div class="type"><span>${n}${s ? `<small>${s}</small>` : ''}</span><span class="chev">+</span></div>`).join('')}`).join('')}
+    <div style="margin-top:14px"><span class="link">Je ne trouve pas mon compte</span></div>
+  </div>`;
+
+  document.getElementById('lists').innerHTML =
+    col('<b>Les banques.</b> Les plus courantes d\'abord, une recherche pour les autres, et « Ajouter la mienne ». La liste vit à part des écrans : on peut la changer sans les redessiner.', banks) +
+    col('<b>Les comptes.</b> Les types les plus courants en France, en trois familles, avec un mot d\'explication sous les sigles. « Je ne trouve pas mon compte » pour le reste.', types);
+
+  /* ---------- 2. Goal templates ---------- */
+  const NOW = { liq: 9, fe: 14, immo: 46, act: 26, cry: 5 };
+  const MODELS = {
+    'Équilibré': { liq: 8, fe: 19, immo: 46, act: 24, cry: 3 },
+  };
+  const tpl = MODELS['Équilibré'];
+  const goals = `<div class="screen">${status}
+    <div class="topline"><span>‹ Retour</span><span>Plus tard</span></div>
+    <div class="title">Tes objectifs</div>
+    <p class="lead">Pars d'un exemple, puis ajuste.</p>
+    <div class="chips"><span class="chip">Ma répartition actuelle</span><span class="chip">Prudent</span><span class="chip on">Équilibré</span><span class="chip">Dynamique</span></div>
+    <div style="width:160px;margin:16px 0 6px">${gridOf(tpl)}</div>
+    ${Object.keys(tpl).map((k) => `<div class="goal-row"><span class="sw" style="background:${C[k]}"></span>
+      <span class="nm">${NAMES[k]}<small>${k === 'immo' ? 'ta maison garde sa part' : `aujourd'hui ${NOW[k]}`}</small></span>
+      <span class="stepper ${k === 'immo' ? 'lock' : ''}"><span>${k === 'immo' ? '' : '−'}</span><b>${tpl[k]}</b><span>${k === 'immo' ? '' : '+'}</span></span></div>`).join('')}
+    <p class="note">Exemple « Équilibré » : le reste de ton argent réparti à peu près en un tiers d'épargne sécurisée, un peu moins de la moitié en bourse, un peu de disponible et d'or. Ce sont des exemples, pas un conseil fait pour toi.</p>
+    <button class="primary">Enregistrer</button>
+  </div>`;
+
+  const MODEL_TABLE = [
+    ['Prudent', { liq: 13, fe: 27, act: 11, cry: 3 }],
+    ['Équilibré', { liq: 8, fe: 19, act: 24, cry: 3 }],
+    ['Dynamique', { liq: 5, fe: 8, act: 35, cry: 6 }],
+  ];
+  const models = `<div class="screen">${status}
+    <div class="title" style="font-size:19px">Les trois exemples</div>
+    <p class="lead">Pour les 54 carrés qui ne sont pas ta maison :</p>
+    ${MODEL_TABLE.map(([n, d]) => `<div style="margin-top:14px"><div style="font-size:14.5px;font-weight:600;margin-bottom:6px">${n}</div>
+      <div style="display:flex;height:16px;border-radius:3px;overflow:hidden">${Object.keys(d).map((k) => `<span style="width:${(d[k] / 54) * 100}%;background:${C[k]}"></span>`).join('')}</div>
+      <div class="note" style="margin-top:6px">${Object.keys(d).map((k) => `${NAMES[k].toLowerCase()} ${d[k]}`).join(' · ')}</div></div>`).join('')}
+    <p class="note" style="margin-top:18px">Les proportions sont à fixer ensemble : celles-ci sont des exemples de travail.</p>
+  </div>`;
+
+  document.getElementById('goals').innerHTML =
+    col('<b>Choisir un exemple.</b> Quatre boutons en haut : ta répartition actuelle, Prudent, Équilibré, Dynamique. La grille et les « − / + » suivent ; on ajuste ensuite.', goals) +
+    col('<b>Les trois exemples, côte à côte.</b> Pour que tu voies la différence : plus on va vers « Dynamique », plus la bourse prend de place.', models);
+
+  /* ---------- 3. Spending or salary ---------- */
+  const spend = `<div class="screen">${status}
+    <div class="topline"><span>‹ Retour</span><span>Plus tard</span></div>
+    <div class="title">Combien dépenses-tu par mois, à peu près ?</div>
+    <p class="lead">Pour savoir combien de mois ton argent disponible te couvrirait si tes revenus s'arrêtaient.</p>
+    <div class="input">2 800 €</div>
+    <div class="fallback"><b>Je ne connais pas mes dépenses</b><p>Mets ton salaire net : il est sur ta fiche de paie. Si tu dépenses moins que tu gagnes, le calcul sera un peu prudent, ce qui est mieux que l'inverse.</p></div>
+    <button class="primary">Terminer</button>
+  </div>`;
+
+  const result = `<div class="screen">${status}
+    <div class="title" style="font-size:19px">Ce que ça change dans Repères</div>
+    <p class="lead">Avec 16 000 € disponibles :</p>
+    <div class="compare">
+      <div><b>5,7 mois</b>de dépenses, à 2&nbsp;800&nbsp;€ par mois</div>
+      <div><b>4,6 mois</b>de salaire, à 3&nbsp;500&nbsp;€ net par mois</div>
+    </div>
+    <p class="note" style="margin-top:14px">L'écran dit toujours lequel il utilise : « mois de dépenses » ou « mois de salaire ». Et tu peux changer dans les réglages.</p>
+  </div>`;
+
+  document.getElementById('spend').innerHTML =
+    col('<b>La question.</b> On demande les dépenses ; « Je ne connais pas mes dépenses » propose le salaire net, avec la raison.', spend) +
+    col('<b>La différence à l\'écran.</b> Le salaire donne un chiffre plus bas, donc plus prudent, quand on dépense moins qu\'on ne gagne.', result);
+</script>
+</body>
+</html>

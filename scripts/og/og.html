@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<!-- The preview a messaging app shows for a shared link (WhatsApp, iMessage), chosen by Nicolas on
+     10 November 2026: the mark, the title of the landing, its promise, and a grid of one hundred
+     squares. Colours: tokens of app/globals.css (dark), held by lib/__tests__/icons.test.ts.
+     Rendered to app/opengraph-image.png by headless Chrome, at 1200 × 630 (see CLAUDE.md). -->
+<style>
+  @font-face { font-family: 'Bricolage'; src: url('../../app/fonts/BricolageGrotesqueVariable.woff2') format('woff2'); font-weight: 200 800; }
+  @font-face { font-family: 'Inter'; src: url('../../app/fonts/InterVariable.woff2') format('woff2'); font-weight: 100 900; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; background: #09110d; }
+  body { font-family: 'Inter', sans-serif; color: #eef3ee; display: grid; grid-template-columns: 1fr 470px; gap: 64px; padding: 80px 88px; align-items: center; }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 44px; }
+  .mark { display: grid; grid-template-columns: repeat(2, 18px); gap: 3px; }
+  .mark i { width: 18px; height: 18px; border-radius: 2px; display: block; }
+  .word { font-family: 'Bricolage'; font-weight: 600; font-size: 34px; letter-spacing: -0.01em; font-variation-settings: 'opsz' 96; }
+  h1 { font-family: 'Bricolage'; font-weight: 600; font-size: 70px; line-height: 1.02; letter-spacing: -0.025em; font-variation-settings: 'opsz' 96; }
+  p { margin-top: 26px; font-size: 27px; line-height: 1.38; color: #c3cdc5; max-width: 560px; }
+  .grid { display: grid; grid-template-columns: repeat(10, 41px); gap: 6px; }
+  .grid i { width: 41px; height: 41px; border-radius: 3px; display: block; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="brand">
+      <span class="mark"><i style="background: #2BB4D2"></i><i style="background: #6A66DC"></i><i style="background: #8ACB80"></i><i style="border: 3px solid #eef3ee"></i></span>
+      <span class="word">Oseil</span>
+    </div>
+    <h1>Ton argent,<br>en 100&nbsp;carrés</h1>
+    <p>Tout ton patrimoine d’un coup d’œil. Chiffré sur ton appareil&nbsp;: même nous ne pouvons pas le lire.</p>
+  </div>
+  <div class="grid" id="grid"></div>
+<script>
+  // A believable split, never anyone's: 12 available, 18 secured, 30 markets, 5 gold, 35 property.
+  const shares = [['#2BB4D2', 12], ['#6A66DC', 18], ['#B4467A', 30], ['#EFBE2A', 5], ['#8ACB80', 35]]
+  const grid = document.getElementById('grid')
+  for (const [colour, count] of shares) {
+    for (let i = 0; i < count; i++) {
+      const square = document.createElement('i')
+      square.style.background = colour
+      grid.appendChild(square)
+    }
+  }
+</script>
+</body>
+</html>

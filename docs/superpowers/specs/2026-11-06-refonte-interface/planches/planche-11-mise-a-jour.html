@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche 11 — la mise à jour</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1b1e; color: #e8e8ea; font-family: Inter, -apple-system, sans-serif; padding: 32px 24px 64px; }
+  .board-head { max-width: 1680px; margin: 0 auto 28px; }
+  .board-head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .board-head p { color: #a3a4a8; font-size: 15px; line-height: 1.55; max-width: 980px; }
+  .board-head p + p { margin-top: 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 32px 24px; justify-content: center; align-items: flex-start; max-width: 800px; margin: 0 auto; }
+  .col { width: 372px; display: flex; flex-direction: column; gap: 14px; }
+  .caption h2 { font-size: 16px; font-weight: 600; }
+  .caption h2 span { color: #8a8b90; font-weight: 500; margin-right: 6px; }
+  .caption p { color: #a3a4a8; font-size: 13.5px; line-height: 1.5; margin-top: 4px; min-height: 82px; }
+
+  .phone { --bg: #06080c; --text: #f1f5f9; --soft: #c4cbd4; --muted: #8590a0; --rule: rgba(255,255,255,0.08); --field: rgba(255,255,255,0.05); --gain: #3FD182;
+    width: 372px; border: 1px solid #2c2d31; border-radius: 34px; overflow: hidden; background: var(--bg); color: var(--text); display: flex; flex-direction: column; font-variant-numeric: tabular-nums; }
+  .screen { padding: 14px 18px 22px; flex: 1; }
+  .status { display: flex; justify-content: space-between; font: 600 13px Inter, sans-serif; padding: 2px 4px 14px; }
+  .muted { color: var(--muted); }
+  .soft { color: var(--soft); }
+  .gain { color: var(--gain); }
+  .topline { display: flex; justify-content: space-between; align-items: center; min-height: 36px; font-size: 14px; color: var(--muted); }
+  .title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin-top: 6px; }
+  .lead { font-size: 14px; color: var(--soft); line-height: 1.55; margin-top: 8px; }
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 14px; }
+  .steps i { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.14); }
+  .steps i.done { background: var(--text); }
+  .steps i.now { background: var(--soft); opacity: .6; }
+
+  .bank { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; padding: 14px 0; border-bottom: 1px solid var(--rule); align-items: center; min-height: 60px; }
+  .bank b { font-weight: 500; font-size: 15px; }
+  .bank small { grid-column: 1; font-size: 12.5px; color: var(--muted); }
+  .bank .state { grid-row: 1 / span 2; grid-column: 2; font-size: 13px; color: var(--muted); }
+  .bank .state.ok { color: var(--text); }
+
+  .field-row { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .field-row .lbl { display: flex; justify-content: space-between; font-size: 15px; }
+  .field-row .lbl small { font-size: 12.5px; color: var(--muted); }
+  .field-row .ctl { display: flex; gap: 8px; margin-top: 9px; align-items: center; }
+  .input { flex: 1; height: 48px; border-radius: 10px; background: var(--field); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: flex-end; padding: 0 14px; font-size: 17px; }
+  .input.edited { border-color: var(--text); }
+  .input.same { color: var(--muted); }
+  .pill { height: 48px; padding: 0 14px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.22); background: transparent; color: var(--text); font: 500 13px Inter, sans-serif; white-space: nowrap; }
+  .pill.on { background: rgba(255,255,255,0.12); border-color: transparent; }
+  .field-row .was { font-size: 12.5px; color: var(--muted); margin-top: 6px; text-align: right; }
+  .hint { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-top: 8px; }
+  .choice { display: flex; gap: 8px; margin-top: 10px; }
+  .choice .pill { flex: 1; }
+
+  .actions { padding-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .primary { height: 52px; border-radius: 26px; background: var(--text); color: var(--bg); border: none; font: 600 15px Inter, sans-serif; }
+  .secondary { height: 48px; border-radius: 24px; background: transparent; color: var(--text); border: 1px solid rgba(255,255,255,0.22); font: 500 14px Inter, sans-serif; }
+  .reassure { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 4px; }
+
+  .done-hero { padding: 28px 0 20px; text-align: left; }
+  .done-hero .big { font-size: 40px; font-weight: 600; letter-spacing: -0.02em; margin-top: 4px; }
+  .done-hero .delta { font-size: 16px; margin-top: 6px; }
+  .sq { display: flex; gap: 14px; align-items: center; padding: 16px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .sample { width: 30px; height: 30px; border-radius: 3px; border: 1.5px solid var(--text); flex-shrink: 0; }
+  .chg { display: grid; grid-template-columns: 14px 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 14.5px; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; }
+  .h3 { font-size: 15px; font-weight: 600; padding: 20px 0 4px; }
+</style>
+</head>
+<body>
+  <div class="board-head">
+    <h1>Planche 11 — la mise à jour, de bout en bout</h1>
+    <p>Elle s'ouvre depuis « Mettre à jour » et prend tout l'écran. On la fait <strong>banque par banque</strong>, dans l'ordre où tu ouvres tes applications bancaires. Chaque case est déjà remplie avec l'ancienne valeur : on ne tape que ce qui a changé, et « Inchangé » se fait d'un toucher.</p>
+    <p>On peut s'arrêter à tout moment : ce qui est saisi est gardé, et on reprend là où on en était. Les montants sont inventés pour l'exemple.</p>
+  </div>
+  <div class="row" id="row"></div>
+
+<script>
+  const C = { liq: '#2FA8A2', fe: '#6E77E0', immo: '#3DB57E', act: '#D04A2E', cry: '#D9A521' };
+  const status = `<div class="status"><span>9:41</span><span>●●●</span></div>`;
+  const steps = (done, now) => `<div class="steps">${[0, 1, 2, 3, 4].map((i) => `<i class="${i < done ? 'done' : i === now ? 'now' : ''}"></i>`).join('')}</div>`;
+
+  const start = `
+    <div class="screen">${status}
+      <div class="topline"><span>Fermer</span><span>0 sur 5</span></div>
+      <div class="title">Mettre à jour tes chiffres</div>
+      <p class="lead">Ouvre tes applications bancaires une par une. Pour chaque banque, tu recopies ce qui a changé. Ça prend une dizaine de minutes.</p>
+      ${steps(0, 0)}
+      <div style="margin-top:10px">
+        <div class="bank"><b>BoursoBank</b><span class="state">à faire</span><small>Livret A, LDDS, PEA, PER · 7 lignes</small></div>
+        <div class="bank"><b>Linxea</b><span class="state">à faire</span><small>Assurance-vie · 1 ligne</small></div>
+        <div class="bank"><b>Air Liquide</b><span class="state">à faire</span><small>Actions en direct · 1 ligne</small></div>
+        <div class="bank"><b>Épargne salariale</b><span class="state">à faire</span><small>OVHcloud · 1 ligne</small></div>
+        <div class="bank"><b>Chez toi et ton crédit</b><span class="state">à faire</span><small>Maison, or, crypto, crédit · 4 lignes</small></div>
+      </div>
+      <div class="actions">
+        <button class="primary">Commencer par BoursoBank</button>
+        <div class="reassure">Tu peux t'arrêter quand tu veux, rien n'est perdu.</div>
+      </div>
+    </div>`;
+
+  const row = (name, where, val, was, state) => `
+    <div class="field-row">
+      <div class="lbl"><span>${name}</span><small>${where}</small></div>
+      <div class="ctl"><span class="input ${state}">${val}</span><button class="pill ${state === 'same' ? 'on' : ''}">Inchangé</button></div>
+      ${state === 'edited' ? `<div class="was">avant : ${was}</div>` : ''}
+    </div>`;
+  const bourso = `
+    <div class="screen">${status}
+      <div class="topline"><span>‹ Retour</span><span>1 sur 5</span></div>
+      <div class="title">BoursoBank</div>
+      ${steps(0, 0)}
+      <p class="lead">Recopie la valeur que t'affiche ton application BoursoBank.</p>
+      ${row('Livret A', 'livret', '11 000 €', '10 000 €', 'edited')}
+      ${row('LDDS', 'livret', '6 000 €', '', 'same')}
+      ${row('iShares MSCI World', 'PEA', '22 400 €', '21 000 €', 'edited')}
+      ${row('Air Liquide', 'PEA', '6 500 €', '', '')}
+      <div class="hint" style="text-align:center;padding:10px 0 0">+ 3 autres lignes plus bas</div>
+      <div class="actions">
+        <button class="primary">Suivant : Linxea</button>
+        <button class="secondary">Rien n'a changé ici</button>
+      </div>
+    </div>`;
+
+  const home = `
+    <div class="screen">${status}
+      <div class="topline"><span>‹ Retour</span><span>5 sur 5</span></div>
+      <div class="title">Chez toi et ton crédit</div>
+      ${steps(4, 4)}
+      <div class="field-row">
+        <div class="lbl"><span>Ta maison</span><small>estimée le 30 sept.</small></div>
+        <p class="hint">Estimée à 260 000 €. Elle n'a pas besoin d'être réestimée à chaque fois : une fois par an suffit.</p>
+        <div class="choice"><button class="pill on">C'est toujours ça</button><button class="pill">Changer</button></div>
+      </div>
+      ${row('Ton or', 'pièces', '5 000 €', '', 'same')}
+      ${row('Ta crypto', 'Ledger', '3 000 €', '', 'same')}
+      <div class="field-row">
+        <div class="lbl"><span>Ton crédit</span><small>reste à rembourser</small></div>
+        <div class="ctl"><span class="input edited">178 900 €</span></div>
+        <div class="was">avant : 180 000 €</div>
+        <p class="hint">Tu le trouves dans l'application de ta banque ou sur ton tableau d'amortissement.</p>
+      </div>
+      <div class="actions"><button class="primary">Voir le résultat</button></div>
+    </div>`;
+
+  const CH = [
+    ['act', 'Placements en bourse', '+1 210 €'],
+    ['liq', 'Argent disponible', '+1 000 €'],
+  ];
+  const result = `
+    <div class="screen">${status}
+      <div class="topline"><span>‹ Revenir corriger</span><span></span></div>
+      <div class="done-hero">
+        <div class="soft" style="font-size:14px">C'est à jour. Ce qui est vraiment à toi :</div>
+        <div class="big">175 310 €</div>
+        <div class="delta gain">3 310 € de plus qu'au 30 septembre</div>
+      </div>
+      <div class="sq"><span class="sample"></span><div><div style="font-size:15px">Un carré vaut maintenant <b>1 753 €</b></div><div class="gain" style="font-size:13px;margin-top:2px">33 € de plus</div></div></div>
+      <div class="h3">Ce qui a changé</div>
+      ${CH.map(([k, n, v]) => `<div class="chg"><span class="sw" style="background:${C[k]}"></span><span>${n}</span><span>${v}</span></div>`).join('')}
+      <div class="chg"><span></span><span>Crédit remboursé</span><span>1 100 €</span></div>
+      <p class="hint" style="margin-top:12px">Le reste n'a pas bougé : épargne sécurisée, immobilier, or et crypto.</p>
+      <div class="actions"><button class="primary">Enregistrer</button></div>
+    </div>`;
+
+  const SCREENS = [
+    { l: '1', t: 'Le point de départ', d: 'La liste des banques à faire, et combien de lignes chacune. Une barre en 5 morceaux montre où on en est. Un seul bouton pour commencer, et une phrase qui rassure.', h: start },
+    { l: '2', t: 'Une banque', d: 'Chaque case contient déjà l\'ancienne valeur. On tape par-dessus ce qui a changé (la case s\'allume et rappelle l\'ancienne valeur), ou on touche « Inchangé ». « Rien n\'a changé ici » passe toute la banque d\'un coup.', h: bourso },
+    { l: '3', t: 'Chez toi et ton crédit', d: 'La maison ne se tape pas à chaque fois : « C\'est toujours ça » ou « Changer ». Le crédit dit où trouver le chiffre. Des mots simples, pas de jargon.', h: home },
+    { l: '4', t: 'Le résultat', d: 'La récompense : ce qui est à toi, ce que ça a changé, la nouvelle valeur d\'un carré, et d\'où vient la différence. On peut encore revenir corriger avant d\'enregistrer.', h: result },
+  ];
+  document.getElementById('row').innerHTML = SCREENS.map((s) => `
+    <div class="col"><div class="caption"><h2><span>${s.l}</span>${s.t}</h2><p>${s.d}</p></div><div class="phone">${s.h}</div></div>`).join('');
+</script>
+</body>
+</html>
