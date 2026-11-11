@@ -8,6 +8,7 @@ import { TextField } from '@/components/ui/TextField'
 import { WaitCover } from '@/components/ui/VaultWait'
 import { signUp } from '@/lib/auth/account'
 import { accountHere } from '@/lib/auth/account-here'
+import { idleClock } from '@/lib/app/idle-lock'
 import { signUpErrorMessage, signUpFieldErrors } from '@/lib/auth/messages'
 import { createBrowserSupabase } from '@/lib/supabase/browser'
 
@@ -46,6 +47,7 @@ export default function SignUpPage() {
         redirectTo: `${window.location.origin}/connexion`,
       })
       accountHere.set()
+      idleClock.start(Date.now())
       setSent(true)
     } catch (failure) {
       setError(signUpErrorMessage(failure))

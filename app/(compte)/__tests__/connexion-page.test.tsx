@@ -24,6 +24,7 @@ import {
   type PreparedSignIn,
 } from '@/lib/auth/face-id'
 import { accountHere } from '@/lib/auth/account-here'
+import { IDLE_CLOSED_SENTENCE, idleClock } from '@/lib/app/idle-lock'
 import { faceIdMarker } from '@/lib/auth/face-id-marker'
 import { FACE_ID_NO_PRF, faceIdActivationFailed } from '@/lib/auth/messages'
 import { clearPendingRecovery, readPendingRecovery } from '@/lib/auth/pending-recovery'
@@ -236,6 +237,17 @@ describe('SignInPage', () => {
       expect(accountHere.isSet()).toBe(false)
       await submit()
       expect(accountHere.isSet()).toBe(true)
+    })
+
+    // lib/app/idle-lock.ts: an entry starts the clock again, and the sentence of the last closing goes.
+    test('a successful sign-in starts the clock of the vault again', async () => {
+      mocks.signIn.mockResolvedValue(unlocked())
+      localStorage.setItem('oseil-derniere-activite', '1')
+      idleClock.markClosed()
+      const before = Date.now()
+      await submit()
+      expect(idleClock.last()).toBeGreaterThanOrEqual(before)
+      expect(idleClock.wasClosed()).toBe(false)
     })
 
     test('a refused password leaves the device unmarked', async () => {
@@ -749,8 +761,10 @@ describe('Ouvrir avec Face ID la prochaine fois ?', () => {
   // The key that opens the password packet is held by the screen alone.
   test('keeps nothing of the sign-in in the browser’s storage', async () => {
     await offer()
-    // Only the bare « an account was used here » flag, which says nothing of the person.
-    expect(localStorage.length).toBe(1)
+    // Only the bare « an account was used here » flag and the time of the last activity
+    // (lib/app/idle-lock.ts), which say nothing of the person.
+    const keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).sort()
+    expect(keys).toEqual(['oseil-compte-ici', 'oseil-derniere-activite'])
     expect(localStorage.getItem('oseil-compte-ici')).toBe('1')
     expect(sessionStorage.length).toBe(0)
   })
@@ -913,4 +927,16 @@ test('an address not confirmed yet can have its link sent again', async () => {
     redirectTo: 'https://oseil.fr/connexion',
   })
   expect(await screen.findByText(/C’est reparti/)).toBeInTheDocument()
+})
+
+// The vault closed by itself (lib/app/idle-lock.ts): the sign-in says why the person is here.
+test('after the vault closed by itself, the sign-in says so under its title', () => {
+  idleClock.markClosed()
+  render(<SignInPage />)
+  expect(screen.getAllByRole('status').map((el) => el.textContent)).toContain(IDLE_CLOSED_SENTENCE)
+})
+
+test('an ordinary arrival says nothing of a closing', () => {
+  render(<SignInPage />)
+  expect(document.body.textContent).not.toContain(IDLE_CLOSED_SENTENCE)
 })

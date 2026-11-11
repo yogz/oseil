@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { IdleLock } from '@/components/app/IdleLock'
 import { UpdateProvider } from '@/components/update/UpdateProvider'
 import { ScreenTransition } from './ScreenTransition'
 import type { TopMenuTab } from './TopMenu'
@@ -35,6 +36,8 @@ export function AppFrame({ children }: { children: ReactNode }) {
       settings={within(path, '/reglages')}
       family={path === '/' || within(path, '/categorie') ? 'mon-argent' : path}
     >
+      {/* The vault closes by itself after 15 minutes untouched (lib/app/idle-lock.ts). */}
+      <IdleLock />
       {/* Room at the bottom for the tab bar, which stays fixed there; at the top from lg for the menu. */}
       <main
         className={

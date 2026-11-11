@@ -15,7 +15,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { expect, test, type Page } from '@playwright/test'
 import { todayIso } from '../lib/dates'
 import { deriveSecrets } from '../lib/vault/kdf'
-import { fill, firstSignIn, need, shot, type TestUser } from './support'
+import { fill, firstSignIn, need, shot, type TestUser, stillActive } from './support'
 
 test.use({ viewport: { width: 375, height: 812 }, actionTimeout: 20_000 })
 
@@ -230,6 +230,7 @@ test('prices of the day: attaching, Mon argent, the update, a line in dollars', 
   // The snapshot is now older than the price, and Mon argent says both dates.
   await page.clock.setFixedTime(new Date())
   market.day = todayIso()
+  await stillActive(page)
   await page.reload()
   await expect(page.getByText(/7\s896\s€/).first()).toBeVisible({ timeout: 30_000 })
   await expect(page.getByText(/^Cours du jour pour tes actions · le reste au \d{1,2} \p{L}+/u)).toBeVisible()

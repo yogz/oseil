@@ -1,4 +1,6 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
+import { idleClock } from '@/lib/app/idle-lock'
+import { memoryStorage } from './memory-storage'
 import type { Model } from '@/lib/app/use-model'
 import {
   modelMark,
@@ -449,6 +451,18 @@ describe('the tab’s memory between screens', () => {
     expect(seen).toEqual([null, null])
     expect(rememberedVault()).toBeNull()
     expect(rememberedModel('someone')).toBeNull()
+  })
+
+  // lib/app/idle-lock.ts: no time of activity is left for the next person on this device.
+  test('signing out forgets the time of the last activity', async () => {
+    vi.stubGlobal('localStorage', memoryStorage())
+    try {
+      idleClock.touch(1_000)
+      await signOut(fakeSupabase().client(), memoryKeyStore())
+      expect(idleClock.last()).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   // Whoever signs in next, in this tab, never sees the screens of the one before.

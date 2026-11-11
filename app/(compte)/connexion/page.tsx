@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, useSyncExternalStore, type FormEvent } from 'react'
 import { FaceIdOffer } from '@/components/account/FaceIdOffer'
 import { ResendConfirmation } from '@/components/account/ResendConfirmation'
 import { FaceIdSignIn } from '@/components/account/FaceIdSignIn'
@@ -12,6 +12,7 @@ import { WaitCover } from '@/components/ui/VaultWait'
 import { forgetEverything } from '@/lib/app/session-memory'
 import { EmailNotConfirmedError, signIn, type FaceIdMaterial } from '@/lib/auth/account'
 import { accountHere } from '@/lib/auth/account-here'
+import { IDLE_CLOSED_SENTENCE, idleClock } from '@/lib/app/idle-lock'
 import { faceIdMarker } from '@/lib/auth/face-id-marker'
 import { faceIdLabel, signInErrorMessage, type FaceIdLabel } from '@/lib/auth/messages'
 import { setPendingRecovery } from '@/lib/auth/pending-recovery'
@@ -36,6 +37,9 @@ function offersFaceId(material: FaceIdMaterial): boolean {
   return material.recoveryConfirmed && !faceIdMarker.isSet()
 }
 
+// The mark of a closing changes on no one’s watch here: nothing to subscribe to.
+const noChange = () => () => {}
+
 export default function SignInPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -49,6 +53,9 @@ export default function SignInPage() {
   const [offer, setOffer] = useState<{ label: FaceIdLabel; material: FaceIdMaterial } | null>(null)
   // What the link of the confirmation e-mail brought back, said once under the title.
   const [arrival, setArrival] = useState<string | null>(null)
+  // The vault closed by itself after 15 minutes untouched (lib/app/idle-lock.ts): said under the title,
+  // until the next entry. The server cannot know it: its render, and the first one here, say nothing.
+  const closedByClock = useSyncExternalStore(noChange, () => idleClock.wasClosed(), () => false)
   // A sign-in refused because the address is not confirmed yet: its link can be sent again.
   const [unconfirmed, setUnconfirmed] = useState(false)
 
@@ -133,6 +140,7 @@ export default function SignInPage() {
       // signs in, the other opens the vault. Neither is the password.
       const result = await signIn(createBrowserSupabase(), indexedDbKeyStore(), { email, password })
       accountHere.set()
+      idleClock.start(Date.now())
       if (result.status !== 'unlocked') {
         // Kept in memory only, for the next screen to show once.
         setPendingRecovery(result.recoveryDisplay, result.status === 'renewed-recovery')
@@ -156,9 +164,9 @@ export default function SignInPage() {
   return (
     <>
       <h1 className="text-title font-semibold leading-tight tracking-[-0.01em]">Te connecter</h1>
-      {arrival ? (
+      {arrival || closedByClock ? (
         <p role="status" className="mt-4 border-l-2 border-ink pl-3 text-body leading-relaxed text-ink">
-          {arrival}
+          {arrival || IDLE_CLOSED_SENTENCE}
         </p>
       ) : null}
 
@@ -213,6 +221,7 @@ export default function SignInPage() {
             className={LINK}
             onSignedIn={() => {
               accountHere.set()
+              idleClock.start(Date.now())
               router.replace('/')
             }}
           />

@@ -6,6 +6,7 @@ import { RecoveryKey } from '@/components/account/RecoveryKey'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { accountHere } from '@/lib/auth/account-here'
+import { idleClock } from '@/lib/app/idle-lock'
 import { faceIdMarker } from '@/lib/auth/face-id-marker'
 import { WRONG_RECOVERY_KEY, recoveryErrorMessage, signUpFieldErrors } from '@/lib/auth/messages'
 import { isStartOverConfirmed } from '@/lib/auth/recovery'
@@ -84,6 +85,7 @@ export function NewPasswordForm({ client, user }: NewPasswordFormProps) {
         // A new data key: no passkey opens it, so Face ID is no longer on here.
         faceIdMarker.clear()
         accountHere.set()
+        idleClock.start(Date.now())
         await keepOnDevice(user.id, created.dataKey)
         // Shown whatever became of the data key: it is the only copy.
         setNewRecovery(created.recoveryDisplay)
@@ -94,6 +96,7 @@ export function NewPasswordForm({ client, user }: NewPasswordFormProps) {
           email: user.email,
         })
         accountHere.set()
+        idleClock.start(Date.now())
         await keepOnDevice(user.id, dataKey)
         // A full page load: the key held in this page's memory goes with it.
         loadPage('/')

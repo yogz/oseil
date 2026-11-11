@@ -3,6 +3,7 @@
 // and the other half of the derivation — the key that opens the vault — stays
 // here.
 
+import { idleClock } from '@/lib/app/idle-lock'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { forgetInEveryTab } from '@/lib/app/session-memory'
 import type { KeyStore } from '@/lib/vault/device'
@@ -161,6 +162,8 @@ export class DeviceKeyNotClearedError extends Error {
 // Only this device is signed out: the others keep their session and their key.
 export async function signOut(client: SupabaseClient, keys: KeyStore): Promise<void> {
   forgetInEveryTab()
+  // No time of activity is left behind for the next person (lib/app/idle-lock.ts).
+  idleClock.forget()
   let keysKept: { error: unknown } | null = null
   try {
     await keys.clear()

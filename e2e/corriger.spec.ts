@@ -11,7 +11,7 @@ import { randomBytes } from 'node:crypto'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { expect, test, type Page } from '@playwright/test'
 import { deriveSecrets } from '../lib/vault/kdf'
-import { fill, firstSignIn, need, shot, type TestUser } from './support'
+import { fill, firstSignIn, need, shot, type TestUser, stillActive } from './support'
 
 test.use({ viewport: { width: 375, height: 812 }, actionTimeout: 20_000 })
 
@@ -109,6 +109,7 @@ test('correcting a line: rename, figures, close and reopen, delete', async ({ pa
   await expect(page).toHaveURL(/\/$/, { timeout: 30_000 })
   await expect(page.getByRole('heading', { name: 'Mon argent' })).toBeVisible()
   await page.clock.setFixedTime(new Date())
+  await stillActive(page)
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Mon argent' })).toBeVisible({ timeout: 30_000 })
   await expect(page.getByText(/36\s000\s€/).first()).toBeVisible({ timeout: 15_000 })

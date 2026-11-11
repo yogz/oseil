@@ -89,3 +89,10 @@ export async function shot(page: Page, name: string) {
 export async function fill(page: Page, label: string | RegExp, value: string) {
   await page.getByLabel(label).fill(value)
 }
+
+// A test that moves the browser's clock forward days at once is not a person away for days: the vault
+// would close (lib/app/idle-lock.ts). This says the person did something just now, at the new time.
+// e2e/verrouillage.spec.ts covers the person really away.
+export async function stillActive(page: Page) {
+  await page.evaluate(() => localStorage.setItem('oseil-derniere-activite', String(Date.now())))
+}
