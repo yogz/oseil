@@ -440,7 +440,7 @@ export function AccountsStep({
             const count = lines.length
             const total = money(accountTotal(draft, account.id))
             const noun =
-              account.type === 'pea' || account.type === 'securities'
+              account.type === 'pea' || account.type === 'pea-pme' || account.type === 'securities'
                 ? count === 1 ? 'action et fonds' : 'actions et fonds'
                 : count === 1 ? 'ligne' : 'lignes'
             const detail = MULTI.includes(account.type) && count > 0 ? ` · ${count} ${noun}` : ''

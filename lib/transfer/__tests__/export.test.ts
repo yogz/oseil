@@ -498,3 +498,13 @@ test('the instructions for an AI tell the months column as months, never as a pe
   expect(line).toMatch(/de 1 à 24/)
   expect(line).toMatch(/vaut alors 0/)
 })
+
+// Where some investments go (Nicolas, 11 November 2026, after three experts): the right held decides
+// the category, the time to get the money back decides « Long à récupérer ».
+test('the instructions say where crowdfunding, SCPI and Girardin go', () => {
+  const prompt = AI_PROMPT.replace(/[\u00a0\u202f]/g, ' ')
+  expect(prompt).toContain('## Où ranger certains placements')
+  expect(prompt).toMatch(/Crowdfunding immobilier.*« Placements en bourse ».*« Long à récupérer »/)
+  expect(prompt).toMatch(/SCPI.*« Investissement locatif »/)
+  expect(prompt).toMatch(/Girardin.*ne l’inscris pas/)
+})

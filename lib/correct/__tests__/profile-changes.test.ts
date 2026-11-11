@@ -62,7 +62,7 @@ describe('renameLine', () => {
   })
   it('the multi-line account types are one list, the one the first launch and the update use', () => {
     expect(MULTI).toBe(MULTI_LINE_TYPES)
-    expect([...MULTI_LINE_TYPES].sort()).toEqual(['employee-savings', 'life-insurance', 'pea', 'per', 'securities'])
+    expect([...MULTI_LINE_TYPES].sort()).toEqual(['employee-savings', 'life-insurance', 'pea', 'pea-pme', 'per', 'securities'])
   })
   it('renames only the line in an account that holds several', () => {
     const p = renameLine(exampleProfile, 'life-uc', 'Fonds monde')

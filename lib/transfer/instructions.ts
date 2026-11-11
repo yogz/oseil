@@ -379,6 +379,14 @@ function assistantLines(): string[] {
     ...wordLines().map((line) => `- ${line}`),
     '## Chaque type de compte, ses façons de compter (la première est celle par défaut) et sa catégorie',
     ...typeLines().map((line) => `- ${line}`),
+    // Where some investments go (Nicolas, 11 November 2026, after three experts in wealth management):
+    // the right held (owner or lender) decides the category; the time to get the money back, « Long ».
+    '## Où ranger certains placements',
+    `Ce que la personne détient décide de la catégorie (propriétaire d’un bien ou prêteur)${NB}; le temps qu’il faut pour récupérer l’argent décide de ${title('accounts', 'slow')}.`,
+    `- Crowdfunding immobilier (obligations ou prêts à un promoteur, par une plateforme)${NB}: un prêt, pas un bien. Catégorie ${categoryLabel('markets')}, dans le compte où il est (${typeLabel('pea-pme')}, ${typeLabel('securities')}), sinon un ${typeLabel('other')}${NB}; ${title('accounts', 'slow')} à ${q(SETTING_VALUES.yes)}, l’argent étant bloqué jusqu’à l’échéance. Sa valeur est le capital qui reste à rembourser, sans les intérêts à venir${NB}; pour un projet en retard ou en défaut, demande à la personne une valeur prudente, ne garde pas le montant de départ.`,
+    `- SCPI, SCI, OPCI, club deal où l’on détient des parts, groupement forestier${NB}: de l’immobilier qu’on possède sans y vivre. Écris-le comme un compte ${typeLabel('home')} de type ${q(RESIDENCE_LABELS.rental)}, à son nom (même logé dans une assurance-vie), pour qu’il compte dans l’immobilier en location${NB}; ${title('accounts', 'slow')} à ${q(SETTING_VALUES.yes)}.`,
+    `- Private equity, FCPR, FCPI, FIP, obligations, produits structurés${NB}: ${categoryLabel('markets')}${NB}; ${title('accounts', 'slow')} à ${q(SETTING_VALUES.yes)} pour ce qui n’est pas coté.`,
+    `- Girardin${NB}: ne l’inscris pas, l’argent ne revient pas (c’est une réduction d’impôt achetée)${NB}; l’inscrire gonflerait le patrimoine.`,
     '## Les règles',
     `- Un compte se reconnaît à Banque + Compte, un placement à Banque + Compte + Ligne. ${title('accounts', 'type')}, ${title('accounts', 'residence')}, ${title('accounts', 'unlockOn')}, ${title('accounts', 'slow')} et ${title('accounts', 'financedLine')} se répètent sur chaque ligne d’un compte, sans changer (une case vide sur une ligne et remplie sur une autre est un changement, sauf dans ${title('accounts', 'residence')}, où une case vide et ${MAIN_RESIDENCE} disent la même chose).`,
     `- Une nouvelle ligne d’un compte existant n’a pas besoin de l’identifiant${NB}: ses Banque et Compte suffisent, tant qu’un seul compte porte ces noms.`,

@@ -194,7 +194,7 @@ test('an added line reopens with « Enregistrer », and « Supprimer » takes it
 test('a new PEA: the question once, its name, then a units line that asks nothing more', async () => {
   render(<BankPage />)
   await userEvent.click(screen.getByRole('button', { name: '+ Ajouter un compte' }))
-  await userEvent.click(screen.getByRole('button', { name: /^PEA/ }))
+  await userEvent.click(screen.getByRole('button', { name: /^PEA(?!-PME)/ }))
   await userEvent.click(screen.getByRole('button', { name: 'Je l’avais déjà' }))
   await userEvent.clear(screen.getByLabelText('Son nom'))
   await userEvent.type(screen.getByLabelText('Son nom'), 'PEA-PME')
@@ -230,7 +230,7 @@ describe('« + Ajouter » attaches a share to its price', () => {
   async function addToNewPea(isin: string, pick: RegExp) {
     render(<BankPage />)
     await userEvent.click(screen.getByRole('button', { name: '+ Ajouter un compte' }))
-    await userEvent.click(screen.getByRole('button', { name: /^PEA/ }))
+    await userEvent.click(screen.getByRole('button', { name: /^PEA(?!-PME)/ }))
     await userEvent.click(screen.getByRole('button', { name: 'Je l’avais déjà' }))
     await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
     await userEvent.click(screen.getByRole('button', { name: '+ Une action ou un fonds' }))

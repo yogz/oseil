@@ -129,7 +129,7 @@ test('a negative amount is refused except on a current account; an empty name is
 })
 
 async function addPeaWithFund(average: string) {
-  await add(/^PEA/)
+  await add(/^PEA(?!-PME)/)
   // The account first, named after its type, then its lines.
   expect(screen.getByLabelText('Son nom')).toHaveValue('PEA')
   await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
@@ -201,7 +201,7 @@ test('« changer » offers the five categories and the choice is saved', async (
 
 test('a PEA offers cash as well, an assurance-vie its euro fund', async () => {
   render(<StepPage />)
-  await add(/^PEA/)
+  await add(/^PEA(?!-PME)/)
   await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
   expect(screen.getByRole('button', { name: '+ Des espèces' })).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: '+ Des espèces' }))
@@ -327,7 +327,7 @@ test('employee savings offers only one type and asks for the year it becomes ava
   expect(screen.queryByText(/Ouvre ton application/)).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: '+ Ajouter un compte' }))
   expect(screen.getAllByRole('button', { name: /^Épargne salariale/ })).toHaveLength(1)
-  expect(screen.queryByRole('button', { name: /^PEA/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^PEA(?!-PME)/ })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: /^Épargne salariale/ }))
   await userEvent.type(screen.getByLabelText('Disponible en (année)'), '2031')
   await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
@@ -427,7 +427,7 @@ test('rows are rebuilt from a draft that already holds accounts', () => {
 })
 
 async function pea() {
-  await add(/^PEA/)
+  await add(/^PEA(?!-PME)/)
   await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
   await userEvent.click(screen.getByRole('button', { name: '+ Des espèces' }))
   await userEvent.type(screen.getByLabelText('Combien y a-t-il dessus ?'), '500')

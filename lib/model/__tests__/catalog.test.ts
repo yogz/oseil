@@ -27,7 +27,7 @@ import type { AccountTypeId, CategoryId, Establishment } from '../types'
 
 const ALL_TYPES: AccountTypeId[] = [
   'current', 'livret-a', 'ldds', 'lep', 'livret-jeune', 'pel-cel', 'other-savings',
-  'life-insurance', 'pea', 'securities', 'per', 'employee-savings',
+  'life-insurance', 'pea', 'pea-pme', 'securities', 'per', 'employee-savings',
   'home', 'gold', 'crypto', 'loan', 'other',
 ]
 
@@ -127,6 +127,7 @@ describe('catalog', () => {
       ['per', 'contributions', { amount: 'secured', units: 'markets' }],
       ['employee-savings', 'contributions', { amount: 'markets', units: 'markets' }],
       ['pea', 'cost-basis', { amount: 'markets', units: 'markets' }],
+      ['pea-pme', 'cost-basis', { amount: 'markets', units: 'markets' }],
       ['securities', 'cost-basis', { amount: 'markets', units: 'markets' }],
       ['gold', 'cost-basis', { amount: 'gold', units: 'gold' }],
       ['crypto', 'cost-basis', { amount: 'gold', units: 'gold' }],
@@ -172,7 +173,7 @@ describe('canFollowPrice', () => {
     for (const id of ALL_TYPES) {
       if (canFollowPrice(id)) expect(ACCOUNT_TYPES[id].lineKinds, id).toContain('units')
     }
-    expect(ALL_TYPES.filter(canFollowPrice)).toEqual(['life-insurance', 'pea', 'securities', 'per', 'employee-savings', 'crypto', 'other'])
+    expect(ALL_TYPES.filter(canFollowPrice)).toEqual(['life-insurance', 'pea', 'pea-pme', 'securities', 'per', 'employee-savings', 'crypto', 'other'])
   })
 })
 

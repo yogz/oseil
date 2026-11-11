@@ -149,7 +149,7 @@ export const CRYPTO_PLATFORMS: readonly string[] = ['binance', 'coinbase', 'krak
 
 // Account types that hold several lines, one per fund or share. Any other type holds one line,
 // which carries the account's name.
-export const MULTI_LINE_TYPES: readonly AccountTypeId[] = ['life-insurance', 'per', 'pea', 'securities', 'employee-savings']
+export const MULTI_LINE_TYPES: readonly AccountTypeId[] = ['life-insurance', 'per', 'pea', 'pea-pme', 'securities', 'employee-savings']
 
 type LineKind = 'amount' | 'units'
 
@@ -212,6 +212,15 @@ export const ACCOUNT_TYPES: Record<AccountTypeId, AccountTypeInfo> = {
   pea: {
     label: 'PEA',
     explanation: 'plan d’épargne en actions',
+    family: 'investments',
+    lineKinds: ['units', 'amount'],
+    defaultCategory: { amount: 'markets', units: 'markets' },
+    change: 'cost-basis',
+  },
+  // Its own envelope beside the PEA (Nicolas, 11 November 2026): counted exactly as a PEA.
+  'pea-pme': {
+    label: 'PEA-PME',
+    explanation: 'plan d’épargne en actions pour les PME et les ETI',
     family: 'investments',
     lineKinds: ['units', 'amount'],
     defaultCategory: { amount: 'markets', units: 'markets' },

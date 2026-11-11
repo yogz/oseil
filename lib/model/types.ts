@@ -11,7 +11,7 @@ export type GoalCategory = Exclude<CategoryId, 'property'> | 'rental'
 export type Residence = 'main' | 'secondary' | 'rental'
 export type AccountTypeId =
   | 'current' | 'livret-a' | 'ldds' | 'lep' | 'livret-jeune' | 'pel-cel' | 'other-savings'
-  | 'life-insurance' | 'pea' | 'securities' | 'per' | 'employee-savings'
+  | 'life-insurance' | 'pea' | 'pea-pme' | 'securities' | 'per' | 'employee-savings'
   | 'home' | 'gold' | 'crypto' | 'loan' | 'other'
 
 export type Establishment = {
