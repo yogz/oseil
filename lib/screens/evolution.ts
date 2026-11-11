@@ -7,7 +7,7 @@ import { formatDayMonth, formatEurosShown, formatMonthYear, formatPercent1 } fro
 import type { Model } from '@/lib/app/use-model'
 import { convertible } from '@/lib/market/live'
 import { splitChange, wholeAccountChanges, type ChangeSplit } from '@/lib/model/change'
-import { currentShares, goalInEffect, goalSquares, heldSquares } from '@/lib/model/goals'
+import { currentShares, goalInEffect, goalSharesOf, goalTargets, heldSquares } from '@/lib/model/goals'
 import {
   computeSituation,
   EntryKindError,
@@ -17,10 +17,11 @@ import {
   type Situation,
 } from '@/lib/model/situation'
 import { buildGrid, cellsOf, homeRange } from '@/lib/model/squares'
-import type { CategoryId, Cents, GoalAllocation, GoalCategory, IsoDate, Profile, Snapshot } from '@/lib/model/types'
+import type { Budget, CategoryId, Cents, GoalAllocation, GoalCategory, IsoDate, Profile, Snapshot } from '@/lib/model/types'
 import { splitView, type SplitRow } from '@/lib/update/result'
 import {
   COMPARED_TO_FIRST_GOALS,
+  EVOLUTION_BUDGET_NOTE,
   EXISTING_ADDED_ALONG_THE_WAY,
   TRACE_WORDS,
   unconvertedNote,
@@ -62,6 +63,8 @@ export type EvolutionView =
         // Per category, oldest first: the gap to that snapshot's own target, in points of the
         // share outside the home (+ above, − below); `target` is the latest target share.
         traces: Array<{ category: GoalCategory; gaps: number[]; target: number; word: string }>
+        // Said under the gaps when the available money is aimed at in months.
+        note: string | null
       } | null
       // Planche 4: the grid at each real snapshot, oldest first, one per day (its latest, as on the
       // curve), only those with a grid. Null under two: there is nothing to step through.
@@ -216,7 +219,7 @@ export function evolutionView(model: Model, today: IsoDate): EvolutionView {
     nextCap,
     capSentence: nextCap === null ? null : nextCapSentence(formatEurosShown(nextCap * 100), formatEurosShown(nextCap)),
     // An unreadable goal would leave a partial goal history: none is shown, as on Mon argent.
-    goals: model.unreadable.goals > 0 ? null : goalsOf(items, model.goals.map((g) => g.value)),
+    goals: model.unreadable.goals > 0 ? null : goalsOf(items, model.goals.map((g) => g.value), model.settings?.value.budget ?? null),
     steps: stepsOf(items),
     split: splitOf(profile, items),
     snapshots: [...items].reverse().map((i) => ({
@@ -248,7 +251,7 @@ function stepsOf(items: Item[]): Extract<EvolutionView, { kind: 'history' }>['st
   return steps.length < 2 ? null : steps
 }
 
-function goalsOf(items: Item[], allocations: GoalAllocation[]) {
+function goalsOf(items: Item[], allocations: GoalAllocation[], budget: Budget | null) {
   if (allocations.length === 0) return null
   const earliest = allocations.reduce((a, b) => (b.validFrom < a.validFrom ? b : a))
   let comparedToFirst = false
@@ -258,6 +261,7 @@ function goalsOf(items: Item[], allocations: GoalAllocation[]) {
   // of them each time, and the targets with it. The traces compare shares of what is outside it.
   const gaps = new Map<GoalCategory, number[]>(GOAL_CATEGORIES.map((c) => [c, []]))
   let latestTarget: Record<GoalCategory, number> | null = null
+  let note: string | null = null
 
   for (const item of items) {
     const grid = buildGrid(item.situation)
@@ -267,7 +271,9 @@ function goalsOf(items: Item[], allocations: GoalAllocation[]) {
       goal = earliest
       comparedToFirst = true
     }
-    const targets = goalSquares(goal.shares, grid)
+    // A goal in months with no budget says nothing about this snapshot (no target can be said).
+    const targets = goalTargets(goal, grid, budget)
+    if (!targets) continue
     const misplaced: Array<{ category: GoalCategory; count: number }> = []
     for (const category of GOAL_CATEGORIES) {
       const squares = heldSquares(grid, category)
@@ -282,8 +288,11 @@ function goalsOf(items: Item[], allocations: GoalAllocation[]) {
     } catch {
       continue
     }
-    latestTarget = goal.shares
-    for (const category of GOAL_CATEGORIES) gaps.get(category)!.push(shares[category] - goal.shares[category])
+    const aimed = goalSharesOf(goal, grid, budget)
+    if (!aimed) continue
+    latestTarget = aimed
+    if (goal.cushionMonths !== undefined && budget) note = EVOLUTION_BUDGET_NOTE[budget.basis]
+    for (const category of GOAL_CATEGORIES) gaps.get(category)!.push(shares[category] - aimed[category])
   }
 
   if (rows.length === 0) return null
@@ -292,6 +301,7 @@ function goalsOf(items: Item[], allocations: GoalAllocation[]) {
     rows,
     comparedToFirst,
     comparedWords: COMPARED_TO_FIRST_GOALS,
+    note,
     traces:
       target === null
         ? []

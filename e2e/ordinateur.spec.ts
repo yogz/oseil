@@ -82,10 +82,11 @@ test('on a computer: the menu at the top, Mon argent and a category in two colum
   await expect(page).toHaveURL(/\/premier-lancement\/revelation$/)
   await shot(page, 'ordinateur-0-revelation')
   await page.getByRole('button', { name: 'Continuer' }).click()
+  // The spending first, then the goals (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md).
+  await fill(page, 'Tes dépenses par mois', '2500')
+  await page.getByRole('button', { name: 'Continuer' }).click()
   await page.getByRole('button', { name: 'Équilibré', exact: true }).click()
   await page.getByRole('button', { name: 'Enregistrer' }).click()
-  await fill(page, 'Tes dépenses par mois', '2500')
-  await page.getByRole('button', { name: 'Terminer' }).click()
 
   // 2. Mon argent: the menu at the top, no tab bar.
   await expect(page).toHaveURL(/\/$/)

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Unfold } from '@/components/ui/Unfold'
 import { useReducedMotion } from '@/lib/app/use-reduced-motion'
@@ -131,6 +132,11 @@ export function GoalsHeadline({
           <>
             <p className="text-body font-medium text-ink">{goals.headline}</p>
             {goals.detail ? <p className="text-caption text-ink-muted">{goals.detail}</p> : null}
+            {goals.link ? (
+              <Link href={goals.link.href} className={`${ASK} self-start`}>
+                {goals.link.label}
+              </Link>
+            ) : null}
           </>
         )}
         <GoalsMoves moves={goals.simulation?.moves} shown={simulation.movesShown} />

@@ -3,7 +3,7 @@
 import type { Model } from '@/lib/app/use-model'
 import { CATEGORIES, CATEGORY_ORDER, GOAL_COLOR } from '@/lib/catalog'
 import { formatDayMonth, formatEurosShown, formatMonthYear, formatPercent1, formatWholePercent, HIDDEN_AMOUNT } from '@/lib/format'
-import { gapWords, goalInEffect, goalSquares, goalsJourney, hasSteeredSquares, misplacedSquares, splitsProperty } from '@/lib/model/goals'
+import { gapWords, goalInEffect, goalsJourney, goalTargets, hasSteeredSquares, misplacedSquares, splitsProperty } from '@/lib/model/goals'
 import {
   computeSituation,
   entryMinorUnits,
@@ -16,11 +16,12 @@ import {
   type Situation,
 } from '@/lib/model/situation'
 import { buildGrid, pocketSquares, shareLabel, type Grid } from '@/lib/model/squares'
-import type { Account, CategoryId, GoalCategory, IsoDate, Profile, Snapshot } from '@/lib/model/types'
+import { cushion } from '@/lib/model/cushion'
+import type { Account, Budget, CategoryId, Cents, GoalAllocation, GoalCategory, IsoDate, Profile, Snapshot } from '@/lib/model/types'
 import { debtsOf } from '@/lib/screens/debts'
 import { behindEstablishments, olderDatesLabel } from '@/lib/screens/seen'
 import { couldFollow } from '@/lib/screens/titles'
-import { goalHeadline, LESS_THAN_A_SQUARE, NO_GOAL, ownedSentence, POCKET_ROW_NAMES, pricesDateLabel } from '@/lib/screens/words'
+import { CUSHION_BEYOND_ALL, cushionGoalWords, goalHeadline, GOALS_NEED_BUDGET, GOALS_NEED_BUDGET_LINK, LESS_THAN_A_SQUARE, NO_GOAL, ownedSentence, POCKET_ROW_NAMES, pricesDateLabel } from '@/lib/screens/words'
 import { reconcile, steps } from '@/lib/setup/first-launch'
 import { DRAFT_UNREADABLE, isStale } from '@/lib/update/draft'
 import { convertible, usablePrices, withPrices, type PriceFailure } from '@/lib/market/live'
@@ -42,6 +43,8 @@ export type Board = {
     headline: string
     detail: string | null
     scale: number
+    // Where to give what the goals still need (a budget, for a goal in months).
+    link?: { href: string; label: string }
     // « Montre-moi mes objectifs », option F: where the squares leave from (`sources`), the grid at
     // the goals in blocks (`blocks`), the places they come to (`arrivals`), and what goes where.
     simulation: {
@@ -84,7 +87,13 @@ type GridOnly = Extract<Grid, { kind: 'grid' }>
 // « : » after a no-break space, as French typography wants it.
 const COLON = ' :'
 
-export type RowGoal = { actual: number; target: number; words: string }
+// `cushion`: the available money aimed at in months (its words then judged in months, not squares).
+export type RowGoal = {
+  actual: number
+  target: number
+  words: string
+  cushion?: { months: number; euros: string; basis: Budget['basis'] }
+}
 // A sub-row of Immobilier: a pocket under its loans keeps its own (negative) figure and 0 %, never
 // taken off the other pocket; its sentence is in `excluded`.
 export type PocketRow = {
@@ -391,7 +400,9 @@ function buildBoard(
   // The rental squares are compared like the others.
   const comparable = hasSteeredSquares(grid)
   if (allocation && !comparable) warnings.push(NOTHING_TO_COMPARE)
-  const targets = allocation && comparable ? goalSquares(allocation.shares, grid) : null
+  const budget = model.settings?.value.budget ?? null
+  const targets = allocation && comparable ? goalTargets(allocation, grid, budget) : null
+  const cushionGoal = allocation ? cushionGoalOf(allocation, budget) : null
 
   // Every category in the grid, and every goal category with a target even when it
   // holds nothing (or less than nothing): its bar shows how far it is from its goal.
@@ -400,8 +411,14 @@ function buildBoard(
     const entry = grid.categories.find((c) => c.category === category)
     const target = targets && category !== 'property' ? targets[category] : null
     // `held`: false when the category holds nothing (0 €, or less), which its words say plainly.
-    const goal = (actual: number, held = true): Board['categories'][number]['goal'] =>
-      target === null ? null : { actual, target, words: gapWords(actual, target, held) }
+    const goal = (actual: number, held = true): Board['categories'][number]['goal'] => {
+      if (target === null) return null
+      if (category === 'available' && cushionGoal) {
+        const value = entry?.value ?? situation.categories.find((c) => c.category === 'available')?.value ?? 0
+        return { actual, target, ...cushionGoal(value) }
+      }
+      return { actual, target, words: gapWords(actual, target, held) }
+    }
 
     // Immobilier with no square (under its loans, or nothing held) and a rental share to reach: the
     // row stays, at 0, with its « En location » sub-row, so that every target of the headline is on a
@@ -470,6 +487,10 @@ function buildBoard(
   }
 
   let goals: Board['goals'] = null
+  // A goal in months and no budget: no gap can be said, and that is said instead.
+  if (allocation && comparable && !targets) {
+    goals = { headline: GOALS_NEED_BUDGET, detail: null, scale: 0, simulation: null, link: GOALS_NEED_BUDGET_LINK }
+  }
   if (targets) {
     // One scale for every bar of the screen, the rental sub-row's included: the bars are compared with each other.
     const bars = categories.flatMap((c) => [c.goal, ...(c.pockets ?? []).map((p) => p.goal)])
@@ -477,8 +498,14 @@ function buildBoard(
     // « Hors chez toi »: only when Chez toi takes squares (a rental alone is steered like the rest).
     const withHome = pocketSquares(grid, 'chez-toi') > 0
     const misplaced = misplacedSquares(grid, targets)
+    // A cushion aimed at beyond everything steered takes every square: said, so that the others at 0 are understood.
+    const steered = 100 - pocketSquares(grid, 'chez-toi')
+    const beyondAll =
+      allocation?.cushionMonths !== undefined && budget !== null && budget.monthly > 0 &&
+      (allocation.cushionMonths * budget.monthly) / grid.squareValue >= steered
     goals = {
       ...goalHeadline(misplaced, withHome),
+      ...(beyondAll ? { detail: CUSHION_BEYOND_ALL } : {}),
       scale,
       simulation: misplaced > 0 ? simulationOf(grid, targets, misplaced) : null,
     }
@@ -557,6 +584,20 @@ function simulationOf(grid: GridOnly, targets: Record<GoalCategory, number>, mis
     }
   })
   return { real: journey.real, blocks: journey.blocks, sources: journey.sources, arrivals: journey.arrivals, misplaced, moves }
+}
+
+// The available money's goal in months, its words and its text, for a row and for the detail; null for
+// a goal in percents, or without a budget to count months with.
+export function cushionGoalOf(
+  allocation: GoalAllocation,
+  budget: Budget | null,
+): ((available: Cents) => { words: string; cushion: NonNullable<RowGoal['cushion']> }) | null {
+  const months = allocation.cushionMonths
+  if (months === undefined || !budget || budget.monthly <= 0) return null
+  return (available) => ({
+    words: cushionGoalWords(cushion(available, budget)!.months, months),
+    cushion: { months, euros: formatEurosShown(months * budget.monthly), basis: budget.basis },
+  })
 }
 
 export function monArgentView(model: Model, today: IsoDate, market: Market | null = null): MonArgentView {

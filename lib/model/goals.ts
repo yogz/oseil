@@ -1,7 +1,7 @@
 import { GOAL_CATEGORIES, GOAL_COLOR } from '@/lib/catalog'
 import { holdsRental, type Situation } from '@/lib/model/situation'
 import { cellsOf, largestRemainder, pocketSquares, type Grid } from '@/lib/model/squares'
-import type { CategoryId, Cents, GoalAllocation, GoalCategory, GoalShares, IsoDate } from '@/lib/model/types'
+import type { Budget, CategoryId, Cents, GoalAllocation, GoalCategory, GoalShares, IsoDate } from '@/lib/model/types'
 
 type GridOnly = Extract<Grid, { kind: 'grid' }>
 
@@ -62,6 +62,42 @@ export function goalSquares(shares: GoalShares, grid: GridOnly): Record<GoalCate
     room,
   )
   return Object.fromEntries(GOAL_CATEGORIES.map((c, i) => [c, parts[i]])) as Record<GoalCategory, number>
+}
+
+// The squares a cushion of `months` of the budget is worth, never more than the goals steer.
+export function cushionTargetSquares(months: number, budget: Budget, grid: GridOnly): number {
+  const room = GRID_SIZE - pocketSquares(grid, 'chez-toi')
+  return Math.min(room, Math.round((months * budget.monthly) / grid.squareValue))
+}
+
+// The goal in squares, whatever its form (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md).
+// In percents: as goalSquares. In months: the cushion first, from the budget, then the four others share
+// what is left by their percents. Null when months are asked and no budget says what a month is.
+export function goalTargets(allocation: GoalAllocation, grid: GridOnly, budget: Budget | null): Record<GoalCategory, number> | null {
+  if (allocation.cushionMonths === undefined) return goalSquares(allocation.shares, grid)
+  if (!budget || budget.monthly <= 0) return null
+  const room = GRID_SIZE - pocketSquares(grid, 'chez-toi')
+  const available = cushionTargetSquares(allocation.cushionMonths, budget, grid)
+  const others = GOAL_CATEGORIES.filter((c) => c !== 'available')
+  const parts = largestRemainder(
+    others.map((c) => allocation.shares[c]),
+    room - available,
+  )
+  return { available, ...Object.fromEntries(others.map((c, i) => [c, parts[i]])) } as Record<GoalCategory, number>
+}
+
+// The goal as shares of what is outside the home, for the traces of Évolution. In months: the cushion's
+// share of that day (never more than 100), the four others their percent of what it leaves.
+export function goalSharesOf(allocation: GoalAllocation, grid: GridOnly, budget: Budget | null): GoalShares | null {
+  if (allocation.cushionMonths === undefined) return allocation.shares
+  if (!budget || budget.monthly <= 0) return null
+  const outside = GOAL_CATEGORIES.reduce((sum, c) => sum + heldValue(grid, c), 0)
+  if (outside <= 0) return null
+  const available = Math.min(100, ((allocation.cushionMonths * budget.monthly) / outside) * 100)
+  const rest = 1 - available / 100
+  return Object.fromEntries(
+    GOAL_CATEGORIES.map((c) => [c, c === 'available' ? available : allocation.shares[c] * rest]),
+  ) as GoalShares
 }
 
 // Squares held beyond the target, summed over the goal categories.

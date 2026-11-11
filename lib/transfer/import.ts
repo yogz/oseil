@@ -5,7 +5,7 @@
 import { DEFAULT_SETTINGS, parseGoalAllocation, parseSettings } from '@/lib/model/documents'
 import { computeSituation } from '@/lib/model/situation'
 import type { Budget, Cents, GoalAllocation, GoalShares, IsoDate, Profile, Settings, Snapshot } from '@/lib/model/types'
-import { GOAL_CATEGORIES } from '@/lib/catalog'
+import { CUSHION_MONTHS, GOAL_CATEGORIES } from '@/lib/catalog'
 import { todayIso } from '@/lib/dates'
 import {
   COLUMNS,
@@ -15,6 +15,7 @@ import {
   SHEETS,
   normalizeWord,
   readDate,
+  readDecimal,
   readEuros,
   readPercent,
   readYesNo,
@@ -229,7 +230,23 @@ export function readGoals(table: SheetTable): { goals: GoalAllocation[] } | { er
       fail('goalTotal', row, `les parts font ${decimalText(Number((total * scale).toPrecision(12)))} en tout${NB}: il en faut 100.`)
       continue
     }
-    const goal = parseGoalAllocation({ schema: 1, validFrom: date.value, shares })
+    // The available money in months: an optional column, empty in every file from before.
+    const cushionCell = r.get('cushionMonths')
+    let cushionMonths: number | undefined
+    if (cushionCell !== undefined && !isEmpty(cushionCell)) {
+      const months = readDecimal(cushionCell)
+      if (!months.ok || months.value === null || !CUSHION_MONTHS.includes(months.value)) {
+        const shown = months.ok && months.value !== null ? decimalText(months.value) : shownCell(cushionCell)
+        fail('cushionMonths', row, `dans ${titleOf('goals', 'cushionMonths')}, ${shown} n’est pas un nombre de mois proposé${NB}: de 1 à 24, par demi-mois en dessous de 3.`)
+        continue
+      }
+      if (shares.available !== 0) {
+        fail('cushionShare', row, 'avec des mois pour l’argent disponible, sa part en pour cent vaut 0.')
+        continue
+      }
+      cushionMonths = months.value
+    }
+    const goal = parseGoalAllocation({ schema: 1, validFrom: date.value, shares, ...(cushionMonths !== undefined ? { cushionMonths } : {}) })
     // A safety net: the checks above make it unreachable.
     if (goal === null) errors.push({ sheet: table.sheet, row, message: 'le site n’a pas pu lire cet objectif. Vérifie la ligne, puis réessaie.' })
     else goals.push(goal)

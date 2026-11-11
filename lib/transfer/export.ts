@@ -204,7 +204,11 @@ function contributionRows(profile: Profile, snapshots: Snapshot[]): Cell[][] {
 
 const goalRows = (goals: GoalAllocation[]): Cell[][] =>
   goals.map((goal) =>
-    row('goals', { from: dateCell(goal.validFrom), ...Object.fromEntries(GOAL_CATEGORIES.map((id) => [id, goal.shares[id]])) }),
+    row('goals', {
+      from: dateCell(goal.validFrom),
+      ...Object.fromEntries(GOAL_CATEGORIES.map((id) => [id, goal.shares[id]])),
+      ...(goal.cushionMonths !== undefined ? { cushionMonths: goal.cushionMonths } : {}),
+    }),
   )
 
 function settingRows(settings: Settings | null): Cell[][] {

@@ -219,6 +219,30 @@ describe('parseGoalAllocation', () => {
     expect(parseGoalAllocation({ ...goal, shares: { ...goal.shares, rental: 'none' } })).toBeNull()
   })
 
+  // docs/superpowers/specs/2026-11-11-coussin-objectif-design.md: the available money in months.
+  const months = {
+    schema: 1,
+    validFrom: '2026-11-11',
+    shares: { available: 0, secured: 33, markets: 60, gold: 7, rental: 0 },
+    cushionMonths: 4,
+  }
+
+  test('keeps the months of the cushion, with no share of available money', () => {
+    expect(parseGoalAllocation(clone(months))).toEqual(months)
+    expect(parseGoalAllocation({ ...months, cushionMonths: 1.5 })).toEqual({ ...months, cushionMonths: 1.5 })
+  })
+
+  test('refuses months that are not among the choices, or beside a share of available money', () => {
+    for (const bad of [0, 25, 3.5, -4, '4', null]) {
+      expect(parseGoalAllocation({ ...months, cushionMonths: bad })).toBeNull()
+    }
+    expect(parseGoalAllocation({ ...months, shares: { available: 10, secured: 23, markets: 60, gold: 7, rental: 0 } })).toBeNull()
+  })
+
+  test('a goal without months has no months at all', () => {
+    expect(parseGoalAllocation(clone(goal))).not.toHaveProperty('cushionMonths')
+  })
+
   test('accepts shares totalling 100 within a hundredth', () => {
     expect(parseGoalAllocation(clone(goal))).not.toBeNull()
     expect(

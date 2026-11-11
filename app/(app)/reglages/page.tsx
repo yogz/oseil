@@ -21,6 +21,7 @@ import { useModel, type Model, type ModelState } from '@/lib/app/use-model'
 import { GOAL_CATEGORIES, GOAL_COLOR, GOAL_LABELS } from '@/lib/catalog'
 import { todayIso } from '@/lib/dates'
 import { formatEurosShown, formatWholePercent } from '@/lib/format'
+import { cushionGoalText } from '@/lib/screens/words'
 import { goalInEffect } from '@/lib/model/goals'
 import { shownGoalCategories } from '@/lib/setup/goals-editor'
 import {
@@ -114,14 +115,28 @@ function ReadyBody({ state }: { state: Ready }) {
   )
 }
 
-// The split of the goal in force as one small bar, a segment per category as wide as its share.
+// The split of the goal in force as one small bar, a segment per category as wide as its share. A goal in
+// months (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md) says the available money in months,
+// never « 0 % », and the bar holds the other shares, parts of what the cushion leaves.
 function GoalsRow({ model }: { model: Model }) {
   const goal = goalInEffect(
     model.goals.map((g) => g.value),
     todayIso(),
   )
+  const budget = model.settings?.value.budget ?? null
+  const months = goal?.cushionMonths
+  const cushion =
+    months === undefined
+      ? null
+      : budget && budget.monthly > 0
+        ? cushionGoalText({ months, euros: formatEurosShown(months * budget.monthly), basis: budget.basis })
+        : `${String(months).replace('.', ',')}\u00A0mois`
+  const shown = goal ? shownGoalCategories(goal.shares).filter((c) => !(cushion && c === 'available')) : []
   const label = goal
-    ? shownGoalCategories(goal.shares).map((c) => `${GOAL_LABELS[c]} ${formatWholePercent(goal.shares[c])}`).join(', ')
+    ? [
+        ...(cushion ? [`${GOAL_LABELS.available} ${cushion}`] : []),
+        ...shown.map((c) => `${GOAL_LABELS[c]} ${formatWholePercent(goal.shares[c])}`),
+      ].join(', ')
     : null
   return (
     <section aria-label={GOALS_TITLE} className={SECTION}>
@@ -133,9 +148,16 @@ function GoalsRow({ model }: { model: Model }) {
               <span key={c} data-part="share" className={`h-full ${FILL[GOAL_COLOR[c]]}`} style={{ width: `${goal.shares[c]}%` }} />
             ))}
           </div>
-          {/* The same percents, written: the bar alone does not say \u00AB or 5 % \u00BB. VoiceOver reads the bar's name. */}
+          {/* The same shares, written: the bar alone does not say « or 5 % ». VoiceOver reads the bar's name. */}
           <ul aria-hidden="true" className="flex flex-col gap-1">
-            {shownGoalCategories(goal.shares).map((c) => (
+            {cushion ? (
+              <li className="flex items-center gap-2 text-caption text-ink-soft">
+                <span className={`size-square-s shrink-0 rounded-square ${FILL.available}`} />
+                <span className="flex-1">{GOAL_LABELS.available}</span>
+                <span className="tabular-nums">{cushion}</span>
+              </li>
+            ) : null}
+            {shown.map((c) => (
               <li key={c} className="flex items-center gap-2 text-caption text-ink-soft">
                 <span className={`size-square-s shrink-0 rounded-square ${FILL[GOAL_COLOR[c]]}`} />
                 <span className="flex-1">{GOAL_LABELS[c]}</span>

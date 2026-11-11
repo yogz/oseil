@@ -33,12 +33,14 @@ export default function DepensesPage() {
   if (state.status !== 'ready') return <LoadFailed retry={state.retry} />
   const { model } = state
 
-  const later = () => router.push(fromSettings ? '/reglages' : '/')
+  // In the first launch the goals come next (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md):
+  // with a budget, they aim the available money in months.
+  const later = () => router.push(fromSettings ? '/reglages' : '/premier-lancement/objectifs')
 
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between">
-        <Link href={fromSettings ? '/reglages' : '/premier-lancement/objectifs'} className={BACK}>
+        <Link href={fromSettings ? '/reglages' : '/premier-lancement/revelation'} className={BACK}>
           ‹ Retour
         </Link>
         <button type="button" className={`${BACK} self-auto`} onClick={later}>
@@ -62,6 +64,7 @@ export default function DepensesPage() {
           start={fromSettings ? (model.settings?.value.budget ?? null) : null}
           save={(settings, id) => saveSettings(state.client, state.dataKey, settings, id)}
           done={later}
+          submitLabel={fromSettings ? 'Enregistrer' : 'Continuer'}
         />
       )}
     </div>
@@ -73,11 +76,13 @@ function Form({
   start,
   save,
   done,
+  submitLabel,
 }: {
   settings: Loaded<Settings> | null
   start: Budget | null
   save: (settings: Settings, id?: string) => Promise<unknown>
   done: () => void
+  submitLabel: string
 }) {
   const [basis, setBasis] = useState<Budget['basis']>(start?.basis ?? 'expenses')
   const [text, setText] = useState(start ? euroText(start.monthly) : '')
@@ -121,7 +126,7 @@ function Form({
         error={error}
         hint={
           expenses
-            ? 'Un ordre d’idée suffit. Loyer ou crédit, courses, factures, transports.'
+            ? 'Un ordre d’idée suffit. Les dépenses de ton foyer. Loyer ou crédit, courses, factures, transports. Pense aux grosses factures de l’année (impôts, assurances, voiture), divisées par 12.'
             : 'Il est sur ta fiche de paie. Si tu dépenses moins que tu gagnes, le calcul sera un peu prudent, ce qui est mieux que l’inverse.'
         }
         onChange={(event) => {
@@ -154,7 +159,7 @@ function Form({
       </button>
       <div className="mt-2 flex flex-col gap-3">
         <Button type="submit" disabled={busy}>
-          Terminer
+          {submitLabel}
         </Button>
         {saveError ? <Alert>{saveError}</Alert> : null}
       </div>

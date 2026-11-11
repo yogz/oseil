@@ -28,7 +28,7 @@ export function monthsWords(months: number): string {
   const whole = Math.floor(months)
   const half = months - whole >= 0.5
   if (whole === 0) return half ? 'un demi-mois' : 'moins d’un demi-mois'
-  return `${whole} mois${half ? ' et demi' : ''}`
+  return `${whole}\u00A0mois${half ? ' et demi' : ''}`
 }
 
 // After the twelfth month of the cushion, what the twelve boxes cannot draw (Nicolas, 11 November
@@ -38,11 +38,13 @@ export function cushionBeyond(months: number): string | null {
   return months > CUSHION_BOXES ? `+\u00A0${monthsWords(months - CUSHION_BOXES)}` : null
 }
 
-export function cushionSentence(months: number, basis: Budget['basis'], short = false): string {
+// `goal`: the months the available money is aimed at, when its goal is in months.
+export function cushionSentence(months: number, basis: Budget['basis'], short = false, goal?: number): string {
   const of = basis === 'salary' ? 'revenus' : 'dépenses'
+  const aimed = goal === undefined ? '' : `, pour un objectif de ${String(goal).replace('.', ',')}`
   // Nothing available, or under half a month: no « environ », and never « 0 mois ».
-  if (short) return `Si tes revenus s’arrêtaient, ton argent disponible ne couvrirait pas un demi-mois de ${of}.`
-  return `Si tes revenus s’arrêtaient, ton argent disponible couvrirait environ ${monthsWords(months)} de ${of}.`
+  if (short) return `Si tes revenus s’arrêtaient, ton argent disponible ne couvrirait pas un demi-mois de ${of}${aimed}.`
+  return `Si tes revenus s’arrêtaient, ton argent disponible couvrirait environ ${monthsWords(months)} de ${of}${aimed}.`
 }
 
 // « A, B et C ».

@@ -567,3 +567,30 @@ test('no Face ID key is said', async () => {
   render(<SettingsPage />)
   expect(await screen.findByText('Aucune clé Face ID pour l’instant.')).toBeInTheDocument()
 })
+
+// docs/superpowers/specs/2026-11-11-coussin-objectif-design.md: a goal in months is said in months, never « 0 % ».
+test('a goal in months shows the available money in months, the others as parts of the rest', () => {
+  const state = ready({ settings: { ...DEFAULT_SETTINGS, budget: { basis: 'expenses', monthly: 240_000 } } })
+  if (state.status !== 'ready') throw new Error('not ready')
+  state.model.goals = [
+    loaded({ schema: 1, validFrom: '2026-01-01', shares: { available: 0, secured: 33, markets: 60, gold: 7, rental: 0 }, cushionMonths: 4 }, 'g1'),
+  ]
+  mocks.state.current = state
+  render(<SettingsPage />)
+  const goals = section('Mes objectifs')
+  const text = (goals.textContent ?? '').replace(/[\u00A0\u202F]/g, ' ')
+  expect(text).toContain('Argent disponible4 mois de dépenses, 9 600 €')
+  expect(text).not.toMatch(/Argent disponible0/)
+  expect(within(goals).getByRole('img', { name: /Argent disponible 4\smois de dépenses, 9\s600\s€, Épargne sécurisée 33\s%/ })).toBeInTheDocument()
+})
+
+test('a goal in months without a budget says its months alone', () => {
+  const state = ready()
+  if (state.status !== 'ready') throw new Error('not ready')
+  state.model.goals = [
+    loaded({ schema: 1, validFrom: '2026-01-01', shares: { available: 0, secured: 33, markets: 60, gold: 7, rental: 0 }, cushionMonths: 4 }, 'g1'),
+  ]
+  mocks.state.current = state
+  render(<SettingsPage />)
+  expect((section('Mes objectifs').textContent ?? '').replace(/[\u00A0\u202F]/g, ' ')).toContain('Argent disponible4 mois')
+})

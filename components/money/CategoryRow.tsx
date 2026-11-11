@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { useId, useState } from 'react'
 import type { CategoryId } from '@/lib/model/types'
 import type { Board } from '@/lib/screens/mon-argent'
+import { cushionGoalText } from '@/lib/screens/words'
 import { CategorySquare } from './CategorySquare'
 import { Figure } from './Figure'
 import { GoalBar } from './GoalBar'
@@ -99,7 +100,11 @@ export function CategoryRow({
       {row.goal && scale !== null ? (
         <div className="pb-1">
           <GoalBar category={row.category} actual={row.goal.actual} target={row.goal.target} scale={scale} />
-          <p className="mt-1 text-caption text-ink-muted">{row.goal.words}</p>
+          <p className="mt-1 text-caption text-ink-muted">
+            {row.goal.words}
+            {/* The available money aimed at in months: its goal said in months and in euros. */}
+            {row.goal.cushion ? ` · objectif : ${cushionGoalText(row.goal.cushion)}` : null}
+          </p>
         </div>
       ) : null}
       {row.note ? <p className="pb-1 text-caption text-ink-muted">{row.note}</p> : null}

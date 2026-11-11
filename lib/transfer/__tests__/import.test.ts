@@ -137,6 +137,27 @@ describe('readImport: the sheets', () => {
   })
 })
 
+describe('readImport: « Objectifs », the available money in months', () => {
+  const months = (from: Cell, cushion: Cell, available: Cell = 0): Values => ({ ...goal(from, available, 33, 60, 7, 0), cushionMonths: cushion })
+
+  it('reads the months, the available share at 0', () => {
+    const { data } = success(run(book({ goals: [months(oct, 4)] })))
+    expect(data.goals[0]).toMatchObject({ cushionMonths: 4, shares: { available: 0, secured: 33, markets: 60, gold: 7, rental: 0 } })
+  })
+
+  it('a file without the column reads as before, every goal in percents', () => {
+    const { data } = success(run(book({ goals: [goal(oct, 20, 60, 15, 5)] })))
+    expect(data.goals[0]).not.toHaveProperty('cushionMonths')
+  })
+
+  it('refuses months that are not a choice, and months beside a share of available money', () => {
+    expect(messages(run(book({ goals: [months(oct, 3.5), { ...goal(sep, 10, 23, 60, 7, 0), cushionMonths: 4 }] })))).toEqual([
+      'Onglet Objectifs, ligne 2 : dans « Argent disponible (mois) », 3,5 n’est pas un nombre de mois proposé : de 1 à 24, par demi-mois en dessous de 3.',
+      'Onglet Objectifs, ligne 3 : avec des mois pour l’argent disponible, sa part en pour cent vaut 0.',
+    ])
+  })
+})
+
 describe('readImport: « Objectifs »', () => {
   it('reads each row as a goal, in the order of the rows, two on the same day included', () => {
     const { data } = success(
@@ -443,6 +464,14 @@ const REFUSAL_CASES: Record<keyof typeof FILE_REFUSALS | keyof typeof GOAL_REFUS
   goalTotal: { errors: () => errorsOf(run(book({ goals: [goal(oct, 1, 1, 1, 1)] }))), says: 'il en faut 100' },
   goalShare: { errors: () => errorsOf(run(book({ goals: [goal(oct, 0.5, 49.5, 25, 25)] }))), says: 'n’est pas un nombre entier' },
   goalFraction: { errors: () => errorsOf(run(book({ goals: [goal(oct, 1, 0, 0, 0)] }))), says: 'par exemple 100 et non 1' },
+  cushionMonths: {
+    errors: () => errorsOf(run(book({ goals: [{ ...goal(oct, 0, 33, 60, 7, 0), cushionMonths: 30 }] }))),
+    says: 'n’est pas un nombre de mois proposé',
+  },
+  cushionShare: {
+    errors: () => errorsOf(run(book({ goals: [{ ...goal(oct, 10, 23, 60, 7, 0), cushionMonths: 4 }] }))),
+    says: 'sa part en pour cent vaut 0',
+  },
   duplicateSetting: {
     errors: () => errorsOf(run(book({ settings: [setting('Affichage', 'euros'), setting('Affichage', 'euros')] }))),
     says: 'est déjà réglé',

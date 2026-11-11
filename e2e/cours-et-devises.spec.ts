@@ -209,9 +209,9 @@ test('prices of the day: attaching, Mon argent, the update, a line in dollars', 
 
   await expect(page).toHaveURL(/\/premier-lancement\/revelation$/)
   await page.getByRole('button', { name: 'Continuer' }).click()
-  await expect(page.getByRole('heading', { name: 'Tes objectifs' })).toBeVisible()
-  await page.getByRole('button', { name: 'Plus tard' }).click()
   await expect(page.getByRole('heading', { name: /Combien dépenses-tu par mois/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Plus tard' }).click()
+  await expect(page.getByRole('heading', { name: 'Tes objectifs' })).toBeVisible()
   await page.getByRole('button', { name: 'Plus tard' }).click()
 
   // 3. Mon argent: 6 923 € of fund and 1 000 $ at 1,1165 (896 €).
@@ -325,9 +325,9 @@ test('a rate missing: no result to save until it comes back', async ({ page }) =
   await page.getByRole('button', { name: 'J’ai fini avec BoursoBank' }).click()
   await expect(page).toHaveURL(/\/premier-lancement\/revelation$/)
   await page.getByRole('button', { name: 'Continuer' }).click()
-  await expect(page.getByRole('heading', { name: 'Tes objectifs' })).toBeVisible()
-  await page.getByRole('button', { name: 'Plus tard' }).click()
   await expect(page.getByRole('heading', { name: /Combien dépenses-tu par mois/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Plus tard' }).click()
+  await expect(page.getByRole('heading', { name: 'Tes objectifs' })).toBeVisible()
   await page.getByRole('button', { name: 'Plus tard' }).click()
   await expect(page.getByText(/1\s000\s€/).first()).toBeVisible({ timeout: 15_000 })
 

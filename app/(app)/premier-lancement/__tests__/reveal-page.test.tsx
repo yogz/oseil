@@ -64,7 +64,7 @@ test('« Continuer » completes the first launch then goes to the goals, and sta
   expect(mocks.apply).toHaveBeenCalledTimes(1)
   const change = mocks.apply.mock.calls[0][0] as (d: SetupDraft | null) => SetupDraft
   expect(change(exampleDraft).profile.firstLaunch?.complete).toBe(true)
-  expect(mocks.push).toHaveBeenCalledWith('/premier-lancement/objectifs')
+  expect(mocks.push).toHaveBeenCalledWith('/premier-lancement/depenses')
   expect(screen.getByRole('button', { name: 'Continuer' })).toBeDisabled()
 })
 
@@ -96,7 +96,7 @@ test('with everything in the home the goals screen still comes next, to say ther
   show('ready', { profile, snapshot: snapshotOf([amountEntry('hl', 100_000)]) })
   render(<RevelationPage />)
   await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
-  expect(mocks.push).toHaveBeenCalledWith('/premier-lancement/objectifs')
+  expect(mocks.push).toHaveBeenCalledWith('/premier-lancement/depenses')
 })
 
 test('steps still unfinished send back to the steps', () => {

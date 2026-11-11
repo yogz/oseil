@@ -92,6 +92,11 @@ test('a home rented out: first launch, goals with its share, Mon argent in two p
   await expect(page.getByText(/Ce qui est vraiment à toi\s:\s430\s000\s€\./)).toBeVisible()
   await page.getByRole('button', { name: 'Continuer' }).click()
 
+  // Monthly spending first, then the goals.
+  await expect(page.getByRole('heading', { name: /Combien dépenses-tu par mois/ })).toBeVisible()
+  await fill(page, 'Tes dépenses par mois', '2500')
+  await page.getByRole('button', { name: 'Continuer' }).click()
+
   // Goals: outside Chez toi is the Livret A and the rental net of its loan, 130 000 €. The fifth row
   // is there, with its note; « Équilibré » gives it nothing, 20 % are moved to it from the stock market.
   await expect(page.getByRole('heading', { name: 'Tes objectifs' })).toBeVisible()
@@ -106,10 +111,6 @@ test('a home rented out: first launch, goals with its share, Mon argent in two p
   await expect(page.getByText(/^100\s%\srépartis$/)).toBeVisible()
   await shot(page, 'locatif-2-objectifs')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
-
-  await expect(page.getByRole('heading', { name: /Combien dépenses-tu par mois/ })).toBeVisible()
-  await fill(page, 'Tes dépenses par mois', '2500')
-  await page.getByRole('button', { name: 'Terminer' }).click()
 
   // Mon argent: Immobilier in its two pockets, the goals compared outside Chez toi.
   await expect(page).toHaveURL(/\/$/)

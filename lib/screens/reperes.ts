@@ -1,6 +1,7 @@
 // What « Repères » shows, as words and figures. Pure: no React, no database.
 
 import type { Model } from '@/lib/app/use-model'
+import { goalInEffect } from '@/lib/model/goals'
 import { CATEGORY_ORDER } from '@/lib/catalog'
 import { formatDayMonth, formatEurosShown } from '@/lib/format'
 import { convertible, usablePrices, withPrices } from '@/lib/market/live'
@@ -129,7 +130,12 @@ export function reperesView(model: Model, today: IsoDate, market: Market | null 
   const availableNote = unconvertedSentence(leftOutAvailable)
   const cushionView: Extract<ReperesView, { kind: 'ready' }>['cushion'] = covered
     ? {
-        sentence: cushionSentence(covered.months, covered.basis, available <= 0 || available / budget!.monthly < 0.5),
+        sentence: cushionSentence(
+          covered.months,
+          covered.basis,
+          available <= 0 || available / budget!.monthly < 0.5,
+          model.unreadable.goals > 0 ? undefined : goalInEffect(model.goals.map((g) => g.value), today)?.cushionMonths,
+        ),
         months: covered.months,
         filled: Math.min(12, Math.floor(covered.months)),
         ...(availableNote ? { note: availableNote } : {}),

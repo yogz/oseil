@@ -187,18 +187,20 @@ describe('names', () => {
     ])
     expect(COLUMNS.goals.map((c) => c.title)).toEqual([
       'À partir du', 'Argent disponible (%)', 'Épargne sécurisée (%)', 'Placements en bourse (%)', 'Or et crypto (%)',
-      'Immobilier locatif (%)',
+      'Immobilier locatif (%)', 'Argent disponible (mois)',
     ])
     expect(COLUMNS.settings.map((c) => c.title)).toEqual(['Réglage', 'Valeur'])
   })
 
   it('takes the goal columns from the one list of goal keys, the two columns added since optional', () => {
-    expect(COLUMNS.goals.slice(1).map((c) => c.key)).toEqual([...GOAL_CATEGORIES])
-    // A file written before the immobilier locatif has neither column: it must still import.
-    const optional = [...COLUMNS.accounts, ...COLUMNS.goals].filter((c) => ['residence', 'rental'].includes(c.key))
+    expect(COLUMNS.goals.slice(1).map((c) => c.key)).toEqual([...GOAL_CATEGORIES, 'cushionMonths'])
+    // A file written before the immobilier locatif, or before the months of the cushion, has none of
+    // these columns: it must still import.
+    const optional = [...COLUMNS.accounts, ...COLUMNS.goals].filter((c) => ['residence', 'rental', 'cushionMonths'].includes(c.key))
     expect(optional.map((c) => [c.key, c.required])).toEqual([
       ['residence', false],
       ['rental', false],
+      ['cushionMonths', false],
     ])
   })
 

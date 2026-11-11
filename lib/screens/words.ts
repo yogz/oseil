@@ -49,6 +49,26 @@ export const resultSquareSentence = (now: string, then: string | null, day: stri
     : `Un carré vaut maintenant ${now} (${then} au\u00A0${day.replace(' ', '\u00A0')})`
 export const GOALS_SIMULATION_GRID = 'Simulation\u00A0: ta grille si tu étais pile à tes objectifs'
 
+// A goal in months with no budget to say what a month is (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md).
+export const GOALS_NEED_BUDGET = 'Renseigne tes dépenses pour comparer à tes objectifs.'
+// The cushion aimed at is more than everything the goals steer (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md).
+export const CUSHION_BEYOND_ALL = 'Ton coussin n’est pas encore complet\u00A0: tout ce qui est hors chez toi devrait y aller.'
+export const GOALS_NEED_BUDGET_LINK = { href: '/premier-lancement/depenses?depuis=reglages', label: 'Renseigner mes dépenses' }
+
+// The words of the cushion against its goal, judged in months rounded like Repères: having more put
+// aside is no fault, so beyond is said without a verdict.
+export function cushionGoalWords(held: number, target: number): string {
+  if (held > target) return 'au-delà de ton coussin'
+  if (held === target) return 'ton coussin est complet'
+  return 'ton coussin n’est pas complet'
+}
+
+// « 4 mois de dépenses, 6 400 € »: the goal of the available money, in months then in euros.
+export function cushionGoalText(cushion: { months: number; euros: string; basis: 'expenses' | 'salary' }): string {
+  const months = Number.isInteger(cushion.months) ? String(cushion.months) : String(cushion.months).replace('.', ',')
+  return `${months} mois de ${cushion.basis === 'salary' ? 'revenus' : 'dépenses'}, ${cushion.euros}`
+}
+
 // `misplaced` is the number of squares held beyond the goal, over the goal shares.
 // With Chez toi in the grid, the goals cover only what is outside it: the sentence
 // says so, and the squares are no longer counted out of the whole 100.

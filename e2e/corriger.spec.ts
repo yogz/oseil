@@ -101,9 +101,9 @@ test('correcting a line: rename, figures, close and reopen, delete', async ({ pa
 
   await expect(page).toHaveURL(/\/premier-lancement\/revelation$/)
   await page.getByRole('button', { name: 'Continuer' }).click()
-  await expect(page.getByRole('heading', { name: 'Tes objectifs' })).toBeVisible()
-  await page.getByRole('button', { name: 'Plus tard' }).click()
   await expect(page.getByRole('heading', { name: /Combien dépenses-tu par mois/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Plus tard' }).click()
+  await expect(page.getByRole('heading', { name: 'Tes objectifs' })).toBeVisible()
   await page.getByRole('button', { name: 'Plus tard' }).click()
 
   await expect(page).toHaveURL(/\/$/, { timeout: 30_000 })

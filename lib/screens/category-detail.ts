@@ -11,7 +11,7 @@ import {
   formatUnits,
   formatWholePercent,
 } from '@/lib/format'
-import { gapWords, goalInEffect, goalSquares, hasSteeredSquares, splitsProperty } from '@/lib/model/goals'
+import { gapWords, goalInEffect, goalTargets, hasSteeredSquares, splitsProperty } from '@/lib/model/goals'
 import {
   categoryOf,
   computeSituation,
@@ -31,9 +31,9 @@ import { lastKnownPrice, unconvertedSentence } from '@/lib/market/words'
 import { CHAPTER_LABELS, chapterOf, WORLD_FUND_NOTE, type ChapterId } from '@/lib/screens/chapters'
 import { DEBT_SENTENCE } from '@/lib/screens/line-words'
 import { debtsOf } from '@/lib/screens/debts'
-import { excludedSentence, noGridSentence, pocketSentence } from '@/lib/screens/mon-argent'
+import { cushionGoalOf, excludedSentence, noGridSentence, pocketSentence } from '@/lib/screens/mon-argent'
 import { titleRows } from '@/lib/screens/titles'
-import { NO_GOAL, whereWords } from '@/lib/screens/words'
+import { cushionGoalText, NO_GOAL, whereWords } from '@/lib/screens/words'
 
 export type DetailLine = {
   lineId: string
@@ -226,9 +226,11 @@ export function categoryDetailView(
   // Same rule as « Mon argent »: goals only count when something outside Chez toi can be compared.
   let goal: CategoryDetailView['goal'] = null
   let targets: Record<GoalCategory, number> | null = null
+  let cushionOf: ReturnType<typeof cushionGoalOf> = null
   if (grid.kind === 'grid') {
     const allocation = model.unreadable.goals > 0 ? null : goalInEffect(model.goals.map((g) => g.value), today)
-    if (allocation && hasSteeredSquares(grid)) targets = goalSquares(allocation.shares, grid)
+    if (allocation) cushionOf = cushionGoalOf(allocation, model.settings?.value.budget ?? null)
+    if (allocation && hasSteeredSquares(grid)) targets = goalTargets(allocation, grid, model.settings?.value.budget ?? null)
     if (entry && targets && category !== 'property') goal = { actual: entry.squares, target: targets[category as GoalCategory] }
   }
   // With a rental, or a rental share still to reach, Immobilier is told in its two pockets, as on
@@ -238,9 +240,13 @@ export function categoryDetailView(
   // Out of the grid, the sentence of « Mon argent » says why; a category at exactly zero has none there.
   let header: string
   if (entry) {
-    header = goal
-      ? `${squaresWord(entry.squares)} sur 100, ${gapWords(goal.actual, goal.target)} (${squaresWord(goal.target)})`
-      : `${squaresWord(entry.squares)} sur 100`
+    // The available money aimed at in months says its goal in months, as on Mon argent.
+    const inMonths = goal && category === 'available' && cushionOf ? cushionOf(entry.value) : null
+    header = inMonths
+      ? `${squaresWord(entry.squares)} sur 100, ${inMonths.words} (${cushionGoalText(inMonths.cushion)})`
+      : goal
+        ? `${squaresWord(entry.squares)} sur 100, ${gapWords(goal.actual, goal.target)} (${squaresWord(goal.target)})`
+        : `${squaresWord(entry.squares)} sur 100`
   } else if (grid.kind === 'none') {
     header = noGridSentence(situation)
   } else {

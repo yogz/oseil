@@ -164,6 +164,15 @@ const VARIANTS: Record<string, () => ExportInput> = {
     input.goals = [...input.goals, { schema: 1, validFrom: '2026-11-01', shares: { available: 10, secured: 30, markets: 25, gold: 5, rental: 30 } }]
     return input
   },
+  // docs/superpowers/specs/2026-11-11-coussin-objectif-design.md: the available money in months.
+  'a goal with the available money in months': () => {
+    const input = fixtureInput()
+    input.goals = [
+      ...input.goals,
+      { schema: 1, validFrom: '2026-11-11', shares: { available: 0, secured: 33, markets: 60, gold: 7, rental: 0 }, cushionMonths: 2.5 },
+    ]
+    return input
+  },
   'two goals on the same day': () => {
     const input = fixtureInput()
     input.goals = [

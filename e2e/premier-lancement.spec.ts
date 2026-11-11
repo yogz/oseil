@@ -149,19 +149,20 @@ test('the whole first launch, then Mon argent in euros and in percent', async ({
   await shot(page, '4-revelation')
   await page.getByRole('button', { name: 'Continuer' }).click()
 
-  // Goals, in percent of the money outside the home: « Équilibré », saved.
+  // Monthly spending first (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md).
+  await expect(page.getByRole('heading', { name: /Combien dépenses-tu par mois/ })).toBeVisible()
+  await fill(page, 'Tes dépenses par mois', '2500')
+  await shot(page, '5-depenses')
+  await page.getByRole('button', { name: 'Continuer' }).click()
+
+  // Goals: with a budget, the available money in months, the rest in percent: « Équilibré », saved.
   await expect(page.getByRole('heading', { name: 'Tes objectifs' })).toBeVisible()
   await expect(page.getByText(/hors chez toi \(37\s000\s€ aujourd’hui\)/)).toBeVisible()
   await page.getByRole('button', { name: 'Équilibré', exact: true }).click()
+  await expect(page.getByTestId('cushion')).toHaveText(/^Argent disponible\s:\sgarder 4\smois de dépenses, soit 10\s000\s€$/)
   await expect(page.getByText(/^100\s%\srépartis$/)).toBeVisible()
-  await shot(page, '5-objectifs')
+  await shot(page, '6-objectifs')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
-
-  // Monthly spending, then done.
-  await expect(page.getByRole('heading', { name: /Combien dépenses-tu par mois/ })).toBeVisible()
-  await fill(page, 'Tes dépenses par mois', '2500')
-  await shot(page, '6-depenses')
-  await page.getByRole('button', { name: 'Terminer' }).click()
 
   // Mon argent: the net worth and the grid.
   await expect(page).toHaveURL(/\/$/)

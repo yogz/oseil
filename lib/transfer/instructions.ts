@@ -246,6 +246,10 @@ function columnLines(kind: keyof typeof COLUMNS): string[] {
     let help: string | undefined
     if (kind === 'goals') {
       if (column.key === 'from') help = 'la date à partir de laquelle l’objectif vaut.'
+      // docs/superpowers/specs/2026-11-11-coussin-objectif-design.md: months, never a percent.
+      else if (column.key === 'cushionMonths') {
+        help = `vide, tout l’objectif est en pour cent. Rempli, l’argent disponible se vise en mois de dépenses${NB}: de 1 à 24, par demi-mois en dessous de 3 (1, 1,5, 2, 2,5, 3, 4…)${NB}; ${title('goals', 'available')} vaut alors 0, et les autres parts font 100 entre elles.`
+      }
       else if (column.key === 'rental') {
         help = `la part visée pour les logements de type ${q(RESIDENCE_LABELS.rental)}, en pour cent comme les autres parts. Vide, ou colonne absente${NB}: 0.`
       } else {

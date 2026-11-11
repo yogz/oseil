@@ -6,7 +6,7 @@ import { computeSituation } from '@/lib/model/situation'
 import { buildGrid } from '@/lib/model/squares'
 import type { Account, Budget, Establishment, Line, Profile, Settings, Snapshot } from '@/lib/model/types'
 import { reperesView, type ReperesView } from '@/lib/screens/reperes'
-import { directShareFact, homeBuyingSentence } from '@/lib/screens/reperes-words'
+import { directShareFact, homeBuyingSentence, monthsWords } from '@/lib/screens/reperes-words'
 
 const TODAY = '2026-11-06'
 const plain = (text: string | null | undefined) => text?.replace(/[  ]/g, ' ') ?? ''
@@ -75,7 +75,7 @@ describe('the cushion', () => {
   test('counts in months of dépenses, 5,5 months fills 5 of the 12 squares', () => {
     const view = ready(cushionModel({ basis: 'expenses', monthly: 200_000 }))
     expect(view.cushion).toEqual({
-      sentence: "Si tes revenus s’arrêtaient, ton argent disponible couvrirait environ 5 mois et demi de dépenses.",
+      sentence: "Si tes revenus s’arrêtaient, ton argent disponible couvrirait environ 5 mois et demi de dépenses.",
       months: 5.5,
       filled: 5,
     })
@@ -84,7 +84,7 @@ describe('the cushion', () => {
   test('counts in months of salaire when that is what was given', () => {
     const view = ready(cushionModel({ basis: 'salary', monthly: 550_000 }))
     expect(view.cushion).toMatchObject({
-      sentence: "Si tes revenus s’arrêtaient, ton argent disponible couvrirait environ 2 mois de revenus.",
+      sentence: "Si tes revenus s’arrêtaient, ton argent disponible couvrirait environ 2 mois de revenus.",
       months: 2,
       filled: 2,
     })
@@ -779,4 +779,10 @@ describe('homeBuyingSentence', () => {
     expect(homeBuyingSentence(true, true)).toBe('Le PER et l’épargne salariale peuvent aussi se débloquer, dans certains cas, pour acheter ta résidence principale.')
     expect(homeBuyingSentence(false, false)).toBeNull()
   })
+})
+
+// French typography: a number and its unit held together (the review of the cushion branch, 11 November 2026).
+test('months are held to their number by a no-break space', () => {
+  expect(monthsWords(7)).toBe('7\u00A0mois')
+  expect(monthsWords(5.5)).toBe('5\u00A0mois et demi')
 })

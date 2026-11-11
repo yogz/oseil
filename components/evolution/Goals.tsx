@@ -57,6 +57,8 @@ export function GoalsHistory({
         ))}
       </ul>
       <p className="text-caption text-ink-muted">{GOALS_LEGEND}</p>
+      {/* The available money aimed at in months: compared with today's budget, and said. */}
+      {goals.note ? <p className="text-caption text-ink-muted">{goals.note}</p> : null}
 
       {goals.traces.length > 0 ? (
         <button

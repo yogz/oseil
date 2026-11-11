@@ -284,6 +284,18 @@ export const CURRENCIES: readonly { code: CurrencyCode; words: string; feminine?
 // Example goals, in percent, order: available, secured, markets, gold, rental.
 // Examples replaced on 2026-11-10 (spec 2026-11-10-criteres-des-experts, § 1); first validated by Nicolas on 2026-11-06.
 // The rental share is 0 in each (spec 2026-11-10-immobilier-locatif).
+// The months a cushion may aim at: by halves under 3, then whole months, up to two years.
+export const CUSHION_MONTHS: readonly number[] = [1, 1.5, 2, 2.5, ...Array.from({ length: 22 }, (_, i) => i + 3)]
+
+// The examples with a budget: the cushion in months, then the other shares of what it leaves — today's
+// examples without their available share, brought back to 100
+// (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md).
+export const CUSHION_PRESETS: Record<'prudent' | 'balanced' | 'dynamic', { months: number; shares: GoalShares }> = {
+  prudent: { months: 6, shares: { available: 0, secured: 75, markets: 25, gold: 0, rental: 0 } },
+  balanced: { months: 4, shares: { available: 0, secured: 33, markets: 60, gold: 7, rental: 0 } },
+  dynamic: { months: 3, shares: { available: 0, secured: 17, markets: 72, gold: 11, rental: 0 } },
+}
+
 export const GOAL_PRESETS: Record<'prudent' | 'balanced' | 'dynamic', { label: string; shares: GoalShares }> = {
   prudent: { label: 'Prudent', shares: { available: 40, secured: 45, markets: 15, gold: 0, rental: 0 } },
   balanced: { label: 'Équilibré', shares: { available: 25, secured: 25, markets: 45, gold: 5, rental: 0 } },

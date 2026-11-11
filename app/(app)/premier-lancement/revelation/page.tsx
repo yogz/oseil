@@ -52,8 +52,9 @@ function Reveal({ draft, apply, saveError }: { draft: SetupDraft | null; apply: 
   }
   const grid = buildGrid(situation)
   const excluded = grid.kind === 'grid' ? excludedSentences(situation, grid) : []
-  // With a grid, the goals come next, even with nothing outside Chez toi: that screen says so.
-  const next = grid.kind === 'grid' ? '/premier-lancement/objectifs' : '/premier-lancement/depenses'
+  // The spending comes next, then the goals (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md):
+  // the goals screen says itself when there is nothing to split.
+  const next = '/premier-lancement/depenses'
 
   const proceed = () =>
     run(async () => {

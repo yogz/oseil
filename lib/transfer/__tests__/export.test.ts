@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, test, expect, it } from 'vitest'
 import { ACCOUNT_TYPES, BANKS, CATEGORIES, CURRENCIES, GROUP_LABELS, OTHER_BANKS, RESIDENCE_LABELS } from '@/lib/catalog'
 import { COLUMNS, EXAMPLE_BANK, HOME_NAME, KIND_NAMES, SETTING_NAMES, SHEETS } from '../format'
 import { TEMPLATE_FILE_NAME, exportFileName, exportSheets, templateSheets } from '../export'
@@ -190,8 +190,8 @@ describe('exportSheets', () => {
 
   it('writes the goals in their order and the settings it holds', () => {
     expect(sheet(sheets, SHEETS.goals).rows).toEqual([
-      [day('2026-01-01'), 15, 35, 45, 5, 0],
-      [day('2026-10-01'), 20, 60, 15, 5, 0],
+      [day('2026-01-01'), 15, 35, 45, 5, 0, null],
+      [day('2026-10-01'), 20, 60, 15, 5, 0, null],
     ])
     expect(sheet(sheets, SHEETS.settings).rows).toEqual([
       [SETTING_NAMES.budget, 3500],
@@ -482,4 +482,14 @@ describe('file names', () => {
     expect(exportFileName('2026-11-09')).toBe('mes-chiffres-2026-11-09.xlsx')
     expect(TEMPLATE_FILE_NAME).toBe('modele-mes-chiffres.xlsx')
   })
+})
+
+// docs/superpowers/specs/2026-11-11-coussin-objectif-design.md: the column of months is not a percent.
+test('the instructions for an AI tell the months column as months, never as a percent', () => {
+  const line = AI_PROMPT.replace(/[\u00a0\u202f]/g, ' ').split('\n').find((l) => l.includes('« Argent disponible (mois) »'))
+  expect(line).toBeDefined()
+  expect(line).not.toMatch(/en pour cent, un nombre simple/)
+  expect(line).toMatch(/mois de dépenses/)
+  expect(line).toMatch(/de 1 à 24/)
+  expect(line).toMatch(/vaut alors 0/)
 })

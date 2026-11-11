@@ -103,7 +103,10 @@ export type UpdateDraft = {
 }
 
 export type GoalShares = Record<GoalCategory, number> // totals 100
-export type GoalAllocation = { schema: 1; validFrom: IsoDate; shares: GoalShares }
+// `cushionMonths`: the goal of the available money as months of the budget, its share then 0 and the
+// other four totalling 100 (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md). Absent: every
+// goal is a percent, as before.
+export type GoalAllocation = { schema: 1; validFrom: IsoDate; shares: GoalShares; cushionMonths?: number }
 export type Budget = { basis: 'expenses' | 'salary'; monthly: Cents }
 export type Settings = {
   schema: 1

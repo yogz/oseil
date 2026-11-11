@@ -120,6 +120,9 @@ export const COLUMNS = {
   goals: [
     col('from', 'À partir du', 'date', 14, true),
     ...GOAL_CATEGORIES.map((id) => col(id, `${GOAL_LABELS[id]} (%)`, 'integer', 22, !ADDED_GOALS.includes(id))),
+    // Added 11 November 2026 (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md): empty, every
+    // goal in percents; filled, the available money in months of the budget, its share then 0.
+    col('cushionMonths', 'Argent disponible (mois)', 'number', 22),
   ],
   settings: [col('name', 'Réglage', 'text', 28, true), col('value', 'Valeur', 'text', 24, true)],
 } as const satisfies Record<string, readonly Column[]>
@@ -198,6 +201,8 @@ export const GOAL_REFUSALS = {
   goalTotal: 'des objectifs dont le total ne fait pas 100',
   goalShare: 'une part d’objectif qui n’est pas un nombre entier de pour cent',
   goalFraction: 'une ligne d’objectifs d’une seule part à 1 et des autres à 0 (1 ou 100 pour cent, on ne sait pas)',
+  cushionMonths: 'un nombre de mois pour l’argent disponible qui n’est pas proposé (de 1 à 24, par demi-mois en dessous de 3)',
+  cushionShare: 'des mois pour l’argent disponible avec, en plus, une part en pour cent pour lui',
 } as const
 
 // The sheet « Réglages ».

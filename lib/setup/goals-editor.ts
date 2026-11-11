@@ -2,11 +2,11 @@
 // outside Chez toi. Pure: no React, no database. Chez toi has no goal: its
 // monthly repayments and new estimates would otherwise move the gap on their own.
 
-import { GOAL_CATEGORIES, GOAL_PRESETS } from '@/lib/catalog'
+import { CUSHION_MONTHS, GOAL_CATEGORIES, GOAL_PRESETS } from '@/lib/catalog'
 import { heldValue } from '@/lib/model/goals'
 import type { Situation } from '@/lib/model/situation'
 import { largestRemainder, type Grid } from '@/lib/model/squares'
-import type { Cents, GoalAllocation, GoalCategory, IsoDate, Profile } from '@/lib/model/types'
+import type { Budget, Cents, GoalAllocation, GoalCategory, IsoDate, Profile } from '@/lib/model/types'
 
 type GridOnly = Extract<Grid, { kind: 'grid' }>
 
@@ -77,8 +77,34 @@ export function step(draft: GoalsDraft, category: GoalCategory, delta: 1 | -1): 
   return { ...draft, [category]: next }
 }
 
-// The shares saved are the percents shown, as they are.
-export function toAllocation(draft: GoalsDraft, today: IsoDate): GoalAllocation {
+// The shares saved are the percents shown, as they are; with `months`, the available money is aimed at in
+// months of the budget, and its share is 0.
+export function toAllocation(draft: GoalsDraft, today: IsoDate, months?: number): GoalAllocation {
   if (remaining(draft) !== 0) throw new Error('Every percent must be placed before saving')
-  return { schema: 1, validFrom: today, shares: { ...draft } }
+  if (months === undefined) return { schema: 1, validFrom: today, shares: { ...draft } }
+  if (draft.available !== 0) throw new Error('A goal in months has no share of available money')
+  return { schema: 1, validFrom: today, shares: { ...draft }, cushionMonths: months }
+}
+
+// ---- The available money in months (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md) ----
+
+// What a share of the money outside the home is worth in months of the budget, to the nearest choice.
+export function monthsFromShare(share: number, outside: Cents, budget: Budget): number {
+  const months = ((share / WHOLE) * outside) / budget.monthly
+  return CUSHION_MONTHS.reduce((best, m) => (Math.abs(m - months) < Math.abs(best - months) ? m : best))
+}
+
+// The four other shares as parts of what the cushion leaves, in whole percents totalling 100. Nothing
+// but available money: all of it to the secured savings, the first one after it.
+export function othersOf(draft: GoalsDraft): GoalsDraft {
+  const others = GOAL_CATEGORIES.filter((c) => c !== 'available')
+  const weights = others.map((c) => draft[c])
+  const parts = largestRemainder(weights.some((w) => w > 0) ? weights : others.map((c) => (c === 'secured' ? 1 : 0)), WHOLE)
+  return { available: 0, ...Object.fromEntries(others.map((c, i) => [c, parts[i]])) } as GoalsDraft
+}
+
+// One step along the choices of months, never beyond either end.
+export function stepMonths(months: number, delta: 1 | -1): number {
+  const at = CUSHION_MONTHS.indexOf(months)
+  return CUSHION_MONTHS[Math.min(CUSHION_MONTHS.length - 1, Math.max(0, at + delta))]
 }

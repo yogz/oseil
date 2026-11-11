@@ -85,3 +85,10 @@ export const TRACE_WORDS = {
   further: 's’éloigne',
   steady: 'à peu près stable',
 } as const
+
+// Under the gaps when the available money is aimed at in months: the budget has no history, so every
+// snapshot is compared with today's.
+export const EVOLUTION_BUDGET_NOTE = {
+  expenses: 'L’objectif de ton argent disponible est compté avec tes dépenses d’aujourd’hui.',
+  salary: 'L’objectif de ton argent disponible est compté avec tes revenus d’aujourd’hui.',
+} as const

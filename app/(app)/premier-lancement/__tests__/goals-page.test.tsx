@@ -89,7 +89,7 @@ test('starts from today’s split of the money outside the home, in percent, wit
   for (const name of ['Ma répartition actuelle', 'Prudent', 'Équilibré', 'Dynamique']) {
     expect(screen.getByRole('button', { name })).toBeInTheDocument()
   }
-  expect(screen.getByRole('link', { name: '‹ Retour' })).toHaveAttribute('href', '/premier-lancement/revelation')
+  expect(screen.getByRole('link', { name: '‹ Retour' })).toHaveAttribute('href', '/premier-lancement/depenses')
   expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeEnabled()
 })
 
@@ -254,7 +254,7 @@ test('« Équilibré » gives 25/25/45/5 and saves exactly those shares, then go
   expect(mocks.addGoal.mock.calls[0][0]).toBe(client)
   expect(parseGoalAllocation(goal)).not.toBeNull()
   expect(goal.shares).toEqual({ available: 25, secured: 25, markets: 45, gold: 5, rental: 0 })
-  expect(mocks.push).toHaveBeenCalledWith('/premier-lancement/depenses')
+  expect(mocks.push).toHaveBeenCalledWith('/')
   expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled()
 })
 
@@ -313,7 +313,7 @@ test('« Plus tard » goes to the expenses without saving', async () => {
   render(<ObjectifsPage />)
   await userEvent.click(screen.getByRole('button', { name: 'Plus tard' }))
   expect(mocks.addGoal).not.toHaveBeenCalled()
-  expect(mocks.push).toHaveBeenCalledWith('/premier-lancement/depenses')
+  expect(mocks.push).toHaveBeenCalledWith('/')
 })
 
 test('everything in the home: nothing to split, « Continuer » and no skip', async () => {
@@ -327,7 +327,7 @@ test('everything in the home: nothing to split, « Continuer » and no skip', as
   expect(screen.getByText('Tout ton argent est dans ton logement : il n’y a rien à répartir pour l’instant.')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Plus tard' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
-  expect(mocks.push).toHaveBeenCalledWith('/premier-lancement/depenses')
+  expect(mocks.push).toHaveBeenCalledWith('/')
   expect(mocks.addGoal).not.toHaveBeenCalled()
 })
 
@@ -370,4 +370,94 @@ test('unreadable, failed and loading states', async () => {
   mocks.state.current = { status: 'loading' }
   rerender(<ObjectifsPage />)
   expect(screen.queryByRole('button')).not.toBeInTheDocument()
+})
+
+// ---- The available money in months (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md) ----
+
+// The example's state with a budget of 2 500 € of expenses a month, and an optional goal in force.
+function withBudget(goal?: GoalAllocation): ModelState {
+  const state = ready(exampleProfile, exampleSnapshot) as Extract<ModelState, { status: 'ready' }>
+  state.model.settings = loaded({ schema: 1, budget: { basis: 'expenses', monthly: 2_500_00 }, display: 'euros', hideAmounts: false })
+  if (goal) state.model.goals = [loaded(goal, 'g0')]
+  return state
+}
+const monthsText = () => plain(screen.getByTestId('cushion').textContent)
+
+test('with a budget, the available money is aimed at in months, the four others in percents of the rest', () => {
+  mocks.state.current = withBudget()
+  render(<ObjectifsPage />)
+  // 24 % of 82 000 € is 19 680 €: about 8 months of 2 500 €.
+  expect(monthsText()).toBe('Argent disponible : garder 8 mois de dépenses, soit 20 000 €')
+  expect(screen.queryByText('aujourd’hui 24 %')).toBeNull()
+  expect(value('Épargne sécurisée')).toBe('49 %')
+  expect(value('Placements en bourse')).toBe('49 %')
+  expect(value('Or et crypto')).toBe('2 %')
+})
+
+test('an example sets its months and its shares of the rest', async () => {
+  mocks.state.current = withBudget()
+  render(<ObjectifsPage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Prudent' }))
+  expect(monthsText()).toBe('Argent disponible : garder 6 mois de dépenses, soit 15 000 €')
+  expect(value('Épargne sécurisée')).toBe('75 %')
+  expect(value('Placements en bourse')).toBe('25 %')
+})
+
+test('more months, then saving: the goal is written in months, its available share at 0', async () => {
+  mocks.state.current = withBudget()
+  render(<ObjectifsPage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Plus de mois' }))
+  expect(monthsText()).toBe('Argent disponible : garder 9 mois de dépenses, soit 22 500 €')
+  await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+  const saved = mocks.addGoal.mock.calls[0][2] as GoalAllocation
+  expect(saved.cushionMonths).toBe(9)
+  expect(saved.shares).toEqual({ available: 0, secured: 49, markets: 49, gold: 2, rental: 0 })
+  expect(parseGoalAllocation(saved)).toEqual(saved)
+})
+
+test('beyond a year, a line says that money loses to inflation, and saving still works', async () => {
+  mocks.state.current = withBudget({ schema: 1, validFrom: '2026-01-01', shares: { available: 0, secured: 49, markets: 49, gold: 2, rental: 0 }, cushionMonths: 12 })
+  render(<ObjectifsPage />)
+  expect(screen.queryByText(/perd face à l’inflation/)).toBeNull()
+  await userEvent.click(screen.getByRole('button', { name: 'Plus de mois' }))
+  expect(screen.getByText(/perd face à l’inflation/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeEnabled()
+})
+
+test('a goal saved in percents opens in months, filled with what its share is worth today', () => {
+  // 15 % of 82 000 € is 12 300 €: about 5 months.
+  mocks.state.current = withBudget({ schema: 1, validFrom: '2026-01-01', shares: { available: 15, secured: 35, markets: 45, gold: 5, rental: 0 } })
+  render(<ObjectifsPage />)
+  expect(monthsText()).toBe('Argent disponible : garder 5 mois de dépenses, soit 12 500 €')
+})
+
+test('without a budget, the screen of today, and a way to give one', () => {
+  render(<ObjectifsPage />)
+  expect(screen.queryByTestId('cushion')).toBeNull()
+  expect(value('Argent disponible')).toBe('24 %')
+  expect(screen.getByRole('link', { name: 'Renseigner tes dépenses pour viser ton argent disponible en mois' })).toHaveAttribute(
+    'href',
+    '/premier-lancement/depenses',
+  )
+})
+
+// « aujourd’hui » on the same basis as the shares set: parts of what the cushion leaves.
+test('in months, « aujourd’hui » tells the share of the rest, like the value beside it', () => {
+  mocks.state.current = withBudget()
+  render(<ObjectifsPage />)
+  expect(within(row('Épargne sécurisée')).getByText('aujourd’hui 49 %')).toBeInTheDocument()
+  expect(within(row('Or et crypto')).getByText('aujourd’hui 2 %')).toBeInTheDocument()
+})
+
+// A goal in months and no budget: never offered back as « 0 % » of available money, which saving would make true.
+test('a goal in months without a budget is not offered as 0 %, and says what it needs', () => {
+  const state = ready(exampleProfile, exampleSnapshot) as Extract<ModelState, { status: 'ready' }>
+  state.model.goals = [loaded({ schema: 1, validFrom: '2026-01-01', shares: { available: 0, secured: 49, markets: 49, gold: 2, rental: 0 }, cushionMonths: 4 }, 'g0')]
+  mocks.state.current = state
+  render(<ObjectifsPage />)
+  expect(screen.queryByRole('button', { name: 'Mes objectifs' })).toBeNull()
+  expect(value('Argent disponible')).toBe('24 %')
+  expect(plain(screen.getByText(/Ton objectif vise/).textContent)).toBe(
+    'Ton objectif vise 4 mois de côté pour ton argent disponible : renseigne tes dépenses pour le garder.',
+  )
 })

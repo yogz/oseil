@@ -2,7 +2,7 @@
 // still hold the wrong shape (older code, a bug, tampering with the client):
 // each parser returns the value, typed, or null. Pure: no Supabase, no React.
 
-import { ACCOUNT_TYPES, CATEGORY_ORDER, GOAL_CATEGORIES, GROUP_LABELS, LEGACY_OUTSIDE_IDS, OUTSIDE_BANKS, RESIDENCE_LABELS } from '@/lib/catalog'
+import { ACCOUNT_TYPES, CATEGORY_ORDER, CUSHION_MONTHS, GOAL_CATEGORIES, GROUP_LABELS, LEGACY_OUTSIDE_IDS, OUTSIDE_BANKS, RESIDENCE_LABELS } from '@/lib/catalog'
 import type {
   Account,
   AccountTypeId,
@@ -270,7 +270,12 @@ export function parseGoalAllocation(value: unknown): GoalAllocation | null {
   }
   // Compared in hundredths: 33.33 + 33.33 + 33.33 must pass despite float error.
   if (Math.abs(Math.round(total * 100) - 10000) > 1) return null
-  return { schema: 1, validFrom: value.validFrom, shares }
+  if (value.cushionMonths === undefined) return { schema: 1, validFrom: value.validFrom, shares }
+  // A goal in months has no share of available money: the other four make its 100.
+  if (typeof value.cushionMonths !== 'number' || !CUSHION_MONTHS.includes(value.cushionMonths) || shares.available !== 0) {
+    return null
+  }
+  return { schema: 1, validFrom: value.validFrom, shares, cushionMonths: value.cushionMonths }
 }
 
 function parseBudget(raw: unknown): Budget | null {

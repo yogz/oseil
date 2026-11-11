@@ -10,24 +10,27 @@ import { useSubmit } from '@/components/setup/useSubmit'
 import { Button } from '@/components/ui/Button'
 import { VaultWait } from '@/components/ui/VaultWait'
 import { useModel } from '@/lib/app/use-model'
-import { GOAL_COLOR, GOAL_LABELS, GOAL_PRESETS } from '@/lib/catalog'
+import { CUSHION_PRESETS, GOAL_COLOR, GOAL_LABELS, GOAL_PRESETS } from '@/lib/catalog'
 import { todayIso } from '@/lib/dates'
 import { formatEuros, formatWholePercent } from '@/lib/format'
 import { goalInEffect } from '@/lib/model/goals'
 import { addGoal } from '@/lib/model/repository'
 import { computeSituation, holdsRental } from '@/lib/model/situation'
-import type { GoalCategory } from '@/lib/model/types'
+import type { Budget, GoalCategory } from '@/lib/model/types'
 import { buildGrid, type Grid } from '@/lib/model/squares'
 import { noGridSentence } from '@/lib/screens/mon-argent'
 import {
   applyPreset,
   chezToiHomes,
   editorCategories,
+  monthsFromShare,
   nothingToSplit,
+  othersOf,
   outsideHome,
   remaining,
   startGoals,
   step,
+  stepMonths,
   toAllocation,
   type GoalPreset,
   type GoalsDraft,
@@ -40,7 +43,12 @@ const NO_HOME_GOAL = 'Chez toi n’a pas d’objectif : ses mensualités et ses
 const RENTAL_NOTE = 'Un logement ne se vend pas par carré : cet objectif guide surtout où va ton argent neuf.'
 // The one sentence at the bottom, whole.
 const NOT_ADVICE = 'Ce sont des exemples, pas un conseil fait pour toi.'
-const NEXT = '/premier-lancement/depenses'
+// More than a year of expenses put aside: said, never refused.
+const INFLATION_NOTE = 'Au-delà d’un an de côté, cet argent perd face à l’inflation.'
+// « 4 mois », « 2,5 mois ».
+const monthsLabel = (months: number) => `${String(months).replace('.', ',')} mois`
+// The last screen of the first launch since the spending comes before it.
+const NEXT = '/'
 const SETTINGS = '/reglages'
 const PRESETS = ['prudent', 'balanced', 'dynamic'] as const
 const STEP_BUTTON = `inline-flex size-11 items-center justify-center rounded-full border border-rule-strong text-subtitle text-ink disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`
@@ -51,7 +59,7 @@ export default function ObjectifsPage() {
   const state = useModel()
   // Opened from the Réglages: the first launch is not moved on, the person goes back there.
   const fromSettings = useSearchParams().get('depuis') === 'reglages'
-  const way = fromSettings ? { back: SETTINGS, next: SETTINGS } : { back: '/premier-lancement/revelation', next: NEXT }
+  const way = fromSettings ? { back: SETTINGS, next: SETTINGS } : { back: '/premier-lancement/depenses', next: NEXT }
   if (state.status === 'loading') return <VaultWait phase="open" />
   if (state.status !== 'ready') return <LoadFailed retry={state.retry} />
   const { model } = state
@@ -90,12 +98,22 @@ export default function ObjectifsPage() {
   }
   // The goals in force today, when there are some: the page opens on them, so what was saved is seen again.
   const inForce = model.unreadable.goals > 0 ? null : goalInEffect(model.goals.map((g) => g.value), todayIso())
-  const saved = inForce ? { ...inForce.shares } : null
+  // With a budget, the available money is aimed at in months (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md).
+  const budget = model.settings?.value.budget ?? null
+  const usable = budget && budget.monthly > 0 ? budget : null
+  // A goal in months with no budget to count them: never offered back in percents, where its available
+  // share reads 0 and saving it would make that true. The screen starts from today and says why.
+  const stranded = inForce?.cushionMonths !== undefined && !usable ? inForce.cushionMonths : null
+  const saved = inForce && stranded === null ? { ...inForce.shares } : null
   return (
     <Editor
       outside={outsideHome(grid)}
       start={start}
       saved={saved}
+      savedMonths={stranded === null ? (inForce?.cushionMonths ?? null) : null}
+      stranded={stranded}
+      budget={usable}
+      spending={fromSettings ? '/premier-lancement/depenses?depuis=reglages' : '/premier-lancement/depenses'}
       shown={editorCategories(rental, saved)}
       state={state}
       way={way}
@@ -161,19 +179,33 @@ function Editor({
   outside,
   start,
   saved,
-  shown,
+  savedMonths,
+  budget,
+  spending,
+  stranded,
+  shown: rows,
   state,
   way,
 }: {
   outside: number
   start: GoalsDraft
   saved: GoalsDraft | null
+  savedMonths: number | null
+  budget: Budget | null
+  spending: string
+  stranded: number | null
   shown: GoalCategory[]
   state: Ready
   way: Way
 }) {
   const router = useRouter()
-  const [draft, setDraft] = useState(saved ?? start)
+  // In months, the available money has its own row above; the others share what it leaves.
+  const shown = budget ? rows.filter((c) => c !== 'available') : rows
+  const inMonths = (shares: GoalsDraft) => (budget ? monthsFromShare(shares.available, outside, budget) : 0)
+  const savedDraft = saved && budget && savedMonths === null ? othersOf(saved) : saved
+  const startDraft = budget ? othersOf(start) : start
+  const [draft, setDraft] = useState(savedDraft ?? startDraft)
+  const [months, setMonths] = useState(savedMonths ?? inMonths(saved ?? start))
   // Where the shares come from (the goals saved, today's split, an example), until a « − » or
   // a « + » makes them the person's own.
   const [chosen, setChosen] = useState<GoalPreset | 'saved' | null>(saved ? 'saved' : 'current')
@@ -186,7 +218,7 @@ function Editor({
   function save() {
     void run(async () => {
       try {
-        await addGoal(state.client, state.dataKey, toAllocation(draft, todayIso()))
+        await addGoal(state.client, state.dataKey, toAllocation(draft, todayIso(), budget ? months : undefined))
       } catch (failure) {
         console.error(failure)
         setError(SAVE_FAILED)
@@ -224,7 +256,8 @@ function Editor({
               aria-pressed={chosen === 'saved'}
               className={CHIP}
               onClick={() => {
-                setDraft({ ...saved })
+                setDraft({ ...savedDraft! })
+                if (budget) setMonths(savedMonths ?? inMonths(saved))
                 setChosen('saved')
               }}
             >
@@ -238,7 +271,8 @@ function Editor({
             aria-pressed={chosen === 'current'}
             className={CHIP}
             onClick={() => {
-              setDraft(applyPreset('current', start))
+              setDraft(budget ? othersOf(start) : applyPreset('current', start))
+              if (budget) setMonths(inMonths(start))
               setChosen('current')
             }}
           >
@@ -252,7 +286,10 @@ function Editor({
               aria-pressed={chosen === preset}
               className={CHIP}
               onClick={() => {
-                setDraft(applyPreset(preset, start))
+                if (budget) {
+                  setDraft({ ...CUSHION_PRESETS[preset].shares })
+                  setMonths(CUSHION_PRESETS[preset].months)
+                } else setDraft(applyPreset(preset, start))
                 setChosen(preset)
               }}
             >
@@ -261,6 +298,52 @@ function Editor({
           </li>
         ))}
       </ul>
+
+      {budget ? (
+        <div className="mt-5 flex min-h-14 items-center gap-3 border-b border-hairline py-1">
+          <span aria-hidden="true" className={`size-3.5 shrink-0 rounded-square ${FILL.available}`} />
+          <p data-testid="cushion" className="flex-1 text-body text-ink">
+            {`${GOAL_LABELS.available} : garder ${monthsLabel(months)} de ${budget.basis === 'salary' ? 'revenus' : 'dépenses'}, soit ${formatEuros(months * budget.monthly)}`}
+          </p>
+          <button
+            type="button"
+            aria-label="Moins de mois"
+            className={STEP_BUTTON}
+            disabled={months === stepMonths(months, -1)}
+            onClick={() => {
+              setMonths(stepMonths(months, -1))
+              setChosen(null)
+            }}
+          >
+            −
+          </button>
+          <button
+            type="button"
+            aria-label="Plus de mois"
+            className={STEP_BUTTON}
+            disabled={months === stepMonths(months, 1)}
+            onClick={() => {
+              setMonths(stepMonths(months, 1))
+              setChosen(null)
+            }}
+          >
+            +
+          </button>
+        </div>
+      ) : (
+        <>
+          {stranded !== null ? (
+            <p className="mt-4 text-body leading-relaxed text-ink">
+              {`Ton objectif vise ${monthsLabel(stranded)} de côté pour ton argent disponible : renseigne tes dépenses pour le garder.`}
+            </p>
+          ) : null}
+        <Link href={spending} className={`${TEXT_LINK} mt-4`}>
+          Renseigner tes dépenses pour viser ton argent disponible en mois
+        </Link>
+        </>
+      )}
+      {budget && months > 12 ? <p className="mt-2 text-caption leading-normal text-ink-muted">{INFLATION_NOTE}</p> : null}
+      {budget ? <p className="mt-4 text-caption text-ink-muted">Le reste se répartit ainsi&nbsp;:</p> : null}
 
       <Stack draft={draft} shown={shown} />
 
@@ -273,7 +356,7 @@ function Editor({
                 <span aria-hidden="true" className={`size-3.5 shrink-0 rounded-square ${FILL[GOAL_COLOR[category]]}`} />
                 <span className="flex flex-1 flex-col text-body text-ink">
                   {label}
-                  <small className="text-caption text-ink-muted">{`aujourd’hui ${formatWholePercent(start[category])}`}</small>
+                  <small className="text-caption text-ink-muted">{`aujourd’hui ${formatWholePercent(startDraft[category])}`}</small>
                 </span>
                 <button
                   type="button"

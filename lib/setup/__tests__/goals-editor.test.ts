@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from 'vitest'
-import { GOAL_PRESETS } from '@/lib/catalog'
+import { CUSHION_PRESETS, GOAL_PRESETS } from '@/lib/catalog'
 import { computeSituation } from '@/lib/model/situation'
 import { buildGrid, type Grid } from '@/lib/model/squares'
 import { parseGoalAllocation } from '@/lib/model/documents'
@@ -8,12 +8,15 @@ import {
   applyPreset,
   chezToiHomes,
   editorCategories,
+  monthsFromShare,
   nothingToSplit,
+  othersOf,
   outsideHome,
   remaining,
   shownGoalCategories,
   startGoals,
   step,
+  stepMonths,
   toAllocation,
 } from '../goals-editor'
 
@@ -157,5 +160,57 @@ describe('goals editor', () => {
   it('refuses to save while percents are unplaced', () => {
     const draft = step(applyPreset('balanced', startGoals(example)!), 'markets', -1)
     expect(() => toAllocation(draft, '2026-11-06')).toThrow()
+  })
+})
+
+// The available money aimed at in months (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md).
+describe('the cushion in months', () => {
+  const budget = { basis: 'expenses' as const, monthly: 2_500_00 }
+
+  test('a share of the money outside the home reads as the nearest months allowed', () => {
+    expect(monthsFromShare(25, 40_000_00, budget)).toBe(4)
+    expect(monthsFromShare(24, 82_000_00, budget)).toBe(8)
+    expect(monthsFromShare(1, 82_000_00, budget)).toBe(1)
+    expect(monthsFromShare(4, 82_000_00, budget)).toBe(1.5)
+    expect(monthsFromShare(100, 1_000_000_00, budget)).toBe(24)
+  })
+
+  test('the four other shares, their part of what is left, make 100', () => {
+    expect(othersOf({ available: 24, secured: 37, markets: 37, gold: 2, rental: 0 })).toEqual({
+      available: 0,
+      secured: 49,
+      markets: 49,
+      gold: 2,
+      rental: 0,
+    })
+    expect(othersOf({ available: 100, secured: 0, markets: 0, gold: 0, rental: 0 })).toEqual({
+      available: 0,
+      secured: 100,
+      markets: 0,
+      gold: 0,
+      rental: 0,
+    })
+  })
+
+  test('the three examples: months, then the shares of what is left', () => {
+    expect(CUSHION_PRESETS.prudent).toEqual({ months: 6, shares: { available: 0, secured: 75, markets: 25, gold: 0, rental: 0 } })
+    expect(CUSHION_PRESETS.balanced).toEqual({ months: 4, shares: { available: 0, secured: 33, markets: 60, gold: 7, rental: 0 } })
+    expect(CUSHION_PRESETS.dynamic).toEqual({ months: 3, shares: { available: 0, secured: 17, markets: 72, gold: 11, rental: 0 } })
+  })
+
+  test('one step of months: by halves under 3, never below 1 nor above 24', () => {
+    expect(stepMonths(4, 1)).toBe(5)
+    expect(stepMonths(3, -1)).toBe(2.5)
+    expect(stepMonths(1, -1)).toBe(1)
+    expect(stepMonths(24, 1)).toBe(24)
+  })
+
+  test('saving with months writes them, the available share at 0', () => {
+    expect(toAllocation({ available: 0, secured: 33, markets: 60, gold: 7, rental: 0 }, '2026-11-11', 4)).toEqual({
+      schema: 1,
+      validFrom: '2026-11-11',
+      shares: { available: 0, secured: 33, markets: 60, gold: 7, rental: 0 },
+      cushionMonths: 4,
+    })
   })
 })
