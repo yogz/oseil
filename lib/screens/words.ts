@@ -77,6 +77,12 @@ export function cushionHeader(held: number, goal: number): string {
   return `Environ ${whole}\u00A0mois${held - whole >= 0.5 ? ' et demi' : ''} de côté, ${aimed}.`
 }
 
+// The same on Mon argent's row, in its caption (UI pass, 12 November 2026): « environ 7 mois de côté, pour un objectif de 4 ».
+export function cushionRowWords(held: number, goal: number): string {
+  const header = cushionHeader(held, goal)
+  return header.charAt(0).toLowerCase() + header.slice(1, -1)
+}
+
 // « 4 mois de dépenses, 6 400 € »: the goal of the available money, in months then in euros.
 export function cushionGoalText(cushion: { months: number; euros: string; basis: 'expenses' | 'salary' }): string {
   const months = Number.isInteger(cushion.months) ? String(cushion.months) : String(cushion.months).replace('.', ',')

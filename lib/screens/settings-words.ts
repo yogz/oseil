@@ -8,6 +8,8 @@ export const BACK_TO_MONEY = '‹ Mon argent'
 export const GOALS_TITLE = 'Mes objectifs'
 export const GOALS_NONE = 'Pas encore d’objectifs.'
 export const SPENDING_TITLE = 'Mes dépenses par mois'
+// A budget given as revenues is titled so (UI pass, 12 November 2026).
+export const SALARY_TITLE = 'Mes revenus par mois'
 export const SPENDING_NONE = 'Pas encore renseignées.'
 export const SPENDING_EXPENSES = 'tes dépenses'
 export const SPENDING_SALARY = 'tes revenus'

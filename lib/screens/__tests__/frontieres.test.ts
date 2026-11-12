@@ -78,3 +78,12 @@ test('mostly gold: no sentence', () => {
   if (view.kind !== 'board') throw new Error('expected a board')
   expect(view.categories.find((c) => c.category === 'gold')!.note).toBeNull()
 })
+
+// The UI pass of 12 November 2026: under three squares, « Surtout de la crypto » is noise.
+test('a crypto too small to weigh is never warned about', () => {
+  const snap = snapshotOf([amountEntry('cash', 100_000), unitsEntry('btc', 1, 500, null)])
+  expect(categoryDetailView(modelOf(coins, snap), 'gold', TODAY)!.cryptoNote).toBeNull()
+  const view = monArgentView(modelOf(coins, snap), TODAY)
+  if (view.kind !== 'board') throw new Error('expected a board')
+  expect(view.categories.find((c) => c.category === 'gold')!.note).toBeNull()
+})

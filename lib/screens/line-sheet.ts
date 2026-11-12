@@ -1,5 +1,6 @@
 // What the fiche of one line shows, as words and figures. Pure: no React, no database.
 
+import { categoryDetailView } from '@/lib/screens/category-detail'
 import type { Model } from '@/lib/app/use-model'
 import { ACCOUNT_TYPES, CATEGORIES, CURRENCIES, GROUP_LABELS, isRanged } from '@/lib/catalog'
 import { accountTypeChoices, slowDecidedByType, lineSlow } from '@/lib/correct/account-changes'
@@ -215,7 +216,7 @@ export function lineSheetView(model: Model, lineId: string, today: IsoDate, mark
     category,
     // A loan goes back to the detail that lists it: the category it lowers, on the same snapshot.
     back: backTo(category ?? loweredCategory(profile, snapshot, account)),
-    name: line.name,
+    name: listTitle(model, category, lineId, today, market) ?? line.name,
     where: financed ? `${where} · il finance « ${financed.name} »` : where,
     amount,
     amountNote,
@@ -234,3 +235,14 @@ export function lineSheetView(model: Model, lineId: string, today: IsoDate, mark
     locked: unreadable ? 'unreadable' : draftRunning ? 'update-running' : null,
   }
 }
+
+// The title its category's list gives it (« BoursoBank » for a current account there): the fiche opens on the
+// same words that were touched (UI pass, 12 November 2026). Its own name stays in « Son nom ».
+function listTitle(model: Model, category: CategoryId | null, lineId: string, today: IsoDate, market: Market | null): string | null {
+  if (category === null) return null
+  const view = categoryDetailView(model, category, today, market)
+  if (!view) return null
+  const all = [...(view.chapters?.flatMap((c) => c.lines) ?? []), ...view.lines, ...view.tooSmall, ...view.outOfGrid]
+  return all.find((l) => l.lineId === lineId)?.name ?? null
+}
+

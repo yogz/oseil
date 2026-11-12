@@ -38,14 +38,14 @@ const row = (cushion?: { months: number; euros: string; basis: 'expenses' | 'sal
   linked: false,
 })
 
-test('the available money aimed at in months says its goal in months and in euros', () => {
-  const { container } = shown(<CategoryRow row={row({ months: 4, euros: '6 400 €', basis: 'expenses' })} scale={73} />)
-  expect(container.textContent?.replace(/[  ]/g, ' ')).toContain('au-delà de ton coussin · objectif : 4 mois de dépenses, 6 400 €')
-})
-
-test('a budget given as income says months of income', () => {
-  const { container } = shown(<CategoryRow row={row({ months: 2.5, euros: '7 000 €', basis: 'salary' })} scale={73} />)
-  expect(container.textContent?.replace(/[  ]/g, ' ')).toContain('objectif : 2,5 mois de revenus, 7 000 €')
+// The UI pass of 12 November 2026: the row says its months in its words (« environ 19 mois de côté, pour un
+// objectif de 6 »), as the detail and Repères; no « · objectif : … » after them any more.
+test('the available money aimed at in months shows its words alone, no euros after them', () => {
+  const months = { ...row({ months: 4, euros: '6 400 €', basis: 'expenses' }) }
+  months.goal = { ...months.goal!, words: 'environ 7 mois de côté, pour un objectif de 4' }
+  const { container } = shown(<CategoryRow row={months} scale={73} />)
+  expect(container.textContent).toContain('environ 7 mois de côté, pour un objectif de 4')
+  expect(container.textContent).not.toContain('6 400')
 })
 
 test('a goal in percents shows its words alone', () => {

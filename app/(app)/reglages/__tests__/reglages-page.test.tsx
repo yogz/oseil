@@ -138,9 +138,9 @@ test('the goals as a small bar and the spending with its basis, each leading to 
     'href',
     '/premier-lancement/objectifs?depuis=reglages',
   )
-  const spending = section('Mes dépenses par mois')
+  // The UI pass of 12 November 2026: a budget given as revenues is titled so, never « dépenses ».
+  const spending = section('Mes revenus par mois')
   expect(spending).toHaveTextContent(/2\s200\s€/)
-  expect(spending).toHaveTextContent('tes revenus')
   expect(within(spending).getByRole('link', { name: 'Modifier' })).toHaveAttribute(
     'href',
     '/premier-lancement/depenses?depuis=reglages',

@@ -104,6 +104,8 @@ const DETAIL_KEYS = [
   'euros',
   'goal',
   'header',
+  // In percents, the header without the big figure again (UI pass, 12 November 2026).
+  'headerPercent',
   // « Voir ma grille sans chez toi » (12 November 2026): a way to a setting, the same with or without a rental.
   'homeLink',
   'leftOut',

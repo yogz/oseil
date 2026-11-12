@@ -129,7 +129,7 @@ function Detail({
       <p className="text-hero font-semibold leading-tight hero-figure text-ink">
         <Figure quiet euros={view.euros} percent={view.percent} />
       </p>
-      <p className="mt-1 text-body leading-relaxed text-ink-soft">{view.header}</p>
+      <HeaderSentence header={view.header} headerPercent={view.headerPercent} />
       {view.cryptoNote ? <p className="text-caption text-ink-muted">{view.cryptoNote}</p> : null}
       {view.purchaseGain ? <PurchaseGain gain={view.purchaseGain} /> : null}
       {view.debtSentence ? <p className="mt-1 text-body leading-relaxed text-ink-soft">{view.debtSentence}</p> : null}
@@ -263,3 +263,11 @@ function LineItem({
     </li>
   )
 }
+
+// In percents the big figure is the share: the header says only the gap and the goal (UI pass, 12 November 2026).
+function HeaderSentence({ header, headerPercent }: { header: string; headerPercent: string | null }) {
+  const { mode } = useDisplayMode()
+  const text = mode === 'percent' && headerPercent !== null ? headerPercent : header
+  return text ? <p className="mt-1 text-body leading-relaxed text-ink-soft">{text}</p> : null
+}
+

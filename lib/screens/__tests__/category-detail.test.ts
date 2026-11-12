@@ -921,3 +921,11 @@ test('a livret at the same bank does not stop a current account from taking its 
   expect(all).toEqual(expect.arrayContaining([['Crédit Agricole', ''], ['BoursoBank', ''], ['Livret A', 'chez BoursoBank']]))
 })
 
+// The UI pass of 12 November 2026: in percents, the header does not say the big figure again.
+test('in percents, the header says the gap and the goal, not the squares again', () => {
+  const view = categoryDetailView(modelOf(), 'markets', TODAY)!
+  expect(plain(view.headerPercent)).toBe('Un peu en dessous de ton objectif de 19 %.')
+  expect(plain(view.header)).toBe('15 carrés sur 100, un peu en dessous de ton objectif (19 carrés)')
+  const noGoal = categoryDetailView(modelOf({ goals: [] }), 'markets', TODAY)!
+  expect(noGoal.headerPercent).toBe('')
+})

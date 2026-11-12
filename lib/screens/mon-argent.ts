@@ -24,7 +24,7 @@ import type { Account, Budget, CategoryId, Cents, GoalAllocation, GoalCategory, 
 import { debtsOf } from '@/lib/screens/debts'
 import { behindEstablishments, olderDatesLabel } from '@/lib/screens/seen'
 import { couldFollow } from '@/lib/screens/titles'
-import { RENTAL_ABOVE, RENTAL_BELOW, CUSHION_BEYOND_ALL, cushionGoalWords, goalHeadline, GOALS_NEED_BUDGET, GOALS_NEED_BUDGET_LINK, LESS_THAN_A_SQUARE, NO_GOAL, ownedSentence, POCKET_ROW_NAMES, pricesDateLabel } from '@/lib/screens/words'
+import { RENTAL_ABOVE, RENTAL_BELOW, CUSHION_BEYOND_ALL, cushionRowWords, goalHeadline, GOALS_NEED_BUDGET, GOALS_NEED_BUDGET_LINK, LESS_THAN_A_SQUARE, NO_GOAL, ownedSentence, POCKET_ROW_NAMES, pricesDateLabel } from '@/lib/screens/words'
 import { reconcile, steps } from '@/lib/setup/first-launch'
 import { DRAFT_UNREADABLE, isStale } from '@/lib/update/draft'
 import { convertible, usablePrices, withPrices, type PriceFailure } from '@/lib/market/live'
@@ -476,7 +476,7 @@ function buildBoard(
         const line = profile.lines.find((l) => l.id === held.lineId)!
         return { value: held.value, chapter: chapterOf(line, profile.accounts.find((a) => a.id === line.accountId)!, 'gold') }
       })
-      if (mostlyCrypto(lines)) note = MOSTLY_CRYPTO
+      if (mostlyCrypto(lines, entry.squares)) note = MOSTLY_CRYPTO
     }
     if (category === 'property') {
       pockets = pocketRows(entry, situation, targets)
@@ -634,7 +634,7 @@ export function cushionGoalOf(
   const months = allocation.cushionMonths
   if (months === undefined || !budget || budget.monthly <= 0) return null
   return (available) => ({
-    words: cushionGoalWords(cushion(available, budget)!.months, months),
+    words: cushionRowWords(cushion(available, budget)!.months, months),
     held: cushion(available, budget)!.months,
     cushion: { months, euros: formatEurosShown(months * budget.monthly), basis: budget.basis },
   })

@@ -332,3 +332,11 @@ describe('everything corrected from the fiche', () => {
     expect(view.rows).toEqual([])
   })
 })
+
+// The UI pass of 12 November 2026: the fiche opens on the title its list gave it.
+test('a current account listed under its bank opens on its bank', () => {
+  const view = lineSheetView(modelOf(exampleProfile, [exampleSnapshot]), 'current-line', TODAY, null)!
+  expect(view.name).toBe('BoursoBank')
+  expect(view.rows).toContainEqual({ kind: 'name', value: 'Compte courant' })
+  expect(lineSheetView(modelOf(exampleProfile, [exampleSnapshot]), 'livret-a-line', TODAY, null)!.name).toBe('Livret A')
+})

@@ -94,6 +94,9 @@ export type CategoryDetailView = {
   euros: string
   percent: string
   header: string
+  // In percents (UI pass, 12 November 2026): the big figure is already the share, so the header does not say it
+  // again: « Un peu en dessous de ton objectif de 19 %. », or nothing without a goal. Null: `header` in both modes.
+  headerPercent: string | null
   goal: { actual: number; target: number } | null
   debts: Array<{ lineId: string; name: string; owed: string }> // the loans that lower this category
   debtSentence: string | null
@@ -212,7 +215,7 @@ export function categoryDetailView(
     .filter((l, i, all) => !shown.has(l.lineId) && all.findIndex((m) => m.lineId === l.lineId) === i)
     .map((l) => ({ ...l, squares: 0, percent: l.euros, details: null }))
   const header = shown.size === 0 && outOfGrid.length > 0 ? HOME_OUT_HEADER : view.header
-  return { ...view, header, outOfGrid }
+  return { ...view, header, headerPercent: header === view.header ? view.headerPercent : null, outOfGrid }
 }
 
 function detailOf(
@@ -277,6 +280,7 @@ function detailOf(
 
   // Out of the grid, the sentence of « Mon argent » says why; a category at exactly zero has none there.
   let header: string
+  let headerPercent: string | null = null
   if (entry) {
     // The available money aimed at in months says its goal in months, as on Mon argent.
     const inMonths = goal && category === 'available' && cushionOf ? cushionOf(entry.value) : null
@@ -285,6 +289,10 @@ function detailOf(
       : goal
         ? `${squaresWord(entry.squares)} sur 100, ${gapWords(goal.actual, goal.target)} (${squaresWord(goal.target)})`
         : `${squaresWord(entry.squares)} sur 100`
+    if (!inMonths) {
+      const gap = goal ? gapWords(goal.actual, goal.target) : null
+      headerPercent = gap ? `${gap.charAt(0).toUpperCase()}${gap.slice(1)} de ${shareLabel(goal!.target)}.` : ''
+    }
   } else if (grid.kind === 'none') {
     header = noGridSentence(situation)
   } else {
@@ -542,6 +550,7 @@ function detailOf(
     euros,
     percent: entry ? shareLabel(entry.squares) : euros,
     header,
+    headerPercent,
     outOfGrid: [],
     homeLink:
       category === 'property' && (whole?.categories.find((c) => c.pockets)?.pockets?.['chez-toi'].lines.length ?? 0) > 0
@@ -557,7 +566,11 @@ function detailOf(
     titlesLink: listed.some((held) => followable.has(held.lineId)),
     worldNote: category === 'markets' && detailLines.some((l) => l.chapter === 'world') ? WORLD_FUND_NOTE : null,
     cryptoNote:
-      category === 'gold' && mostlyCrypto(listed.map((held, i) => ({ value: held.value, chapter: detailLines[i].chapter })))
+      category === 'gold' &&
+      mostlyCrypto(
+        listed.map((held, i) => ({ value: held.value, chapter: detailLines[i].chapter })),
+        entry?.squares ?? 0,
+      )
         ? MOSTLY_CRYPTO
         : null,
     chapters,

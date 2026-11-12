@@ -10,7 +10,7 @@ import { BanksSection } from '@/components/settings/BanksSection'
 import { DataSection } from '@/components/settings/DataSection'
 import { DisplaySection } from '@/components/settings/DisplaySection'
 import { ReminderSection } from '@/components/settings/ReminderSection'
-import { NOTE, ROW_LINK, SECTION, SECTION_TITLE, SENTENCE } from '@/components/settings/styles'
+import { ROW_LINK, SECTION, SECTION_TITLE, SENTENCE } from '@/components/settings/styles'
 import { FOCUS } from '@/components/setup/styles'
 import { Button } from '@/components/ui/Button'
 import { PageColumns } from '@/components/ui/PageColumns'
@@ -34,10 +34,9 @@ import {
   RETRY,
   SETTINGS,
   SETTINGS_UNREADABLE,
-  SPENDING_EXPENSES,
   SPENDING_HREF,
   SPENDING_NONE,
-  SPENDING_SALARY,
+  SALARY_TITLE,
   SPENDING_TITLE,
 } from '@/lib/screens/settings-words'
 import { confirmRecoveryKeySeen } from '@/lib/vault/store'
@@ -181,9 +180,10 @@ function GoalsRow({ model }: { model: Model }) {
 
 function SpendingRow({ model }: { model: Model }) {
   const budget = model.settings?.value.budget ?? null
+  const title = budget?.basis === 'salary' ? SALARY_TITLE : SPENDING_TITLE
   return (
-    <section aria-label={SPENDING_TITLE} className={SECTION}>
-      <h2 className={SECTION_TITLE}>{SPENDING_TITLE}</h2>
+    <section aria-label={title} className={SECTION}>
+      <h2 className={SECTION_TITLE}>{title}</h2>
       {model.unreadable.settings > 0 ? (
         <p role="alert" className={SENTENCE}>
           {SETTINGS_UNREADABLE}
@@ -191,7 +191,6 @@ function SpendingRow({ model }: { model: Model }) {
       ) : budget ? (
         <>
           <p className="text-subtitle font-semibold tabular-nums text-ink">{formatEurosShown(budget.monthly)}</p>
-          <p className={NOTE}>{budget.basis === 'expenses' ? SPENDING_EXPENSES : SPENDING_SALARY}</p>
         </>
       ) : (
         <p className={SENTENCE}>{SPENDING_NONE}</p>

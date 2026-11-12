@@ -39,11 +39,12 @@ test('the available row tells its goal in months, and in euros', () => {
   expect(goal?.cushion).toEqual({ months: 4, euros: expect.stringMatching(/^6\s400\s€$/), basis: 'expenses' })
 })
 
-test('its words are judged in months: beyond, complete, not complete', () => {
+// The UI pass of 12 November 2026: the row says the months, as the detail and Repères do.
+test('its words are the months held and the months aimed at, as in its detail', () => {
   // 1 800 + 9 500 = 11 300 €, 7 months; 1 800 + 4 600 = 6 400 €, 4 months; 1 800 + 3 000 = 4 800 €, 3 months.
-  expect(row(lea(9_500), 'available')?.goal?.words).toBe('au-delà de ton coussin')
-  expect(row(lea(4_600), 'available')?.goal?.words).toBe('ton coussin est complet')
-  expect(row(lea(3_000), 'available')?.goal?.words).toBe('ton coussin n’est pas complet')
+  expect(plain(row(lea(9_500), 'available')?.goal?.words)).toBe('environ 7 mois de côté, pour un objectif de 4')
+  expect(plain(row(lea(4_600), 'available')?.goal?.words)).toBe('environ 4 mois de côté, pour un objectif de 4')
+  expect(plain(row(lea(3_000), 'available')?.goal?.words)).toBe('environ 3 mois de côté, pour un objectif de 4')
 })
 
 test('the four other rows keep their words', () => {

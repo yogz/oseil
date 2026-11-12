@@ -30,7 +30,9 @@ export const CHAPTER_NOTES: Partial<Record<ChapterId, string>> = {
 
 // « Or et crypto » mostly crypto: said, since it varies far more than gold.
 export const MOSTLY_CRYPTO = 'Surtout de la crypto\u00A0: elle varie bien plus que l’or.'
-export function mostlyCrypto(lines: ReadonlyArray<{ value: number; chapter: ChapterId | null }>): boolean {
+// Only on a category that weighs: under three squares, the warning is noise (UI pass, 12 November 2026).
+export function mostlyCrypto(lines: ReadonlyArray<{ value: number; chapter: ChapterId | null }>, squares: number): boolean {
+  if (squares < 3) return false
   const total = lines.reduce((s, l) => s + Math.max(0, l.value), 0)
   const crypto = lines.filter((l) => l.chapter === 'crypto').reduce((s, l) => s + Math.max(0, l.value), 0)
   return total > 0 && crypto * 2 > total
