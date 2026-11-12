@@ -60,16 +60,18 @@ export function categoryOf(line: Line, account: Account): CategoryId | null {
   return line.category ?? ACCOUNT_TYPES[account.type].defaultCategory[line.kind] ?? null
 }
 
-// The two pockets of Immobilier (10 November 2026): « Chez toi » (the main and secondary homes, and a
-// property line on an account that is not a home) stays out of the goals; « En location » (the rental
-// homes) is steered like the rest. Each is net of its own loans, never of the other's.
+// The two pockets of Immobilier (10 November 2026): « Chez toi » (the main and secondary homes) stays out
+// of the goals; « En location » (the rental homes, and since 12 November 2026 a property line on an account
+// that is not a home: an SCPI, a parking, property that earns) is steered like the rest. Each is net of its
+// own loans, never of the other's.
 export type PocketId = 'chez-toi' | 'location'
 // The order the grid fills them in: what is steered first, where one lives last.
 export const POCKET_ORDER: readonly PocketId[] = ['location', 'chez-toi']
 
 // The pocket of a property line, read from its account.
+// Where one lives is always a home account; anything else is property that earns (Nicolas, 12 November 2026).
 export function pocketOf(account: Account): PocketId {
-  return account.type === 'home' && account.residence === 'rental' ? 'location' : 'chez-toi'
+  return account.type === 'home' && account.residence !== 'rental' ? 'chez-toi' : 'location'
 }
 
 export type LineHolding = { lineId: string; category: CategoryId; value: Cents }

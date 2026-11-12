@@ -30,7 +30,8 @@ const withRental = profileOf(
     account('h', 'home'),
     account('hl', 'loan', { financedLineId: 'home' }),
     account('s', 'home', { residence: 'secondary' }),
-    account('o', 'other'),
+    // A second home of one's own: an SCPI on another account now earns (« En location », 12 November 2026).
+    account('o', 'home', { residence: 'secondary' }),
     account('r', 'home', { residence: 'rental' }),
     account('rl', 'loan', { financedLineId: 'rent' }),
   ],
@@ -280,3 +281,21 @@ describe('the small squares of « Pour y vivre »', () => {
     expect(homeOf(view).every((c) => c.home === false)).toBe(true)
   })
 })
+
+// Since 12 November 2026 (Nicolas): an SCPI on an account that is not a home earns; it sits with the rental.
+test('an SCPI on another account is in « En location », never « Pour y vivre »', () => {
+  const profile = profileOf(
+    [account('c', 'current'), account('h', 'home'), account('av', 'life-insurance'), account('r', 'home', { residence: 'rental' })],
+    [line('cash', 'c'), line('home', 'h'), line('scpi', 'av', { category: 'property' }), line('rent', 'r')],
+  )
+  const view = categoryDetailView(
+    modelOf(profile, snapshotOf([amountEntry('cash', 100_000), amountEntry('home', 200_000), amountEntry('scpi', 50_000), amountEntry('rent', 100_000)]), []),
+    'property',
+    TODAY,
+  )!
+  expect(groups(view)!.map((g) => [g.id, g.lines])).toEqual([
+    ['chez-toi', ['home']],
+    ['location', ['rent', 'scpi']],
+  ])
+})
+

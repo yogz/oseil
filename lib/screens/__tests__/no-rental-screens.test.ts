@@ -54,7 +54,8 @@ const homeUnderWater = profileOf(
   [line('cash', 'c'), line('house', 'h'), line('loan', 'l'), line('etf', 'm')],
 )
 const otherAccountProperty = profileOf(
-  [account('c', 'current'), account('o', 'other'), account('h', 'home', { residence: 'secondary' })],
+  // An SCPI on another account now counts as a rental (12 November 2026): two homes of one's own instead.
+  [account('c', 'current'), account('o', 'home', { residence: 'secondary' }), account('h', 'home', { residence: 'secondary' })],
   [line('cash', 'c'), line('scpi', 'o', { category: 'property' }), line('flat', 'h')],
 )
 const noHome = profileOf([account('c', 'current'), account('m', 'pea')], [line('cash', 'c'), line('etf', 'm')])
@@ -219,7 +220,7 @@ describe('a person without a rental sees Mon argent as before', () => {
     })
   })
 
-  test('a secondary home and an SCPI', () => {
+  test('two secondary homes', () => {
     expect(boardShape(secondary)).toEqual({
       ownedSentence: null,
       goals: {
@@ -352,7 +353,7 @@ describe('a person without a rental sees the detail of a category as before', ()
     })
   })
 
-  test('a secondary home and an SCPI', () => {
+  test('two secondary homes', () => {
     expect(detailShape(secondary, 'property')).toEqual({
       header: '90 carrés sur 100',
       goal: null,

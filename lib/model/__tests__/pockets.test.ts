@@ -136,15 +136,17 @@ describe('the two pockets of the situation', () => {
     expect(property.pockets?.['chez-toi'].value).toBe(property.value)
   })
 
-  it('puts a property line on another account in Chez toi', () => {
+  // Since 12 November 2026 (Nicolas): a property line on an account that is not a home (an SCPI in a life
+  // insurance, a parking in an « Autre compte ») is property that earns, not where one lives.
+  it('puts a property line on another account with the rental', () => {
     const p = profileOf(
       [account('o', 'other'), account('r', 'home', { residence: 'rental' })],
       [line('scpi', 'o', { category: 'property' }), line('rent', 'r')],
     )
     const s = computeSituation(p, snapshotOf([amountEntry('scpi', 20_000), amountEntry('rent', 100_000)]))
     const property = s.categories.find((c) => c.category === 'property')!
-    expect(property.pockets?.['chez-toi'].lines.map((l) => l.lineId)).toEqual(['scpi'])
-    expect(property.pockets?.location.lines.map((l) => l.lineId)).toEqual(['rent'])
+    expect(property.pockets?.['chez-toi'].lines).toEqual([])
+    expect(property.pockets?.location.lines.map((l) => l.lineId)).toEqual(['scpi', 'rent'])
   })
 
   it('tells which pocket a property line belongs to', () => {
@@ -152,7 +154,8 @@ describe('the two pockets of the situation', () => {
     expect(pocketOf(account('h', 'home', { residence: 'main' }))).toBe('chez-toi')
     expect(pocketOf(account('h', 'home', { residence: 'secondary' }))).toBe('chez-toi')
     expect(pocketOf(account('h', 'home', { residence: 'rental' }))).toBe('location')
-    expect(pocketOf(account('o', 'other'))).toBe('chez-toi')
+    expect(pocketOf(account('o', 'other'))).toBe('location')
+    expect(pocketOf(account('av', 'life-insurance'))).toBe('location')
   })
 })
 
