@@ -99,3 +99,16 @@ export const DATA_DONE = 'C’est dans tes Téléchargements (app Fichiers sur i
 
 export const LOAD_FAILED = 'Tes réglages n’ont pas pu être chargés.'
 export const RETRY = 'Réessayer'
+
+// « Ta grille » (docs/superpowers/specs/2026-11-12-grille-sans-chez-toi-design.md).
+export const GRID_TITLE = 'Ta grille'
+export const GRID_ALL = 'Tout compter'
+export const GRID_WITHOUT_HOME = 'Sans chez toi'
+export const GRID_NOTE = 'Ta maison, ta résidence secondaire et leurs crédits. Tes objectifs ne changent pas.'
+export const GRID_ONLY_HOME = 'Rien d’autre à montrer pour l’instant.'
+export const HOME_OUT_OF_GRID = 'Voir ma grille sans chez toi ›'
+export const HOME_BACK_IN_GRID = 'Remettre chez toi dans ma grille ›'
+export const WITHOUT_HOME_LABEL = 'À toi, hors chez toi'
+export const HOME_OUT_HEADER = 'Chez toi est hors de ta grille, comme tu l’as choisi.'
+export const OUT_OF_GRID_TITLE = 'Hors de ta grille'
+

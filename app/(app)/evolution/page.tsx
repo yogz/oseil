@@ -130,6 +130,7 @@ function Single({ view }: { view: Extract<EvolutionView, { kind: 'single' }> }) 
       <h2 className="text-subtitle font-semibold">{SINGLE_TITLE}</h2>
       <p className={SENTENCE}>
         {view.dateLabel}
+        {view.withoutHome ? ' · hors chez toi' : null}
         <span className="block text-title font-semibold tracking-[-0.02em] tabular-nums text-ink">{formatEurosShown(view.point.net)}</span>
       </p>
       <p className={SENTENCE}>{SINGLE_TEXT}</p>
@@ -167,7 +168,11 @@ function History({ view, stepsAside }: { view: Extract<EvolutionView, { kind: 'h
   return (
     <div className="flex flex-col">
       {/* The date of the figures, under the title on a phone, at the top of the reading on a computer (A2). */}
-      <p className="mt-1 text-caption text-ink-muted">{view.dateLabel}</p>
+      <p className="mt-1 text-caption text-ink-muted">
+        {view.dateLabel}
+        {/* « Ta grille : sans chez toi »: the whole curve leaves Chez toi out, and says so. */}
+        {view.withoutHome ? ' · hors chez toi' : null}
+      </p>
       <Section title={EVOLUTION_SINCE_FIRST}>
         <p data-testid="since-first" className="text-hero font-semibold leading-tight hero-figure text-ink">
           {/* Touched, it passes in percent like the other figures of progress; none when the first net was not positive. */}

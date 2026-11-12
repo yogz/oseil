@@ -8,7 +8,13 @@ import { DEFAULT_SETTINGS } from '@/lib/model/documents'
 import { saveSettings } from '@/lib/model/repository'
 import type { Settings } from '@/lib/model/types'
 import { SAVE_FAILED } from '@/lib/screens/words'
+import { homeChoice } from '@/lib/screens/home-in-grid'
 import {
+  GRID_ALL,
+  GRID_NOTE,
+  GRID_ONLY_HOME,
+  GRID_TITLE,
+  GRID_WITHOUT_HOME,
   DISPLAY_EUROS,
   DISPLAY_PERCENT,
   DISPLAY_TITLE,
@@ -31,13 +37,19 @@ export function DisplaySection({ state }: { state: Ready }) {
     value: settings?.value ?? DEFAULT_SETTINGS,
   })
   const current = known.value
+  // « Ta grille » (docs/superpowers/specs/2026-11-12-grille-sans-chez-toi-design.md): only with something Chez toi.
+  const choice = homeChoice(state.model)
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState<string | null>(null)
 
-  async function change(next: Partial<Pick<Settings, 'display' | 'hideAmounts'>>) {
+  async function change(next: Partial<Pick<Settings, 'display' | 'hideAmounts'>> & { withoutHome?: boolean }) {
     setBusy(true)
     setSaid(null)
-    const value = { ...current, ...next }
+    // « Ta grille »: only ever written as true; absent counts everything, as before the setting.
+    const { withoutHome, ...rest } = next
+    const value: Settings = { ...current, ...rest }
+    if (withoutHome === true) value.withoutHome = true
+    if (withoutHome === false) delete value.withoutHome
     // The switch follows the touch at once; a failed save puts it back.
     setKnown({ id: known.id, value })
     try {
@@ -93,6 +105,39 @@ export function DisplaySection({ state }: { state: Ready }) {
             />
           </div>
           <p className={NOTE}>{HIDE_AMOUNTS_NOTE}</p>
+          {choice !== 'none' ? (
+            <div className="flex flex-col gap-2">
+              <p id="grid-choice-label" className="text-body text-ink">
+                {GRID_TITLE}
+              </p>
+              <ul role="group" aria-labelledby="grid-choice-label" className="flex flex-wrap gap-2">
+                <li>
+                  <button
+                    type="button"
+                    aria-pressed={current.withoutHome !== true}
+                    disabled={busy}
+                    className={CHIP}
+                    onClick={() => current.withoutHome === true && void change({ withoutHome: false })}
+                  >
+                    {GRID_ALL}
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    aria-pressed={current.withoutHome === true}
+                    // With nothing but Chez toi, leaving it out would leave nothing to show.
+                    disabled={busy || choice === 'only-home'}
+                    className={CHIP}
+                    onClick={() => current.withoutHome !== true && void change({ withoutHome: true })}
+                  >
+                    {GRID_WITHOUT_HOME}
+                  </button>
+                </li>
+              </ul>
+              <p className={NOTE}>{choice === 'only-home' ? GRID_ONLY_HOME : GRID_NOTE}</p>
+            </div>
+          ) : null}
         </>
       )}
       {said ? (

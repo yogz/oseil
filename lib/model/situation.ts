@@ -153,3 +153,39 @@ export function computeSituation(profile: Profile, snapshot: Snapshot): Situatio
 
   return { owned, owed, net: owned - owed, holdings, categories }
 }
+
+// « Ta grille : sans chez toi » (docs/superpowers/specs/2026-11-12-grille-sans-chez-toi-design.md): the snapshot
+// without the lines of the pocket Chez toi and the loans that finance one of them in this same snapshot. Taken
+// off the snapshot itself, before any computation, so that everything read from snapshots follows alike (the
+// split of Évolution too). The rental stays; a loan whose home is not in the snapshot stays (it lowers the
+// available money, as in the whole computation). Arrivals and contributions of what left go with it.
+export function snapshotWithoutHome(profile: Profile, snapshot: Snapshot): Snapshot {
+  const lines = new Map(profile.lines.map((l) => [l.id, l]))
+  const accounts = new Map(profile.accounts.map((a) => [a.id, a]))
+  const home = new Set<string>()
+  for (const entry of snapshot.entries) {
+    const line = lines.get(entry.lineId)
+    const account = line && accounts.get(line.accountId)
+    if (line && account && categoryOf(line, account) === 'property' && pocketOf(account) === 'chez-toi') home.add(line.id)
+  }
+  if (home.size === 0) return snapshot
+  const leaves = (lineId: string) => {
+    if (home.has(lineId)) return true
+    const line = lines.get(lineId)
+    const account = line && accounts.get(line.accountId)
+    return account?.type === 'loan' && account.financedLineId !== undefined && home.has(account.financedLineId)
+  }
+  const entries = snapshot.entries.filter((e) => !leaves(e.lineId))
+  const accountsLeft = new Set(entries.map((e) => lines.get(e.lineId)?.accountId))
+  // Only the accounts that lost every line here: another account's contributions are never touched.
+  const gone = new Set(
+    snapshot.entries.filter((e) => leaves(e.lineId)).map((e) => lines.get(e.lineId)!.accountId).filter((id) => !accountsLeft.has(id)),
+  )
+  return {
+    ...snapshot,
+    entries,
+    arrivals: Object.fromEntries(Object.entries(snapshot.arrivals).filter(([key]) => !leaves(key) && !gone.has(key))),
+    contributions: Object.fromEntries(Object.entries(snapshot.contributions).filter(([accountId]) => !gone.has(accountId))),
+  }
+}
+

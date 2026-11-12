@@ -2,6 +2,7 @@
 // snapshot, where the progress comes from, and the list of snapshots. No React, no database here.
 // Every snapshot is read at its own rates (convertible), never at today's.
 
+import { homeFilter, leavesHome } from '@/lib/screens/home-in-grid'
 import { GOAL_CATEGORIES } from '@/lib/catalog'
 import { formatDayMonth, formatEurosShown, formatMonthYear, formatPercent1 } from '@/lib/format'
 import type { Model } from '@/lib/app/use-model'
@@ -34,9 +35,11 @@ export type EvolutionPoint = { snapshotId: string; date: IsoDate; net: Cents; sq
 export type EvolutionView =
   | { kind: 'none' }
   | { kind: 'unreadable'; notes: string[] } // part of the vault cannot be read: no curve, it is said
-  | { kind: 'single'; point: EvolutionPoint; dateLabel: string; notes: string[] }
+  | { kind: 'single'; point: EvolutionPoint; dateLabel: string; notes: string[]; withoutHome: boolean }
   | {
       kind: 'history'
+      // « Ta grille : sans chez toi »: every snapshot leaves Chez toi out, and the screen says so.
+      withoutHome: boolean
       dateLabel: string // « Chiffres du 30 septembre 2026 »: of when the figures are
       sinceFirst: {
         euros: string
@@ -141,8 +144,11 @@ export function evolutionView(model: Model, today: IsoDate): EvolutionView {
   const ordered = [...model.snapshots].sort((a, b) =>
     a.value.takenOn < b.value.takenOn ? -1 : a.value.takenOn > b.value.takenOn ? 1 : 0,
   )
+  // « Ta grille : sans chez toi »: every snapshot alike, before anything is read from it (the split too).
+  const shownOf = homeFilter(model, profile)
   for (const loaded of ordered) {
-    const { snapshot, names } = convertible(profile, loaded.value)
+    const { snapshot: converted, names } = convertible(profile, loaded.value)
+    const snapshot = shownOf(converted)
     const date = loaded.value.takenOn
     let situation: Situation
     try {
@@ -176,7 +182,9 @@ export function evolutionView(model: Model, today: IsoDate): EvolutionView {
   }
 
   if (items.length === 0) return { kind: 'unreadable', notes }
-  if (items.length === 1) return { kind: 'single', point: items[0].point, dateLabel: withYear(items[0].date), notes }
+  if (items.length === 1) {
+    return { kind: 'single', point: items[0].point, dateLabel: withYear(items[0].date), notes, withoutHome: leavesHome(model) }
+  }
 
   const first = items[0]
   const last = items[items.length - 1]
@@ -212,6 +220,7 @@ export function evolutionView(model: Model, today: IsoDate): EvolutionView {
 
   return {
     kind: 'history',
+    withoutHome: leavesHome(model),
     dateLabel: `Chiffres du ${formatDayMonth(last.date, today)}`,
     sinceFirst,
     curve,

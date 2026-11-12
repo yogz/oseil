@@ -1,5 +1,6 @@
 'use client'
 
+import { OUT_OF_GRID_TITLE } from '@/lib/screens/settings-words'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState, type MouseEvent } from 'react'
@@ -296,6 +297,18 @@ function Detail({
         </>
       )}
 
+      {/* « Ta grille : sans chez toi »: the home, out of the grid, with its amount and its fiche. */}
+      {view.outOfGrid.length > 0 ? (
+        <>
+          <h2 className="mt-6 text-body font-medium text-ink">{OUT_OF_GRID_TITLE}</h2>
+          <ul className="mt-1 flex flex-col divide-y divide-hairline">
+            {view.outOfGrid.map((line) => (
+              <LineItem key={line.lineId} line={line} category={category} open={open} squares={false} focusedId={focusedId} />
+            ))}
+          </ul>
+        </>
+      ) : null}
+
       {hasDetails ? (
         <button
           type="button"
@@ -309,6 +322,12 @@ function Detail({
       {view.ranging ? (
         <Link href={view.ranging.href} className={`${QUIET_LINK} text-body`}>
           {view.ranging.label}
+        </Link>
+      ) : null}
+      {/* « Ta grille » lives in the settings; Immobilier is where one thinks of it (planche 3, option B). */}
+      {view.homeLink ? (
+        <Link href={view.homeLink.href} className={`${QUIET_LINK} text-body`}>
+          {view.homeLink.label}
         </Link>
       ) : null}
       {view.titlesLink ? (

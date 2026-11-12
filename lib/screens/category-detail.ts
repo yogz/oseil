@@ -1,5 +1,7 @@
 // What the detail of one category shows, as words and figures. Pure: no React, no database.
 
+import { HOME_BACK_IN_GRID, HOME_OUT_HEADER, HOME_OUT_OF_GRID } from '@/lib/screens/settings-words'
+import { homeFilter, leavesHome } from '@/lib/screens/home-in-grid'
 import type { Model } from '@/lib/app/use-model'
 import { ACCOUNT_TYPES, bankAt, CATEGORIES, isRanged } from '@/lib/catalog'
 import {
@@ -101,6 +103,11 @@ export type CategoryDetailView = {
   worldNote: string | null // « Placements en bourse » with a line in « Fonds monde »: what MSCI World holds in the United States
   chapters: DetailChapter[] | null // null: one chapter would hold everything, or nothing to tell apart
   ranging: { href: string; label: string } | null // the way to « Ranger par zone/type »
+  // Immobilier holding something Chez toi: the way to « Ta grille », in the settings (planche 3, option B,
+  // 12 November 2026); null elsewhere.
+  homeLink: { href: string; label: string } | null
+  // « Ta grille : sans chez toi », Immobilier only: the lines of Chez toi, out of the grid, their amount only.
+  outOfGrid: DetailLine[]
   squares: boolean // false: out of the grid, or no grid at all; its lines are listed all the same
   // « Placements en bourse » only (null elsewhere): the gain since purchase of the lines whose purchase
   // price is known, and what is left out (« depuis l’achat, hors 2 lignes »); or that it is unknown.
@@ -185,22 +192,47 @@ const linesWord = (n: number) => `${n} ${n > 1 ? 'lignes' : 'ligne'}`
 // saved snapshot, its quoted lines repriced, its rates untouched, a line no rate converts left out.
 // A category with no square opens too, as long as it holds a line or a debt: that is where a typo
 // that took its squares away gets corrected.
+// « Ta grille : sans chez toi »: Immobilier's detail follows the grid too (Nicolas, 12 November 2026); the
+// lines of Chez toi are listed under it, « hors de ta grille », with their amount and their fiche.
 export function categoryDetailView(
   model: Model,
   category: CategoryId,
   today: IsoDate,
   market: Market | null = null,
 ): CategoryDetailView | null {
+  const view = detailOf(model, category, today, market, false)
+  if (view === null || category !== 'property' || !leavesHome(model)) return view
+  const whole = detailOf(model, category, today, market, true)
+  const shown = new Set([...(view.chapters?.flatMap((c) => c.lines) ?? []), ...view.lines, ...view.tooSmall].map((l) => l.lineId))
+  const outOfGrid = [...(whole?.chapters?.flatMap((c) => c.lines) ?? []), ...(whole?.lines ?? []), ...(whole?.tooSmall ?? [])]
+    // A line is in its chapter and in the list: once here.
+    .filter((l, i, all) => !shown.has(l.lineId) && all.findIndex((m) => m.lineId === l.lineId) === i)
+    .map((l) => ({ ...l, squares: 0, percent: l.euros, details: null }))
+  const header = shown.size === 0 && outOfGrid.length > 0 ? HOME_OUT_HEADER : view.header
+  return { ...view, header, outOfGrid }
+}
+
+function detailOf(
+  model: Model,
+  category: CategoryId,
+  today: IsoDate,
+  market: Market | null,
+  everything: boolean,
+): CategoryDetailView | null {
   if (model.profile === null || model.snapshots.length === 0) return null
   const profile = model.profile.value
   const saved = model.snapshots[model.snapshots.length - 1].value
   const { prices } = market ? usablePrices(profile, saved, market, today) : { prices: {} }
-  const { snapshot } = convertible(profile, withPrices(saved, prices))
+  const { snapshot: fullSnapshot } = convertible(profile, withPrices(saved, prices))
+  // Everything below reads this snapshot: without Chez toi when the setting applies (its loans, its dates too).
+  const snapshot = everything ? fullSnapshot : homeFilter(model, profile)(fullSnapshot)
 
   let situation
+  let whole
   let grid
   try {
-    situation = computeSituation(profile, snapshot)
+    whole = computeSituation(profile, fullSnapshot)
+    situation = snapshot === fullSnapshot ? whole : computeSituation(profile, snapshot)
     grid = buildGrid(situation)
   } catch (error) {
     if (
@@ -216,7 +248,9 @@ export function categoryDetailView(
   const totals = situation.categories.find((c) => c.category === category)
   if (!totals) return null
   const owedHere = debtsOf(profile, snapshot).filter((d) => d.category === category)
-  if (totals.lines.length === 0 && owedHere.length === 0) return null
+  // Immobilier without Chez toi keeps its page: its home is listed out of the grid (categoryDetailView).
+  const homeLeft = category === 'property' && snapshot !== fullSnapshot
+  if (totals.lines.length === 0 && owedHere.length === 0 && !homeLeft) return null
 
   // In the grid, each line has its squares; out of it, each line is listed with none.
   const entry = grid.kind === 'grid' ? grid.categories.find((c) => c.category === category) : undefined
@@ -296,7 +330,10 @@ export function categoryDetailView(
       )
       // What is yours is the net, debts taken off; the grid's total leaves out the negative categories.
       // With nothing that is yours, there is no share of it to give.
-      if (situation.net > 0) parts.push(`${formatPercent1((held.value / situation.net) * 100)} de ce qui est à toi`)
+      // Without Chez toi, the share is of what is left, and says so (review, 12 November 2026).
+      if (situation.net > 0) {
+        parts.push(`${formatPercent1((held.value / situation.net) * 100)} de ce qui est à toi${situation === whole ? '' : ' hors chez toi'}`)
+      }
       details = parts.join(' · ')
     }
 
@@ -484,8 +521,9 @@ export function categoryDetailView(
   const gross = totals.value + owed
   const debtSentence = owed > 0 && owed <= gross ? DEBT_SENTENCE(formatEurosShown(gross), formatEurosShown(owed)) : null
 
-  // The lines of this category that no rate converts: each page says what it left out of itself.
-  const kept = new Set(snapshot.entries.map((e) => e.lineId))
+  // The lines of this category that no rate converts: each page says what it left out of itself. Read on the
+  // snapshot before Chez toi is set aside: a home left out by choice is no line without a rate.
+  const kept = new Set(fullSnapshot.entries.map((e) => e.lineId))
   const leftOut = saved.entries.flatMap((e) => {
     if (kept.has(e.lineId)) return []
     const line = profile.lines.find((l) => l.id === e.lineId)
@@ -499,6 +537,11 @@ export function categoryDetailView(
     euros,
     percent: entry ? shareLabel(entry.squares) : euros,
     header,
+    outOfGrid: [],
+    homeLink:
+      category === 'property' && (whole?.categories.find((c) => c.pockets)?.pockets?.['chez-toi'].lines.length ?? 0) > 0
+        ? { href: '/reglages', label: leavesHome(model) ? HOME_BACK_IN_GRID : HOME_OUT_OF_GRID }
+        : null,
     goal,
     debts,
     debtSentence,

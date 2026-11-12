@@ -1,5 +1,6 @@
 'use client'
 
+import { WITHOUT_HOME_LABEL } from '@/lib/screens/settings-words'
 import { useRef, type ComponentProps, type ReactNode } from 'react'
 import { useGridFit } from '@/lib/app/grid-fit'
 import { CATEGORIES } from '@/lib/catalog'
@@ -89,8 +90,11 @@ export function BoardLeft({
     // amount and the progress; what is owned opens from the amount; under the grid, in small print,
     // the legend of the grid and the date of the figures. The whole grid stays in a phone's first screen.
     <div className="flex flex-col">
-      <p className="text-caption text-ink-muted">{label}</p>
+      {/* « Ta grille : sans chez toi » (planche 2, option B, 12 November 2026): the label says so, and the whole
+          is said in small under the amount, so that no one reads less than what is theirs. */}
+      <p className="text-caption text-ink-muted">{board.homeAside ? WITHOUT_HOME_LABEL : label}</p>
       {board.net !== null ? <NetAmount net={board.net} owned={board.ownedSentence} /> : null}
+      {board.homeAside ? <p className="text-caption text-ink-muted tabular-nums">{board.homeAside}</p> : null}
       {change && board.progress ? (
         <p data-testid="progress" className="text-body text-ink lg:hidden">
           {change.percent !== null ? <Figure quiet euros={change.euros} percent={change.percent} /> : change.euros}{' '}

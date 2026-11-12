@@ -120,4 +120,7 @@ export type Settings = {
   budget: Budget | null
   display: 'euros' | 'percent'
   hideAmounts: boolean
+  // « Ta grille : sans chez toi » (docs/superpowers/specs/2026-11-12-grille-sans-chez-toi-design.md); absent:
+  // everything counted, as before. Only ever true.
+  withoutHome?: true
 }

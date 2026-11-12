@@ -312,5 +312,12 @@ export function parseSettings(value: unknown): Settings | null {
     budget = parseBudget(value.budget)
     if (budget === null) return null
   }
-  return { schema: 1, budget, display: value.display, hideAmounts: value.hideAmounts }
+  if (value.withoutHome !== undefined && value.withoutHome !== true) return null
+  return {
+    schema: 1,
+    budget,
+    display: value.display,
+    hideAmounts: value.hideAmounts,
+    ...(value.withoutHome === true ? { withoutHome: true as const } : {}),
+  }
 }

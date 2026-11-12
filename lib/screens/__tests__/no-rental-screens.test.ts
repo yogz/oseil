@@ -101,10 +101,14 @@ const DETAIL_KEYS = [
   'euros',
   'goal',
   'header',
+  // « Voir ma grille sans chez toi » (12 November 2026): a way to a setting, the same with or without a rental.
+  'homeLink',
   'leftOut',
   'lines',
   'name',
   'note',
+  // « Hors de ta grille » (12 November 2026): empty unless « Sans chez toi » is chosen.
+  'outOfGrid',
   'percent',
   'purchaseGain',
   'ranging',

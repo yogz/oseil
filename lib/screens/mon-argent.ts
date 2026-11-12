@@ -1,5 +1,6 @@
 // What « Mon argent » shows, as words and figures. Pure: no React, no database.
 
+import { homeFilter } from '@/lib/screens/home-in-grid'
 import { recountUnfinished } from '@/lib/correct/recount'
 import type { Model } from '@/lib/app/use-model'
 import { CATEGORIES, CATEGORY_ORDER, GOAL_COLOR } from '@/lib/catalog'
@@ -31,6 +32,8 @@ import { failedPricesSentence, failedRatesSentence, NO_RATE, nothingCountedSente
 import { accountTotal } from '@/lib/setup/step-changes'
 
 export type Board = {
+  // « 400 000 € en comptant chez toi »: the whole, said under a total that leaves Chez toi out; null otherwise.
+  homeAside: string | null
   dateLabel: string
   net: string | null // null: every amount was left out for want of a rate, which is not a zero
   ownedSentence: string | null
@@ -270,6 +273,7 @@ function pocketRows(
 // `saved`: how many snapshots are saved. « Depuis » needs two of them; it is not guessed from
 // the snapshots given: today's prices make the latest one a copy, and a copy is never `first`.
 function progressOf(
+  model: Model,
   profile: Profile,
   first: Snapshot,
   net: number,
@@ -280,7 +284,7 @@ function progressOf(
   let firstGrid: Grid
   let firstNet: number
   try {
-    const firstSituation = situationOf(profile, first)
+    const firstSituation = situationOf(profile, homeFilter(model, profile)(first))
     firstGrid = buildGrid(firstSituation)
     firstNet = firstSituation.net
   } catch (error) {
@@ -327,9 +331,13 @@ function buildBoard(
   // A price taken by a line that was then left out does not make « Cours du jour ».
   const tookPrice = shown.entries.some((e) => Object.hasOwn(prices, e.lineId))
   const nothingCounted = shown.entries.length === 0 && latest.entries.length > 0
-  const situation = situationOf(profile, shown)
+  const whole = situationOf(profile, shown)
+  const withoutHome = homeFilter(model, profile)(shown)
+  const situation = withoutHome === shown ? whole : situationOf(profile, withoutHome)
+  const homeAside = withoutHome === shown ? null : `${formatEurosShown(whole.net)} en comptant chez toi`
   const grid = buildGrid(situation)
-  const held = heldCategories(profile, shown, situation)
+  // The whole situation: Immobilier, left out of the grid, stays reachable under « Voir ses lignes » (review, 12 November 2026).
+  const held = heldCategories(profile, shown, whole)
   const warnings: string[] = []
 
   if (model.unreadable.snapshots > 0 || model.unreadable.profile > 0) {
@@ -351,6 +359,7 @@ function buildBoard(
     .filter((e) => !kept.has(e.lineId))
     .map((e) => ({ lineId: e.lineId, name: profile.lines.find((l) => l.id === e.lineId)!.name }))
   const base = {
+    homeAside,
     update,
     leftOut,
     titlesHint: follow.following === 0 && follow.possible > 0,
@@ -360,7 +369,8 @@ function buildBoard(
         : `Chiffres du ${formatDayMonth(latest.takenOn, today)}`
     }${older ? ` · ${older}` : ''}`,
     net: nothingCounted ? null : formatEurosShown(situation.net),
-    ownedSentence: ownedSentence(situation.owned, situation.owed, homesFinanced(profile, latest)),
+    // The loans of the snapshot as shown: without Chez toi, those of the home are no longer said (review, 12 November 2026).
+    ownedSentence: ownedSentence(situation.owned, situation.owed, homesFinanced(profile, withoutHome === shown ? latest : homeFilter(model, profile)(latest))),
     grid,
   }
 
@@ -527,7 +537,7 @@ function buildBoard(
   return {
     ...base,
     squareValue: formatEurosShown(Math.round(grid.squareValue)),
-    progress: progressOf(profile, first, situation.net, today, snapshots.length),
+    progress: progressOf(model, profile, first, situation.net, today, snapshots.length),
     goals,
     categories,
     excluded,
