@@ -4,7 +4,7 @@
        app/globals.css, held by lib/__tests__/icons.test.ts. -->
   <rect width="32" height="32" rx="7" fill="#09110d"/>
   <rect x="3" y="3" width="12" height="12" rx="1.5" fill="#2BB4D2"/>
-  <rect x="17" y="3" width="12" height="12" rx="1.5" fill="#6A66DC"/>
-  <rect x="3" y="17" width="12" height="12" rx="1.5" fill="#8ACB80"/>
+  <rect x="17" y="3" width="12" height="12" rx="1.5" fill="#B4467A"/>
+  <rect x="3" y="17" width="12" height="12" rx="1.5" fill="#EFBE2A"/>
   <rect x="18" y="18" width="10" height="10" rx="0.5" fill="none" stroke="#eef3ee" stroke-width="2"/>
 </svg>

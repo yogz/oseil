@@ -4,7 +4,7 @@
        by lib/__tests__/icons.test.ts. -->
   <rect width="180" height="180" fill="#09110d"/>
   <rect x="36" y="36" width="50" height="50" rx="4" fill="#2BB4D2"/>
-  <rect x="94" y="36" width="50" height="50" rx="4" fill="#6A66DC"/>
-  <rect x="36" y="94" width="50" height="50" rx="4" fill="#8ACB80"/>
+  <rect x="94" y="36" width="50" height="50" rx="4" fill="#B4467A"/>
+  <rect x="36" y="94" width="50" height="50" rx="4" fill="#EFBE2A"/>
   <rect x="97" y="97" width="44" height="44" rx="1" fill="none" stroke="#eef3ee" stroke-width="6"/>
 </svg>

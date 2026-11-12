@@ -19,9 +19,10 @@ test('the account screens open on the mark and the name of the site, above their
   const squares = Array.from(mark.children)
   expect(squares).toHaveLength(4)
   expect(squares.map((square) => square.className.match(/bg-cat-[a-z]+/)?.[0])).toEqual([
+    // Option B1, chosen by Nicolas on 12 November 2026: available, markets, gold, then the square to fill.
     'bg-cat-available',
-    'bg-cat-secured',
-    'bg-cat-property',
+    'bg-cat-markets',
+    'bg-cat-gold',
     undefined,
   ])
   expect(squares[3]).toHaveClass('border-ink')

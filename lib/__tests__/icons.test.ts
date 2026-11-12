@@ -9,7 +9,8 @@ import { expect, test } from 'vitest'
 const root = join(__dirname, '..', '..')
 const tokens = readFileSync(join(root, 'app', 'globals.css'), 'utf8')
 const token = (name: string) => tokens.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6});`))![1].toLowerCase()
-const ALLOWED = ['ground', 'ink', 'cat-available', 'cat-secured', 'cat-property'].map(token)
+// The mark's colours, chosen by Nicolas on 12 November 2026 (option B1): available, markets, gold.
+const ALLOWED = ['ground', 'ink', 'cat-available', 'cat-markets', 'cat-gold'].map(token)
 
 for (const drawing of ['favicon.svg', 'apple-icon.svg']) {
   test(`${drawing} only uses the colours of the site`, () => {
