@@ -4,7 +4,7 @@ import { recountUnfinished } from '@/lib/correct/recount'
 import type { Model } from '@/lib/app/use-model'
 import { CATEGORIES, CATEGORY_ORDER, GOAL_COLOR } from '@/lib/catalog'
 import { formatDayMonth, formatEurosShown, formatMonthYear, formatPercent1, formatWholePercent, HIDDEN_AMOUNT } from '@/lib/format'
-import { gapWords, goalInEffect, goalsJourney, goalTargets, hasSteeredSquares, misplacedSquares, splitsProperty } from '@/lib/model/goals'
+import { gapWords, goalInEffect, goalsJourney, goalTargets, hasSteeredSquares, heldSquares, misplacedSquares, reachableTargets, splitsProperty } from '@/lib/model/goals'
 import {
   computeSituation,
   entryMinorUnits,
@@ -22,7 +22,7 @@ import type { Account, Budget, CategoryId, Cents, GoalAllocation, GoalCategory, 
 import { debtsOf } from '@/lib/screens/debts'
 import { behindEstablishments, olderDatesLabel } from '@/lib/screens/seen'
 import { couldFollow } from '@/lib/screens/titles'
-import { CUSHION_BEYOND_ALL, cushionGoalWords, goalHeadline, GOALS_NEED_BUDGET, GOALS_NEED_BUDGET_LINK, LESS_THAN_A_SQUARE, NO_GOAL, ownedSentence, POCKET_ROW_NAMES, pricesDateLabel } from '@/lib/screens/words'
+import { RENTAL_ABOVE, RENTAL_BELOW, CUSHION_BEYOND_ALL, cushionGoalWords, goalHeadline, GOALS_NEED_BUDGET, GOALS_NEED_BUDGET_LINK, LESS_THAN_A_SQUARE, NO_GOAL, ownedSentence, POCKET_ROW_NAMES, pricesDateLabel } from '@/lib/screens/words'
 import { reconcile, steps } from '@/lib/setup/first-launch'
 import { DRAFT_UNREADABLE, isStale } from '@/lib/update/draft'
 import { convertible, usablePrices, withPrices, type PriceFailure } from '@/lib/market/live'
@@ -46,6 +46,8 @@ export type Board = {
     scale: number
     // Where to give what the goals still need (a budget, for a goal in months).
     link?: { href: string; label: string }
+    // The rental's gap to its goal, in words: it is never moved by the simulation (Nicolas, 12 November 2026).
+    rentalNote?: string
     // « Montre-moi mes objectifs », option F: where the squares leave from (`sources`), the grid at
     // the goals in blocks (`blocks`), the places they come to (`arrivals`), and what goes where.
     simulation: {
@@ -499,7 +501,12 @@ function buildBoard(
     const scale = bars.reduce((m, g) => (g ? Math.max(m, g.actual, g.target) : m), 0)
     // « Hors chez toi »: only when Chez toi takes squares (a rental alone is steered like the rest).
     const withHome = pocketSquares(grid, 'chez-toi') > 0
+    // The headline counts every square off its goal; the simulation moves only what can move: a rental
+    // keeps its squares, and its gap is said in words.
     const misplaced = misplacedSquares(grid, targets)
+    const reachable = reachableTargets(grid, targets, allocation?.cushionMonths !== undefined)
+    const movable = misplacedSquares(grid, reachable)
+    const rentalGap = heldSquares(grid, 'rental') - targets.rental
     // A cushion aimed at beyond everything steered takes every square: said, so that the others at 0 are understood.
     const steered = 100 - pocketSquares(grid, 'chez-toi')
     const beyondAll =
@@ -509,7 +516,8 @@ function buildBoard(
       ...goalHeadline(misplaced, withHome),
       ...(beyondAll ? { detail: CUSHION_BEYOND_ALL } : {}),
       scale,
-      simulation: misplaced > 0 ? simulationOf(grid, targets, misplaced) : null,
+      simulation: movable > 0 ? simulationOf(grid, reachable, movable) : null,
+      ...(rentalGap !== 0 ? { rentalNote: rentalNoteOf(rentalGap, grid.squareValue) } : {}),
     }
   }
 
@@ -570,6 +578,16 @@ const MOVE_TO: Record<GoalCategory, string> = {
   markets: 'en bourse',
   gold: 'en or et crypto',
   rental: 'en immobilier locatif',
+}
+
+// « Environ 80 000 € » (rounded to the hundred, as the moves), or squares with the amounts hidden.
+function aboutAmount(squares: number, squareValue: number): string {
+  const amount = formatEurosShown(Math.round((squares * squareValue) / 10_000) * 10_000)
+  return amount === HIDDEN_AMOUNT ? `${squares}\u00A0${squares > 1 ? 'carrés' : 'carré'}` : `environ ${amount}`
+}
+
+function rentalNoteOf(gap: number, squareValue: number): string {
+  return gap > 0 ? RENTAL_ABOVE(aboutAmount(gap, squareValue)) : RENTAL_BELOW(aboutAmount(-gap, squareValue))
 }
 
 function simulationOf(grid: GridOnly, targets: Record<GoalCategory, number>, misplaced: number) {

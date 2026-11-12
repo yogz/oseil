@@ -94,13 +94,20 @@ describe('the Immobilier row of a person with a rental', () => {
     expect(b.goals!.scale).toBe(32)
   })
 
-  test('the simulation recolours the rental squares like the others, never the Chez toi ones', () => {
+  // A home is not sold in pieces nor bought with a few thousand euros (Nicolas, 12 November 2026): the
+  // simulation never moves the rental squares, and says the rental's gap in words instead.
+  test('a rental above its goal is never sold off: no simulation, its gap said', () => {
     const b = board(modelOf(withRental, statement(100_000, 300_000, 0, 100_000, 0), [goalOf({ available: 100 })]))
-    expect(b.goals!.simulation!.misplaced).toBe(20)
-    expect(b.goals!.simulation!.blocks.filter((c) => c === 'available')).toHaveLength(40)
-    expect(b.goals!.simulation!.blocks.slice(40)).toEqual(b.goals!.simulation!.real.slice(40))
+    expect(b.goals!.simulation).toBeNull()
+    // The headline tells the whole gap; only the simulation leaves the rental where it is.
+    expect(b.goals!.headline).toBe('Hors chez toi, en route vers tes objectifs')
+    expect(plain(b.goals!.rentalNote)).toBe(
+      'Ton immobilier locatif dépasse son objectif d’environ 100 000 €. Un bien ne se vend pas par morceaux : il reste tel quel.',
+    )
+    // Its row still compares it with its goal.
     expect(property(b).pockets![1].goal).toEqual({ actual: 20, target: 0, words: 'au-dessus de ton objectif' })
   })
+
 
   test('without goals: the two sub-rows, no gap and no « pas d’objectif »', () => {
     const b = board(modelOf(withRental, statement(100_000, 300_000, 0, 100_000, 0), []))
@@ -332,3 +339,29 @@ describe('a category under half a square', () => {
     expect(gold.goal).toEqual({ actual: 0, target: 1, words: 'moins d’un carré' })
   })
 })
+
+describe('a rental short of its goal (Nicolas, 12 November 2026)', () => {
+  // 20 squares each of cash, markets and rental, 40 of Chez toi; a square is 5 000 €.
+  const four = profileOf(
+    [account('c', 'current'), account('s', 'securities'), account('h', 'home'), account('r', 'home', { residence: 'rental' })],
+    [line('cash', 'c'), line('fund', 's'), line('home', 'h'), line('rent', 'r')],
+  )
+  const snap = snapshotOf([amountEntry('cash', 100_000), amountEntry('fund', 100_000), amountEntry('home', 200_000), amountEntry('rent', 100_000)])
+  const b = board(modelOf(four, snap, [goalOf({ available: 10, markets: 30, rental: 60 })]))
+
+  test('nothing goes into the rental: the others share what it leaves, by their goals', () => {
+    expect(b.goals!.simulation!.moves.map((m) => [m.from, m.to, m.percent.replace(/\s/g, ' ')])).toEqual([['available', 'markets', '10 %']])
+    expect(b.goals!.simulation!.misplaced).toBe(10)
+  })
+  test('the rental’s gap is said in words', () => {
+    expect(plain(b.goals!.rentalNote)).toBe(
+      'Il manque environ 80 000 € à ton immobilier locatif. Un bien ne s’achète pas par petites sommes : il reste tel quel.',
+    )
+  })
+  test('a rental at its goal: no sentence', () => {
+    const atGoal = board(modelOf(four, snap, [goalOf({ available: 33.34, markets: 33.33, rental: 33.33 })]))
+    expect(property(atGoal).pockets![1].goal!.target).toBe(20)
+    expect(atGoal.goals!.rentalNote).toBeUndefined()
+  })
+})
+

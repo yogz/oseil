@@ -50,3 +50,17 @@ test('a goal with its gaps has no such link', () => {
   shown(<GoalsHeadline goals={{ headline: 'Proche de tes objectifs', detail: null, scale: 10, simulation: null }} simulation={idle} />)
   expect(screen.queryByRole('link')).toBeNull()
 })
+
+// The rental is never moved (Nicolas, 12 November 2026): with nothing to simulate, its gap is said under the headline.
+test('the rental’s gap is said under the headline when there is nothing to simulate', () => {
+  const note = 'Ton immobilier locatif dépasse son objectif d’environ 100 000 €. Un bien ne se vend pas par morceaux\u00A0: il reste tel quel.'
+  shown(
+    <GoalsHeadline
+      goals={{ headline: 'En route vers tes objectifs', detail: 'À 20 carrés près sur 100.', scale: 20, simulation: null, rentalNote: note }}
+      simulation={idle}
+    />,
+  )
+  expect(screen.getByText(/dépasse son objectif d’environ 100 000/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Montre-moi mes objectifs' })).toBeNull()
+})
+

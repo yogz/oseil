@@ -90,7 +90,16 @@ const ASK =
 
 // What goes where, once the places are filled: « environ 4 900 € d’argent disponible › en bourse »,
 // a small square of each colour. In percent with the other figures; in squares when amounts are hidden.
-export function GoalsMoves({ moves, shown }: { moves: Simulation['moves'] | undefined; shown: boolean }) {
+export function GoalsMoves({
+  moves,
+  shown,
+  note,
+}: {
+  moves: Simulation['moves'] | undefined
+  shown: boolean
+  // The rental's gap, which no move fills (Nicolas, 12 November 2026).
+  note?: string
+}) {
   const { mode } = useDisplayMode()
   return (
     <Unfold open={shown && (moves?.length ?? 0) > 0}>
@@ -107,6 +116,7 @@ export function GoalsMoves({ moves, shown }: { moves: Simulation['moves'] | unde
           </li>
         ))}
       </ul>
+      {note ? <p className="pt-2 text-caption leading-snug text-ink-muted">{note}</p> : null}
     </Unfold>
   )
 }
@@ -132,6 +142,10 @@ export function GoalsHeadline({
           <>
             <p className="text-body font-medium text-ink">{goals.headline}</p>
             {goals.detail ? <p className="text-caption text-ink-muted">{goals.detail}</p> : null}
+            {/* Nothing to simulate: the rental's gap is said here, under the headline. */}
+            {goals.rentalNote && !goals.simulation ? (
+              <p className="text-caption leading-snug text-ink-muted">{goals.rentalNote}</p>
+            ) : null}
             {goals.link ? (
               <Link href={goals.link.href} className={`${ASK} self-start`}>
                 {goals.link.label}
@@ -139,7 +153,7 @@ export function GoalsHeadline({
             ) : null}
           </>
         )}
-        <GoalsMoves moves={goals.simulation?.moves} shown={simulation.movesShown} />
+        <GoalsMoves moves={goals.simulation?.moves} shown={simulation.movesShown} note={goals.rentalNote} />
       </div>
       {goals.simulation ? (
         <button type="button" className={ASK} onClick={simulation.toggle}>

@@ -95,7 +95,9 @@ describe('3. Karim, a home and a rental, shares in dollars, bitcoin', () => {
     expect(pockets('karim')).toEqual({ chezToi: 81, location: 8 })
   })
   test('the goals, rental share included, on the 19 squares out of « Chez toi »: 5 away', () => {
-    expect(board('karim').goals?.simulation?.misplaced).toBe(5)
+    expect(board('karim').goals?.detail).toBe('À 5 carrés près.')
+    // The simulation moves 4 of them: the rental's one stays (Nicolas, 12 November 2026).
+    expect(board('karim').goals?.simulation?.misplaced).toBe(4)
   })
   // A known limit, written in the review: the purchase price in dollars is converted at the
   // snapshot's rate, so the gain leaves out what the dollar itself did since the purchase.
@@ -169,7 +171,9 @@ describe('7. The Roberts, four homes', () => {
     expect(pockets('robert')).toEqual({ chezToi: 55, location: 31 })
   })
   test('13 squares away from their goals', () => {
-    expect(board('robert').goals?.simulation?.misplaced).toBe(13)
+    expect(board('robert').goals?.detail).toBe('À 13 carrés près.')
+    // The simulation moves 5 of them: the rentals' squares stay (Nicolas, 12 November 2026).
+    expect(board('robert').goals?.simulation?.misplaced).toBe(5)
   })
   test('34 950 € available over 5 500 € a month: about 6 and a half months', () => {
     expect(cushion('robert').months).toBe(6.5)

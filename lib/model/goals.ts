@@ -100,6 +100,34 @@ export function goalSharesOf(allocation: GoalAllocation, grid: GridOnly, budget:
   ) as GoalShares
 }
 
+// The goals as the simulation can reach them (Nicolas, 12 November 2026): a rental is not sold in pieces
+// nor bought with a few thousand euros, so it keeps the squares it holds, and the other shares divide what
+// is left by their own targets. `cushionFixed`: a cushion in months keeps its own target too, as far as
+// room allows. The rental's own gap is said in words (Mon argent's `rentalNote`), never moved.
+export function reachableTargets(
+  grid: GridOnly,
+  targets: Record<GoalCategory, number>,
+  cushionFixed: boolean,
+): Record<GoalCategory, number> {
+  const rental = heldSquares(grid, 'rental')
+  if (targets.rental === rental) return targets
+  const steered = GOAL_CATEGORIES.reduce((sum, c) => sum + targets[c], 0)
+  const room = Math.max(0, steered - rental)
+  const available = cushionFixed ? Math.min(targets.available, room) : null
+  const shared = GOAL_CATEGORIES.filter((c) => c !== 'rental' && (available === null || c !== 'available'))
+  const left = room - (available ?? 0)
+  const weights = shared.map((c) => targets[c])
+  // No goal among them: what they hold today tells how to share it.
+  const sum = weights.reduce((a, b) => a + b, 0)
+  const parts = largestRemainder(sum > 0 ? weights : shared.map((c) => heldSquares(grid, c)), left)
+  return {
+    ...targets,
+    rental,
+    ...(available !== null ? { available } : {}),
+    ...Object.fromEntries(shared.map((c, i) => [c, parts[i]])),
+  } as Record<GoalCategory, number>
+}
+
 // Squares held beyond the target, summed over the goal categories.
 export function misplacedSquares(grid: GridOnly, targets: Record<GoalCategory, number>): number {
   return GOAL_CATEGORIES.reduce((sum, c) => sum + Math.max(0, heldSquares(grid, c) - targets[c]), 0)

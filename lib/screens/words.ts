@@ -52,6 +52,11 @@ export const GOALS_SIMULATION_GRID = 'Simulation\u00A0: ta grille si tu étais p
 // A goal in months with no budget to say what a month is (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md).
 export const GOALS_NEED_BUDGET = 'Renseigne tes dépenses pour comparer à tes objectifs.'
 // The cushion aimed at is more than everything the goals steer (docs/superpowers/specs/2026-11-11-coussin-objectif-design.md).
+// The rental's gap, never moved by « Montre-moi mes objectifs » (Nicolas, 12 November 2026).
+export const RENTAL_ABOVE = (about: string) =>
+  `Ton immobilier locatif dépasse son objectif d’${about}. Un bien ne se vend pas par morceaux\u00A0: il reste tel quel.`
+export const RENTAL_BELOW = (about: string) =>
+  `Il manque ${about} à ton immobilier locatif. Un bien ne s’achète pas par petites sommes\u00A0: il reste tel quel.`
 export const CUSHION_BEYOND_ALL = 'Ton coussin n’est pas encore complet\u00A0: tout ce qui est hors chez toi devrait y aller.'
 export const GOALS_NEED_BUDGET_LINK = { href: '/premier-lancement/depenses?depuis=reglages', label: 'Renseigner mes dépenses' }
 

@@ -281,7 +281,9 @@ describe('the goal screens with a rental', () => {
     if (view.kind !== 'board' || !view.goals) throw new Error('expected goals on the board')
     expect(view.goals.headline).toBe('En route vers tes objectifs')
     expect(view.goals.detail).toBe('À 50 carrés près sur 100.')
-    expect(view.goals.simulation?.misplaced).toBe(50)
+    // Only the rental is off its goal, and it is never sold off: nothing to simulate, its gap said.
+    expect(view.goals.simulation).toBeNull()
+    expect(view.goals.rentalNote).toContain('dépasse son objectif')
   })
 
   it('Mon argent: a rental alone outside Chez toi is something to compare', () => {
