@@ -499,7 +499,8 @@ describe('on a computer, the square under the mouse is told under the grid', () 
     const user = hover()
     render(<CategoryPage />)
     await user.hover(squaresOf('available')[0])
-    expect(plain(told()!.textContent!)).toMatch(/^Compte courant · Argent disponible · \d/)
+    // Its name only repeats its type, in « Comptes courants »: its bank is its title (planche 1, option B).
+    expect(plain(told()!.textContent!)).toMatch(/^BoursoBank · Argent disponible · \d/)
     // What is lit stays what it was: the category of the page.
     expect(litCategories()).toEqual(new Set(['markets']))
     await user.unhover(grid())

@@ -273,7 +273,8 @@ const AVAILABLE_OF_EXAMPLE = {
   percent: '10 %',
   lines: [
     ['Livret A', '6 %', 6, 'savings-books'],
-    ['Compte courant', '4 %', 4, 'current-accounts'],
+    // In « Comptes courants », its bank is its title (planche 1, option B, 12 November 2026).
+    ['BoursoBank', '4 %', 4, 'current-accounts'],
   ],
   tooSmall: [],
   chapters: [

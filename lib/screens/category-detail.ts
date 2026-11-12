@@ -335,14 +335,19 @@ export function categoryDetailView(
       plainHere.set(line.id, establishment)
     }
   }
-  const titles = [...plainHere.values()].map((e) => e.name)
+  // Whether its chapter's name already says its type: only then can the bank be its title.
+  const saysType = (line: DetailLine) => {
+    const held = profile.lines.find((l) => l.id === line.lineId)!
+    const label = ACCOUNT_TYPES[profile.accounts.find((a) => a.id === held.accountId)!.type].label
+    return line.chapter !== null && singular(CHAPTER_LABELS[line.chapter]) === singular(label)
+  }
+  // Only the lines that would take their bank as title can clash (a Livret A at the same bank keeps its
+  // name, so it does not stop a current account there: Nicolas, 12 November 2026).
+  const titles = detailLines.filter((l) => plainHere.has(l.lineId) && saysType(l)).map((l) => plainHere.get(l.lineId)!.name)
   for (const line of detailLines) {
     const bank = plainHere.get(line.lineId)
     if (bank === undefined) continue
-    const held = profile.lines.find((l) => l.id === line.lineId)!
-    const label = ACCOUNT_TYPES[profile.accounts.find((a) => a.id === held.accountId)!.type].label
-    const saysType = line.chapter !== null && singular(CHAPTER_LABELS[line.chapter]) === singular(label)
-    if (saysType && titles.filter((t) => t === bank.name).length === 1) {
+    if (saysType(line) && titles.filter((t) => t === bank.name).length === 1) {
       line.name = bank.name
       line.where = ''
     } else {

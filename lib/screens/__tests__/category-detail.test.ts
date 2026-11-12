@@ -892,3 +892,32 @@ describe('a line whose type tells it apart from its chapter', () => {
   })
 })
 
+// Nicolas, 12 November 2026: his current account at BoursoBank kept « Compte courant » because his Livret A
+// is at BoursoBank too. Only the lines that take their bank as title can clash.
+test('a livret at the same bank does not stop a current account from taking its bank as title', () => {
+  const profile: Profile = {
+    schema: 1,
+    establishments: [
+      { id: 'ca', name: 'Crédit Agricole', kind: 'institution' },
+      { id: 'bb', name: 'BoursoBank', kind: 'institution', catalogId: 'boursobank' },
+    ],
+    accounts: [
+      { id: 'cc1', establishmentId: 'ca', type: 'current', name: 'Compte courant' },
+      { id: 'cc2', establishmentId: 'bb', type: 'current', name: 'Compte courant' },
+      { id: 'la', establishmentId: 'bb', type: 'livret-a', name: 'Livret A' },
+    ],
+    lines: [
+      { id: 'l1', accountId: 'cc1', name: 'Compte courant', kind: 'amount', currency: 'EUR' },
+      { id: 'l2', accountId: 'cc2', name: 'Compte courant', kind: 'amount', currency: 'EUR' },
+      { id: 'l3', accountId: 'la', name: 'Livret A', kind: 'amount', currency: 'EUR' },
+    ],
+  }
+  const snap: Snapshot = {
+    schema: 1, takenOn: '2026-10-31', fx: {}, contributions: {}, arrivals: {},
+    entries: ['l1', 'l2', 'l3'].map((lineId) => ({ lineId, kind: 'amount' as const, amount: 100_000, seenOn: '2026-10-31' })),
+  }
+  const view = categoryDetailView(modelOf({ profile, snapshots: [snap] }), 'available', TODAY)!
+  const all = [...(view.chapters?.flatMap((c) => c.lines) ?? []), ...view.lines].map((l) => [l.name, plain(l.where)])
+  expect(all).toEqual(expect.arrayContaining([['Crédit Agricole', ''], ['BoursoBank', ''], ['Livret A', 'chez BoursoBank']]))
+})
+
