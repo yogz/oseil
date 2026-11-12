@@ -5,8 +5,16 @@ import type { ReactNode } from 'react'
 import { FILL } from '@/components/money/HundredSquares'
 import { TEXT_LINK } from '@/components/setup/styles'
 import { RESIDENCE_LABELS } from '@/lib/catalog'
+import type { CategoryId } from '@/lib/model/types'
 import type { LineSheetView, SheetRow } from '@/lib/screens/line-sheet'
 import {
+  ACCOUNT_SECTION,
+  ACCOUNT_TYPE_LABEL,
+  BANK_LABEL,
+  CATEGORY_LABEL,
+  COUNTED_LABEL,
+  LINE_SECTION,
+  RECOUNT_UNFINISHED,
   CLOSE_EXPLAIN,
   CORRECT_TITLE,
   DELETE_EXPLAIN,
@@ -34,7 +42,7 @@ import {
 import { titlesFromLine } from '@/lib/screens/titles'
 import { TYPED } from '@/lib/screens/words'
 
-export type Editing = SheetRow['kind'] | 'close' | 'delete' | null
+export type Editing = SheetRow['kind'] | 'close' | 'delete' | 'recount-finish' | null
 
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
 export const BACK = `inline-flex min-h-11 items-center self-start text-body text-ink-soft ${FOCUS}`
@@ -61,6 +69,14 @@ function rowLabel(row: SheetRow): string {
       return RESIDENCE_LABEL
     case 'purchase':
       return row.label
+    case 'category':
+      return CATEGORY_LABEL
+    case 'counted':
+      return COUNTED_LABEL
+    case 'accountType':
+      return ACCOUNT_TYPE_LABEL
+    case 'bank':
+      return BANK_LABEL
   }
 }
 
@@ -81,6 +97,10 @@ function rowValue(row: SheetRow): string {
     case 'residence':
       return RESIDENCE_LABELS[row.residence]
     case 'purchase':
+    case 'category':
+    case 'counted':
+    case 'accountType':
+    case 'bank':
       return row.value
   }
 }
@@ -167,30 +187,61 @@ export function LineSheet({
         </div>
       ) : null}
 
+      {view.state.kind === 'recount-unfinished' ? (
+        <div className="mt-4 flex flex-col gap-1">
+          <p className="text-body leading-relaxed text-ink">{RECOUNT_UNFINISHED}</p>
+          {!locked ? (
+            <button type="button" className={TEXT_LINK} onClick={() => onEdit('recount-finish')}>
+              {FINISH}
+            </button>
+          ) : null}
+          {notice ? (
+            <p role="alert" className="text-body leading-relaxed text-ink">
+              {notice}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {view.state.kind === 'open' ? (
         form ?? (
           <>
             {view.loanAtHome && !locked ? (
               <div className="mt-4 flex flex-col gap-1 rounded-control bg-field px-4 py-3">
                 <p className="text-body leading-relaxed text-ink-soft">{LOAN_PLACE_EXPLAIN}</p>
-                <button type="button" className={TEXT_LINK} onClick={() => onEdit('place')}>
+                <button type="button" className={TEXT_LINK} onClick={() => onEdit('bank')}>
                   {LOAN_PLACE_ACTION}
                 </button>
               </div>
             ) : null}
 
             <h2 className="mt-6 text-caption font-normal text-ink-muted">{CORRECT_TITLE}</h2>
+            {/* Two parts: what belongs to this line, then what belongs to its whole account. */}
+            <h3 className="mt-3 text-body font-medium text-ink">{LINE_SECTION}</h3>
             <div className="mt-1 flex flex-col border-b border-hairline">
               {view.rows.map((row) => (
                 <Row key={row.kind} row={row} lineId={view.lineId} locked={locked} onEdit={onEdit} />
               ))}
             </div>
+            {view.accountTitle !== null ? (
+              <>
+                <h3 className="mt-6 flex flex-wrap items-baseline gap-x-2 text-body font-medium text-ink">
+                  {ACCOUNT_SECTION}
+                  <span className="text-caption font-normal text-ink-muted">{view.accountTitle}</span>
+                </h3>
+                <div className="mt-1 flex flex-col border-b border-hairline">
+                  {view.accountRows.map((row) => (
+                    <Row key={row.kind} row={row} lineId={view.lineId} locked={locked} onEdit={onEdit} />
+                  ))}
+                </div>
+              </>
+            ) : null}
 
             {!locked ? (
               <div className="mt-6 flex flex-col">
                 {view.close.possible ? (
                   <>
-                    <button type="button" className={`${TEXT_LINK} text-ink`} onClick={() => onEdit('close')}>
+                    <button type="button" className={TEXT_LINK} onClick={() => onEdit('close')}>
                       {view.close.label}
                     </button>
                     <p className="mb-4 text-caption leading-snug text-ink-muted">{CLOSE_EXPLAIN}</p>
@@ -235,6 +286,7 @@ function Row({
     )
   const value = (
     <span className={`min-w-0 truncate text-right text-body text-ink-muted ${row.kind === 'purchase' ? 'tabular-nums' : ''}`}>
+      {row.kind === 'category' ? <CategorySquare category={row.category} /> : null}
       {rowValue(row)}
       {locked ? null : <span aria-hidden="true"> ›</span>}
     </span>
@@ -260,5 +312,16 @@ function Row({
       {label}
       {value}
     </button>
+  )
+}
+
+// The square of a category before its name, as in the lists.
+function CategorySquare({ category }: { category: CategoryId }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-category={category}
+      className={`mr-2 inline-block size-square-s rounded-square align-middle ${FILL[category]}`}
+    />
   )
 }

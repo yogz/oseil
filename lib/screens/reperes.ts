@@ -20,7 +20,8 @@ import {
   type Situation,
 } from '@/lib/model/situation'
 import { buildGrid } from '@/lib/model/squares'
-import type { Account, CategoryId, Cents, IsoDate, Profile, Snapshot } from '@/lib/model/types'
+import type { Account, CategoryId, Cents, IsoDate, Line, Profile, Snapshot } from '@/lib/model/types'
+import { lineSlow } from '@/lib/correct/account-changes'
 import { debtsOf } from '@/lib/screens/debts'
 import {
   CUSHION_MISSING,
@@ -69,11 +70,11 @@ const DEFAULT_EMPLOYER_PLACE = 'Épargne salariale'
 const plainName = (name: string) => name.toLowerCase().replace(/\s+/g, '')
 
 // Quick to get back: not the home, not a PER, employee savings only once their year has come, and
-// no account marked slow (unlisted shares, a locked placement).
-function isQuick(account: Account, today: IsoDate): boolean {
+// no line marked slow (unlisted shares, a locked placement), by its own answer or else its account's.
+function isQuick(account: Account, line: Line, today: IsoDate): boolean {
   if (account.type === 'home' || account.type === 'per') return false
   if (account.type === 'employee-savings') return account.unlockOn !== undefined && account.unlockOn <= today
-  return account.slow !== true
+  return !lineSlow(line, account)
 }
 
 function situationOf(profile: Profile, snapshot: Snapshot): Situation | null {
@@ -115,6 +116,7 @@ export function reperesView(model: Model, today: IsoDate, market: Market | null 
   const lines = new Map(profile.lines.map((l) => [l.id, l]))
   const accounts = new Map(profile.accounts.map((a) => [a.id, a]))
   const accountOf = (lineId: string) => accounts.get(lines.get(lineId)!.accountId)!
+  const lineOf = (lineId: string) => lines.get(lineId)!
 
   // 1. The cushion: never 0 months for want of a budget.
   const available = situation.categories.find((c) => c.category === 'available')?.value ?? 0
@@ -169,7 +171,7 @@ export function reperesView(model: Model, today: IsoDate, market: Market | null 
       let litHere = 0
       for (const l of category.lines) {
         const account = accountOf(l.lineId)
-        if (isQuick(account, today)) {
+        if (isQuick(account, lineOf(l.lineId), today)) {
           litHere += l.squares
         } else {
           outside += l.value

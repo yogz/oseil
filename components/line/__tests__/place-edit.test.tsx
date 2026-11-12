@@ -1,92 +1,93 @@
 // @vitest-environment jsdom
+// « Où il est rangé »: another account, or a new one (docs/superpowers/specs/2026-11-11-tout-corriger-depuis-la-fiche-design.md, § 2).
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { PlaceChoices } from '@/lib/correct/profile-changes'
-import { exampleProfile } from '@/lib/model/__tests__/fixtures'
-import type { CategoryId } from '@/lib/model/types'
-import { CANCEL, NO_OTHER_ACCOUNT, NO_OTHER_BANK } from '@/lib/screens/line-words'
+import { exampleProfile, line } from '@/lib/model/__tests__/fixtures'
+import type { AccountTypeId, Line } from '@/lib/model/types'
+import { NO_OTHER_ACCOUNT } from '@/lib/screens/line-words'
 import { PlaceEdit } from '../PlaceEdit'
 
 afterEach(cleanup)
 
-const [bourso, linxea] = exampleProfile.establishments
+const [bourso] = exampleProfile.establishments
 const byAccount = (id: string) => exampleProfile.accounts.find((a) => a.id === id)!
+const withPea: PlaceChoices = { moves: 'line', establishments: [], accounts: [{ account: byAccount('life'), establishment: bourso }], category: true }
 
-function setup(choices: PlaceChoices, current: CategoryId | undefined = undefined) {
+function setup(choices: PlaceChoices, newTypes: AccountTypeId[] = ['pea-pme', 'livret-a'], companions: Line[] = []) {
   const onSubmit = vi.fn().mockResolvedValue(false)
+  const onCreate = vi.fn().mockResolvedValue(false)
   const onCancel = vi.fn()
-  render(<PlaceEdit choices={choices} current={current} saveError={null} onSubmit={onSubmit} onCancel={onCancel} />)
-  return { onSubmit, onCancel }
+  render(
+    <PlaceEdit
+      choices={choices}
+      establishment={bourso}
+      newTypes={newTypes}
+      companions={companions}
+      saveError={null}
+      onSubmit={onSubmit}
+      onCreate={onCreate}
+      onCancel={onCancel}
+    />,
+  )
+  return { onSubmit, onCreate, onCancel }
 }
 
-test('offers the banks as chips for a whole account, and returns the pick', async () => {
+test('offers the accounts, each with its bank, and returns the pick', async () => {
   const user = userEvent.setup()
-  const { onSubmit } = setup({ moves: 'account', establishments: [bourso, linxea], accounts: [], category: false })
-  await user.click(screen.getByRole('button', { name: 'BoursoBank' }))
+  const { onSubmit } = setup(withPea)
+  await user.click(screen.getByRole('button', { name: 'Assurance-vie · BoursoBank' }))
   await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
-  expect(onSubmit).toHaveBeenCalledWith({ to: 'boursobank', category: null })
+  expect(onSubmit).toHaveBeenCalledWith('life')
 })
 
-test('offers the accounts, each with its bank, for a line', async () => {
-  const user = userEvent.setup()
-  const { onSubmit } = setup({
-    moves: 'line',
-    establishments: [],
-    accounts: [{ account: byAccount('pea'), establishment: bourso }],
-    category: false,
-  })
-  await user.click(screen.getByRole('button', { name: 'PEA · BoursoBank' }))
-  await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
-  expect(onSubmit).toHaveBeenCalledWith({ to: 'pea', category: null })
-})
-
-test('says there is no other bank yet, and offers nothing to save', () => {
-  setup({ moves: 'account', establishments: [], accounts: [], category: false })
-  expect(screen.getByText(NO_OTHER_BANK)).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Enregistrer' })).toBeNull()
-  expect(screen.getByRole('button', { name: CANCEL })).toBeInTheDocument()
-})
-
-test('says there is no other account for a line, and offers nothing to save', () => {
-  setup({ moves: 'line', establishments: [], accounts: [], category: false })
+test('says there is no other account, and still offers a new one', () => {
+  setup({ ...withPea, accounts: [] })
   expect(screen.getByText(NO_OTHER_ACCOUNT)).toBeInTheDocument()
-  expect(screen.queryByText(NO_OTHER_BANK)).toBeNull()
-  expect(screen.queryByRole('button', { name: 'Enregistrer' })).toBeNull()
+  expect(screen.getByRole('button', { name: '+ Un nouveau compte' })).toBeInTheDocument()
 })
 
-test('with nowhere else to file it, still lets its category be chosen, the sentence above', async () => {
+test('« Enregistrer » with nothing picked writes nothing', async () => {
   const user = userEvent.setup()
-  const { onSubmit } = setup({ moves: 'account', establishments: [], accounts: [], category: true }, 'markets')
-  expect(screen.getByText(NO_OTHER_BANK)).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Placements en bourse' })).toHaveAttribute('aria-pressed', 'true')
-  await user.click(screen.getByRole('button', { name: 'Or et crypto' }))
+  const { onSubmit, onCancel } = setup(withPea)
   await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
-  expect(onSubmit).toHaveBeenCalledWith({ to: null, category: 'gold' })
+  expect(onSubmit).not.toHaveBeenCalled()
+  expect(onCancel).toHaveBeenCalled()
 })
 
-test('the sentence for a line with no other account to go to, above its category', () => {
-  setup({ moves: 'line', establishments: [], accounts: [], category: true }, 'markets')
-  expect(screen.getByText(NO_OTHER_ACCOUNT)).toBeInTheDocument()
-  expect(screen.queryByText(NO_OTHER_BANK)).toBeNull()
-  expect(screen.getByRole('button', { name: 'Placements en bourse' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeInTheDocument()
-})
-
-test('has the builder’s copy for a line with no other account', () => {
-  expect(NO_OTHER_ACCOUNT).toBe('Tu n’as pas d’autre compte où le ranger.')
-})
-
-test('changes the category together with the place, only when it changed', async () => {
+test('a new account: its type among the ones given, its name prefilled, the companions ticked', async () => {
   const user = userEvent.setup()
-  const { onSubmit } = setup({ moves: 'account', establishments: [linxea], accounts: [], category: true }, 'markets')
-  expect(screen.getByRole('button', { name: 'Placements en bourse' })).toHaveAttribute('aria-pressed', 'true')
-  await user.click(screen.getByRole('button', { name: 'Linxea' }))
+  const { onCreate } = setup(withPea, ['pea-pme', 'livret-a'], [line('reaumur', 'pea', { name: 'REAUMUR' }), line('brossolette', 'pea', { name: 'BROSSOLETTE' })])
+  await user.click(screen.getByRole('button', { name: '+ Un nouveau compte' }))
+  expect(screen.queryByRole('button', { name: /Compte-titres/ })).toBeNull()
+  await user.click(screen.getByRole('button', { name: /PEA-PME/ }))
+  expect(screen.getByLabelText('Son nom')).toHaveValue('PEA-PME')
+  expect(screen.getByRole('button', { name: 'REAUMUR' })).toHaveAttribute('aria-pressed', 'true')
+  await user.click(screen.getByRole('button', { name: 'BROSSOLETTE' }))
   await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
-  expect(onSubmit).toHaveBeenLastCalledWith({ to: 'linxea', category: null })
+  expect(onCreate).toHaveBeenCalledWith({ type: 'pea-pme', name: 'PEA-PME', lineIds: ['reaumur'] })
+})
 
-  await user.click(screen.getByRole('button', { name: 'Épargne sécurisée' }))
+test('a new account of one line asks no name and takes nothing along', async () => {
+  const user = userEvent.setup()
+  const { onCreate } = setup(withPea, ['livret-a'], [line('reaumur', 'pea', { name: 'REAUMUR' })])
+  await user.click(screen.getByRole('button', { name: '+ Un nouveau compte' }))
+  await user.click(screen.getByRole('button', { name: /Livret A/ }))
+  expect(screen.queryByLabelText('Son nom')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'REAUMUR' })).toBeNull()
   await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
-  expect(onSubmit).toHaveBeenLastCalledWith({ to: 'linxea', category: 'secured' })
+  expect(onCreate).toHaveBeenCalledWith({ type: 'livret-a', name: 'Livret A', lineIds: [] })
+})
+
+test('an emptied name is refused before anything is written', async () => {
+  const user = userEvent.setup()
+  const { onCreate } = setup(withPea)
+  await user.click(screen.getByRole('button', { name: '+ Un nouveau compte' }))
+  await user.click(screen.getByRole('button', { name: /PEA-PME/ }))
+  await user.clear(screen.getByLabelText('Son nom'))
+  await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+  expect(onCreate).not.toHaveBeenCalled()
+  expect(screen.getByText('Écris un nom.')).toBeInTheDocument()
 })

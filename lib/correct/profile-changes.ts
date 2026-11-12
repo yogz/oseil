@@ -10,25 +10,25 @@ export type PlaceChoices = {
   category: boolean // the line's category can be chosen here
 }
 
-function findLine(profile: Profile, lineId: string): Line {
+export function findLine(profile: Profile, lineId: string): Line {
   const line = profile.lines.find((l) => l.id === lineId)
   if (!line) throw new Error(`Unknown line ${lineId}`)
   return line
 }
 
-function findAccount(profile: Profile, accountId: string): Account {
+export function findAccount(profile: Profile, accountId: string): Account {
   const account = profile.accounts.find((a) => a.id === accountId)
   if (!account) throw new Error(`Unknown account ${accountId}`)
   return account
 }
 
-const linesIn = (profile: Profile, accountId: string) => profile.lines.filter((l) => l.accountId === accountId)
+export const linesIn = (profile: Profile, accountId: string) => profile.lines.filter((l) => l.accountId === accountId)
 
-function mapAccount(profile: Profile, accountId: string, change: (a: Account) => Account): Profile {
+export function mapAccount(profile: Profile, accountId: string, change: (a: Account) => Account): Profile {
   return { ...profile, accounts: profile.accounts.map((a) => (a.id === accountId ? change(a) : a)) }
 }
 
-function mapLine(profile: Profile, lineId: string, change: (l: Line) => Line): Profile {
+export function mapLine(profile: Profile, lineId: string, change: (l: Line) => Line): Profile {
   return { ...profile, lines: profile.lines.map((l) => (l.id === lineId ? change(l) : l)) }
 }
 
@@ -122,7 +122,8 @@ function establishmentsFor(profile: Profile, type: AccountTypeId): Establishment
 export function placeChoices(profile: Profile, lineId: string): PlaceChoices {
   const line = findLine(profile, lineId)
   const account = findAccount(profile, line.accountId)
-  const category = line.kind === 'units' || account.type === 'other'
+  // Any line but a loan's (a debt) and a home's (property by its type) (spec of 11 November 2026, « tout corriger »).
+  const category = account.type !== 'loan' && account.type !== 'home'
   if (account.type === 'home') return { moves: 'none', establishments: [], accounts: [], category }
   // A loan always moves whole, whatever its line count.
   if (account.type === 'loan' || linesIn(profile, account.id).length === 1) {
@@ -138,12 +139,14 @@ export function placeChoices(profile: Profile, lineId: string): PlaceChoices {
   return { moves: 'line', establishments: [], accounts, category }
 }
 
+// « Sa banque »: where a whole account may go, whatever its number of lines, its own bank excluded.
+export function bankChoices(profile: Profile, accountId: string): Establishment[] {
+  const account = findAccount(profile, accountId)
+  return establishmentsFor(profile, account.type).filter((e) => e.id !== account.establishmentId)
+}
+
 export function moveAccount(profile: Profile, accountId: string, establishmentId: string): Profile {
-  findAccount(profile, accountId)
-  const lines = linesIn(profile, accountId)
-  if (lines.length === 0) throw new Error(`Account ${accountId} holds no line`)
-  const choices = placeChoices(profile, lines[0].id)
-  if (choices.moves !== 'account' || !choices.establishments.some((e) => e.id === establishmentId)) {
+  if (!bankChoices(profile, accountId).some((e) => e.id === establishmentId)) {
     throw new Error(`Account ${accountId} cannot go to ${establishmentId}`)
   }
   return mapAccount(profile, accountId, (a) => ({ ...a, establishmentId }))
@@ -154,7 +157,13 @@ export function moveLine(profile: Profile, lineId: string, accountId: string): P
   if (choices.moves !== 'line' || !choices.accounts.some((c) => c.account.id === accountId)) {
     throw new Error(`Line ${lineId} cannot go to ${accountId}`)
   }
-  return mapLine(profile, lineId, (l) => ({ ...l, accountId }))
+  // A type that decides quick or slow by itself takes no line's own answer (an export would say it).
+  const to = findAccount(profile, accountId)
+  return mapLine(profile, lineId, (l) => {
+    const moved = { ...l, accountId }
+    if ([...SLOW_BY_TYPE, 'employee-savings'].includes(to.type)) delete moved.slow
+    return moved
+  })
 }
 
 export function setCategory(profile: Profile, lineId: string, category: CategoryId): Profile {

@@ -160,7 +160,7 @@ export const ACCOUNT_REFUSALS = {
   strayValue: `une ligne de ${quoted(SHEETS.accounts)} sans ${accountsTitle('account')} (ou sans ${accountsTitle('line')}) qui remplit pourtant des cases de compte (ou de placement)`,
   duplicateLine: `deux lignes de ${quoted(SHEETS.accounts)} sur les mêmes Banque, Compte et Ligne, sans identifiant pour les distinguer`,
   duplicateId: 'un même identifiant sur deux placements',
-  accountDisagrees: `un compte dont les lignes ne disent pas la même chose dans ${accountsTitle('type')}, ${accountsTitle('residence')}, ${accountsTitle('unlockOn')}, ${accountsTitle('slow')} ou ${accountsTitle('financedLine')}, ou un identifiant de compte sur deux comptes différents`,
+  accountDisagrees: `un compte dont les lignes ne disent pas la même chose dans ${accountsTitle('type')}, ${accountsTitle('residence')}, ${accountsTitle('unlockOn')} ou ${accountsTitle('financedLine')}, ou un identifiant de compte sur deux comptes différents`,
   ambiguousAccount: 'une ligne sans identifiant de compte quand plusieurs comptes à identifiant portent ses Banque et Compte',
   categoryNeeded: `une catégorie vide pour un type de compte qui n’en a pas par défaut (${quoted(ACCOUNT_TYPES.other.label)})`,
   categoryOnLoan: `une catégorie sur un ${quoted(ACCOUNT_TYPES.loan.label)}`,

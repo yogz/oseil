@@ -123,8 +123,11 @@ describe('placeChoices', () => {
     expect(choices.accounts.every((c) => ACCOUNT_TYPES[c.account.type].lineKinds.includes('units'))).toBe(true)
     expect(choices.category).toBe(true)
   })
-  it('offers a category for an amount only in an « other » account', () => {
-    expect(placeChoices(exampleProfile, 'livret-a-line').category).toBe(false)
+  // Since 11 November 2026 (« tout corriger depuis la fiche »): any line but a loan's and a home's.
+  it('offers a category for an amount line too, never for a loan or a home', () => {
+    expect(placeChoices(exampleProfile, 'livret-a-line').category).toBe(true)
+    expect(placeChoices(exampleProfile, 'mortgage-line').category).toBe(false)
+    expect(placeChoices(exampleProfile, 'house-line').category).toBe(false)
     const other = { ...exampleProfile, accounts: [...exampleProfile.accounts, account('misc', 'other')], lines: [...exampleProfile.lines, line('misc-line', 'misc')] }
     expect(placeChoices(other, 'misc-line').category).toBe(true)
   })
@@ -159,7 +162,10 @@ describe('moveAccount', () => {
     expect(computeSituation(moved, latestSnapshot).net).toBe(computeSituation(loanAtHomeProfile, latestSnapshot).net)
   })
   it('refuses to put a house in a bank', () => expect(() => moveAccount(withBank, 'house', 'bank')).toThrow())
-  it('refuses an account that holds several lines (not a loan)', () => expect(() => moveAccount(withBank, 'life', 'bank')).toThrow())
+  // « Sa banque » (11 November 2026): an account moves whole, whatever its number of lines.
+  it('moves an account that holds several lines, whole', () => {
+    expect(moveAccount(withBank, 'life', 'bank').accounts.find((a) => a.id === 'life')!.establishmentId).toBe('bank')
+  })
   it('refuses its own establishment and an unknown one', () => {
     expect(() => moveAccount(withBank, 'livret-a', 'boursobank')).toThrow()
     expect(() => moveAccount(withBank, 'livret-a', 'nowhere')).toThrow()
@@ -177,7 +183,8 @@ describe('moveLine and setCategory', () => {
   })
   it('sets the category where it can be chosen only', () => {
     expect(setCategory(exampleProfile, 'etf', 'gold').lines.find((l) => l.id === 'etf')!.category).toBe('gold')
-    expect(() => setCategory(exampleProfile, 'livret-a-line', 'gold')).toThrow()
+    expect(setCategory(exampleProfile, 'livret-a-line', 'gold').lines.find((l) => l.id === 'livret-a-line')!.category).toBe('gold')
+    expect(() => setCategory(exampleProfile, 'mortgage-line', 'gold')).toThrow()
   })
 })
 
@@ -209,7 +216,7 @@ describe('the chapter of a line', () => {
       ...exampleProfile,
       lines: exampleProfile.lines.map((l) => (l.id === 'euro-fund' ? { ...l, group: 'euro-fund' as const } : l)),
     }
-    const moved = fileLine(fund, 'euro-fund', 'livret-a', null)
+    const moved = fileLine(fund, 'euro-fund', 'livret-a', 'available')
     const l = lineOf(moved, 'euro-fund')
     expect(categoryOf(l, moved.accounts.find((a) => a.id === l.accountId)!)).not.toBe('secured')
     expect('group' in l).toBe(false)
@@ -270,21 +277,20 @@ describe('fileLine: a move never changes the category silently', () => {
     const written = setCategory(withCoins, 'btc', 'secured')
     expect(lineOf(fileLine(written, 'btc', 'pea', null), 'btc')).toMatchObject({ accountId: 'pea', category: 'secured' })
   })
-  it('never freezes a category that cannot be chosen at the destination', () => {
+  // Every category can now be chosen again from the fiche: the one a line had is kept, written.
+  it('keeps, written down, the category of a euro fund filed in a current account, still choosable', () => {
     const p = fileLine(exampleProfile, 'euro-fund', 'current', null)
-    expect(lineOf(p, 'euro-fund')).toMatchObject({ accountId: 'current' })
-    expect(lineOf(p, 'euro-fund')).not.toHaveProperty('category')
-    expect(categoryAfter(p, 'euro-fund')).toBe(categoryOf({ ...lineOf(p, 'euro-fund') }, p.accounts.find((a) => a.id === 'current')!))
-    expect(placeChoices(p, 'euro-fund').category).toBe(false)
+    expect(lineOf(p, 'euro-fund')).toMatchObject({ accountId: 'current', category: 'secured' })
+    expect(placeChoices(p, 'euro-fund').category).toBe(true)
   })
-  it('drops an explicit category the destination would make unchoosable, and keeps a chosen one choosable', () => {
+  it('keeps an explicit category, the destination letting it be chosen again', () => {
     const other: Profile = {
       ...exampleProfile,
       accounts: [...exampleProfile.accounts, account('misc', 'other', { establishmentId: 'boursobank' })],
       lines: [...exampleProfile.lines, line('thing', 'misc'), line('thing-2', 'misc')],
     }
     const chosen = setCategory(other, 'thing', 'gold')
-    expect(lineOf(fileLine(chosen, 'thing', 'current', null), 'thing')).not.toHaveProperty('category')
+    expect(lineOf(fileLine(chosen, 'thing', 'current', null), 'thing')).toMatchObject({ category: 'gold' })
   })
   it('moves a whole account to another bank, or only sets the category with nowhere to go', () => {
     expect(fileLine(withBank, 'livret-a-line', 'bank', null)).toEqual(moveAccount(withBank, 'livret-a', 'bank'))

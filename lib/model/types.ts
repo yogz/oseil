@@ -49,6 +49,9 @@ export type Line = {
   // average price said to be in euros already. Absent: the rate comes from the snapshots
   // (lib/model/purchase-cost.ts, docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md).
   purchase?: { perEuro: number } | { inEuros: true }
+  // Quick or slow to get back, this line's own answer, which wins over its account's `slow`. Absent: the
+  // account's (docs/superpowers/specs/2026-11-11-tout-corriger-depuis-la-fiche-design.md).
+  slow?: boolean
 }
 
 // Progress of the first launch, kept in the profile so it can be resumed.

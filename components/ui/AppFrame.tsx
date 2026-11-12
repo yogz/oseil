@@ -43,7 +43,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
         className={
           // 12 px at the top of a phone (24 before 9 November 2026): the first screen of Mon argent
           // gives its room to the grid, and every screen keeps its title at the same height.
-          'mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-3 pb-28 lg:pb-10 ' +
+          'mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-3 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-10 ' +
           (menu ? 'lg:max-w-5xl' : 'lg:max-w-xl') +
           (menu ? ' lg:pt-24' : ' lg:pt-6')
         }

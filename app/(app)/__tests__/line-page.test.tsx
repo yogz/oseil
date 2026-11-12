@@ -269,8 +269,8 @@ test('says whether an account is quick to get back, and marks it slow in one pro
   expect(screen.getByRole('button', { name: /Récupérable en quelques semaines/ })).toHaveTextContent('oui')
   await user.click(screen.getByRole('button', { name: /Récupérable en quelques semaines/ }))
   expect(screen.getByRole('button', { name: 'Oui' })).toHaveAttribute('aria-pressed', 'true')
+  // Oui or Non saves at once (11 November 2026, « tout corriger depuis la fiche »).
   await user.click(screen.getByRole('button', { name: 'Non' }))
-  await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
   const writes = planned(shares, sharesSnapshot)
   expect(writes).toHaveLength(1)
   expect(writes[0].value.accounts.find((a) => a.id === 'shares')!.slow).toBe(true)
@@ -290,7 +290,6 @@ test('a slow account reads « non », and « Oui » removes the mark', async () 
   await user.click(screen.getByRole('button', { name: /Récupérable en quelques semaines/ }))
   expect(screen.getByRole('button', { name: 'Non' })).toHaveAttribute('aria-pressed', 'true')
   await user.click(screen.getByRole('button', { name: 'Oui' }))
-  await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
   expect(planned(slow, sharesSnapshot)[0].value.accounts.find((a) => a.id === 'shares')).not.toHaveProperty('slow')
 })
 
@@ -300,8 +299,8 @@ test('the slow mark follows the re-read profile, not the account on screen', asy
   mocks.params.current = { id: 'shares-l' }
   render(<LinePage />)
   await user.click(screen.getByRole('button', { name: /Récupérable en quelques semaines/ }))
+  // Oui or Non saves at once (11 November 2026, « tout corriger depuis la fiche »).
   await user.click(screen.getByRole('button', { name: 'Non' }))
-  await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
   const moved = profileOf(
     [account('cur', 'current'), account('shares-bis', 'other', { name: 'OpenAI' })],
     [line('cur-l', 'cur'), line('shares-l', 'shares-bis', { name: 'OpenAI', category: 'markets' })],
@@ -351,7 +350,7 @@ test('a rental back to « Résidence principale » loses its mark, as every home
 
 test('an account that is not a home has no type of home', () => {
   render(<LinePage />)
-  expect(screen.queryByRole('button', { name: /^Type/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: /^Type(?! du compte)/ })).toBeNull()
 })
 
 const zoned = profileOf(
@@ -392,19 +391,19 @@ test('a secured line reads « Type », and cancelling saves nothing', async () =
   ready(secured, sharesSnapshot)
   mocks.params.current = { id: 'shares-l' }
   render(<LinePage />)
-  expect(screen.getByRole('button', { name: /Type/ })).toHaveTextContent('Obligations et prêts')
-  await user.click(screen.getByRole('button', { name: /Type/ }))
+  expect(screen.getByRole('button', { name: /^Type(?! du compte)/ })).toHaveTextContent('Obligations et prêts')
+  await user.click(screen.getByRole('button', { name: /^Type(?! du compte)/ }))
   expect(screen.getByRole('combobox', { name: 'Type' })).toHaveValue('bonds')
   await user.click(screen.getByRole('button', { name: 'Annuler' }))
   expect(mocks.saveCorrection).not.toHaveBeenCalled()
-  expect(screen.getByRole('button', { name: /Type/ })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /^Type(?! du compte)/ })).toBeInTheDocument()
 })
 
 test('a line of another category has no zone row', () => {
   ready(zoned, sharesSnapshot)
   mocks.params.current = { id: 'cur-l' }
   render(<LinePage />)
-  expect(screen.queryByRole('button', { name: /Zone|Type/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: /^(Zone|Type)(?! du compte)/ })).toBeNull()
 })
 
 const twoHomes = profileOf(
@@ -463,21 +462,18 @@ test('files the loan held at home in a bank from the nudge, in one profile write
   expect(reload).toHaveBeenCalledTimes(1)
 })
 
-test('moves a fund to another account and changes its category in one write', async () => {
+test('moves a fund to another account in one write', async () => {
   const user = userEvent.setup()
   mocks.params.current = { id: 'life-uc' }
   render(<LinePage />)
   await user.click(screen.getByRole('button', { name: /Où il est rangé/ }))
   await user.click(screen.getByRole('button', { name: 'PEA · BoursoBank' }))
-  await user.click(screen.getByRole('button', { name: 'Épargne sécurisée' }))
   await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
 
   expect(mocks.saveCorrection).toHaveBeenCalledTimes(1)
   const writes = planned()
   expect(writes).toHaveLength(1)
-  const moved = writes[0].value.lines.find((l) => l.id === 'life-uc')!
-  expect(moved.accountId).toBe('pea')
-  expect(moved.category).toBe('secured')
+  expect(writes[0].value.lines.find((l) => l.id === 'life-uc')!.accountId).toBe('pea')
 })
 
 test('leaves the category alone when only the place changes', async () => {
@@ -496,7 +492,7 @@ test('says there is no other bank yet, and offers nothing to save', async () => 
   ready(lone, snapshotOf([amountEntry('livret-l', 500)]))
   mocks.params.current = { id: 'livret-l' }
   render(<LinePage />)
-  await user.click(screen.getByRole('button', { name: /Où il est rangé/ }))
+  await user.click(screen.getByRole('button', { name: /Sa banque/ }))
   expect(screen.getByText(plain(NO_OTHER_BANK))).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Enregistrer' })).toBeNull()
 })
@@ -507,8 +503,7 @@ test('with a single bank, the only fund of a PEA can still change its category, 
   ready(onePea, snapshotOf([unitsEntry('fund', 10, 100, null)]))
   mocks.params.current = { id: 'fund' }
   render(<LinePage />)
-  await user.click(screen.getByRole('button', { name: /Où il est rangé/ }))
-  expect(screen.getByText(plain(NO_OTHER_BANK))).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /Catégorie/ }))
   await user.click(screen.getByRole('button', { name: 'Or et crypto' }))
   await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
   const writes = planned(onePea)
@@ -532,23 +527,91 @@ test('a move never changes the category silently: a coin filed in the PEA stays 
   mocks.params.current = { id: 'btc' }
   render(<LinePage />)
   await user.click(screen.getByRole('button', { name: /Où il est rangé/ }))
-  expect(screen.getByRole('button', { name: 'Or et crypto' })).toHaveAttribute('aria-pressed', 'true')
   await user.click(screen.getByRole('button', { name: 'PEA · BoursoBank' }))
   await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
   const moved = planned(withCoins)[0].value.lines.find((l) => l.id === 'btc')!
   expect(moved).toMatchObject({ accountId: 'pea', category: 'gold' })
 })
 
-test('a move with another category chosen takes that one', async () => {
+// docs/superpowers/specs/2026-11-11-tout-corriger-depuis-la-fiche-design.md
+test('the category of an amount line, from its own row, its square beside it, in one write', async () => {
   const user = userEvent.setup()
-  ready(withCoins, { ...exampleSnapshot, entries: [...exampleSnapshot.entries, unitsEntry('btc', 1, 60_000, null), unitsEntry('eth', 2, 3_000, null)] })
-  mocks.params.current = { id: 'btc' }
+  mocks.params.current = { id: 'livret-a-line' }
+  render(<LinePage />)
+  const row = screen.getByRole('button', { name: /Catégorie/ })
+  expect(row).toHaveTextContent('Argent disponible')
+  expect(row.querySelector('[data-category="available"]')).not.toBeNull()
+  await user.click(row)
+  await user.click(screen.getByRole('button', { name: 'Épargne sécurisée' }))
+  await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+  const writes = planned()
+  expect(writes).toHaveLength(1)
+  expect(writes[0].value.lines.find((l) => l.id === 'livret-a-line')!.category).toBe('secured')
+})
+
+// Nicolas's case: crowdfunding lines in his PEA.
+const crowd = (id: string, name: string) => line(id, 'pea', { name, kind: 'amount', category: 'secured', group: 'unknown' })
+const withCrowd: Profile = { ...exampleProfile, lines: [...exampleProfile.lines, crowd('villa', 'VILLA CARMEN'), crowd('reaumur', 'REAUMUR')] }
+const crowdSnapshot = { ...exampleSnapshot, entries: [...exampleSnapshot.entries, amountEntry('villa', 1_000), amountEntry('reaumur', 1_000)] }
+
+test('a new PEA-PME from « Où il est rangé », the other crowdfunding line taken along, in one write', async () => {
+  const user = userEvent.setup()
+  ready(withCrowd, crowdSnapshot)
+  mocks.params.current = { id: 'villa' }
   render(<LinePage />)
   await user.click(screen.getByRole('button', { name: /Où il est rangé/ }))
-  await user.click(screen.getByRole('button', { name: 'PEA · BoursoBank' }))
-  await user.click(screen.getByRole('button', { name: 'Placements en bourse' }))
+  await user.click(screen.getByRole('button', { name: '+ Un nouveau compte' }))
+  await user.click(screen.getByRole('button', { name: /PEA-PME/ }))
+  expect(screen.getByRole('button', { name: 'REAUMUR' })).toHaveAttribute('aria-pressed', 'true')
   await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
-  expect(planned(withCoins)[0].value.lines.find((l) => l.id === 'btc')!).toMatchObject({ accountId: 'pea', category: 'markets' })
+  const writes = planned(withCrowd, crowdSnapshot)
+  expect(writes).toHaveLength(1)
+  const created = writes[0].value.accounts.find((a) => a.type === 'pea-pme')!
+  expect(created).toMatchObject({ establishmentId: 'boursobank', name: 'PEA-PME' })
+  for (const id of ['villa', 'reaumur']) expect(writes[0].value.lines.find((l) => l.id === id)!.accountId).toBe(created.id)
+  expect(writes[0].value.lines.find((l) => l.id === 'etf')!.accountId).toBe('pea')
+})
+
+test('one line slow among others, or the whole account', async () => {
+  const user = userEvent.setup()
+  ready(withCrowd, crowdSnapshot)
+  mocks.params.current = { id: 'villa' }
+  render(<LinePage />)
+  await user.click(screen.getByRole('button', { name: /Récupérable en quelques semaines/ }))
+  await user.click(screen.getByRole('button', { name: 'Non' }))
+  const line = planned(withCrowd, crowdSnapshot)[0].value
+  expect(line.lines.find((l) => l.id === 'villa')!.slow).toBe(true)
+  expect(line.accounts.find((a) => a.id === 'pea')).not.toHaveProperty('slow')
+})
+
+test('the type of the account, among the ones that take its lines, in one write', async () => {
+  const user = userEvent.setup()
+  mocks.params.current = { id: 'etf' }
+  render(<LinePage />)
+  expect(screen.getByText('PEA · BoursoBank')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /Type du compte/ }))
+  expect(screen.queryByRole('button', { name: /^Livret A/ })).toBeNull()
+  await user.click(screen.getByRole('button', { name: /PEA-PME/ }))
+  const writes = planned()
+  expect(writes).toHaveLength(1)
+  expect(writes[0].value.accounts.find((a) => a.id === 'pea')).toMatchObject({ type: 'pea-pme', name: 'PEA-PME' })
+})
+
+test('« Compté en »: an amount counted in parts says what follows, then recounts the history', async () => {
+  const user = userEvent.setup()
+  ready(withCrowd, crowdSnapshot)
+  mocks.params.current = { id: 'villa' }
+  render(<LinePage />)
+  expect(screen.getByRole('button', { name: /Compté en/ })).toHaveTextContent('montant · €')
+  await user.click(screen.getByRole('button', { name: /Compté en/ }))
+  await user.click(screen.getByRole('button', { name: 'En parts' }))
+  await user.type(screen.getByLabelText(/Combien de parts aujourd’hui/), '4')
+  expect(plain(screen.getByText(/Ton relevé suivra/).textContent!)).toBe('Ton relevé suivra. Sa valeur ne change pas.')
+  await user.click(screen.getByRole('button', { name: 'Recompter' }))
+  const writes = planned(withCrowd, crowdSnapshot)
+  expect(writes.map((w) => w.kind)).toEqual(['snapshot', 'profile'])
+  const entry = (writes[0] as unknown as { value: Snapshot }).value.entries.find((e) => e.lineId === 'villa')!
+  expect(entry).toMatchObject({ kind: 'units', units: 4, unitPrice: 250 })
 })
 
 test('corrects the parts of a fund through the snapshots re-read at save time', async () => {

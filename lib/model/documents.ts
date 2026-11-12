@@ -119,6 +119,7 @@ function parseLine(raw: unknown): Line | null {
   if (!isOptional(raw.group, isGroup)) return null
   if (!isOptional(raw.quoteSymbol, isId) || !isOptional(raw.closedOn, isDate)) return null
   if (raw.purchase !== undefined && !isPurchase(raw.purchase, raw.currency)) return null
+  if (raw.slow !== undefined && typeof raw.slow !== 'boolean') return null // its own answer; absent: its account's
   return { ...raw } as Line
 }
 

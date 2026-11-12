@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { TEXT_LINK } from '@/components/setup/styles'
 import { useCallback, useEffect, useState } from 'react'
 import { BoardLeft } from '@/components/money/BoardLeft'
 import { CategoryRow } from '@/components/money/CategoryRow'
@@ -159,11 +160,19 @@ function ReadyBody({
       )
     case 'error':
       return (
-        <p role="alert" className={SENTENCE}>
-          {view.reason === 'unreadable'
-            ? 'Tes chiffres n’ont pas pu être lus sur cet appareil. Rien n’a été effacé.'
-            : 'Un de tes chiffres n’a pas pu être calculé.'}
-        </p>
+        <>
+          <p role="alert" className={SENTENCE}>
+            {view.reason === 'unreadable'
+              ? 'Tes chiffres n’ont pas pu être lus sur cet appareil. Rien n’a été effacé.'
+              : 'Un de tes chiffres n’a pas pu être calculé.'}
+          </p>
+          {/* A recount cut short: its fiche finishes it. */}
+          {view.unfinished ? (
+            <Link href={view.unfinished.href} className={TEXT_LINK}>
+              {`Terminer le recompte de « ${view.unfinished.name} »`}
+            </Link>
+          ) : null}
+        </>
       )
     case 'reveal-pending':
     case 'resume':

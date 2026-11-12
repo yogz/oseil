@@ -50,13 +50,17 @@ export function TypePicker({
   establishment,
   planned,
   splitHome = false,
+  allowed,
   onPick,
 }: {
   establishment: Establishment
   planned: string[]
   splitHome?: boolean
+  // Only these types (a line's fiche: the types that would take it); absent, every type of the place.
+  allowed?: readonly AccountTypeId[]
   onPick: (type: AccountTypeId, otherHome?: true) => void
 }) {
+  if (allowed !== undefined) return <AllowedTypes allowed={allowed} onPick={onPick} />
   if (establishment.catalogId === 'employee-savings') {
     return (
       <ul className="mt-4 flex flex-col">
@@ -135,6 +139,34 @@ export function TypePicker({
           </button>
         </li>
       </ul>
+    </div>
+  )
+}
+
+// The types given, by family, in the list's order; « Autre compte » last, as everywhere.
+function AllowedTypes({ allowed, onPick }: { allowed: readonly AccountTypeId[]; onPick: (type: AccountTypeId) => void }) {
+  const ordered = (family: (typeof FAMILIES)[number]) =>
+    (family === 'holdings' ? HOLDINGS_ORDER : (Object.keys(ACCOUNT_TYPES) as AccountTypeId[]).filter((t) => ACCOUNT_TYPES[t].family === family))
+      .filter((t) => allowed.includes(t))
+  return (
+    <div className="mt-4 flex flex-col gap-6">
+      {FAMILIES.map((family) =>
+        ordered(family).length === 0 ? null : (
+          <section key={family}>
+            <h2 className="text-body font-medium text-ink-muted">{FAMILY_LABELS[family]}</h2>
+            <ul className="mt-1 flex flex-col">
+              {ordered(family).map((type) => (
+                <Option key={type} type={type} onPick={() => onPick(type)} />
+              ))}
+            </ul>
+          </section>
+        ),
+      )}
+      {allowed.includes('other') ? (
+        <ul className="flex flex-col">
+          <Option type="other" onPick={() => onPick('other')} />
+        </ul>
+      ) : null}
     </div>
   )
 }

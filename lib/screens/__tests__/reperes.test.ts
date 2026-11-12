@@ -786,3 +786,24 @@ test('months are held to their number by a no-break space', () => {
   expect(monthsWords(7)).toBe('7\u00A0mois')
   expect(monthsWords(5.5)).toBe('5\u00A0mois et demi')
 })
+
+// Quick or slow, line by line (11 November 2026): a line's own answer wins over its account's.
+describe('a line marked quick or slow of its own', () => {
+  const twoLines = (accountSlow: boolean, lineSlow: boolean) =>
+    modelOf({
+      establishments: [A],
+      accounts: [at('a', account('cur', 'current')), at('a', account('pea', 'pea', accountSlow ? { slow: true } : {}))],
+      lines: [
+        line('cur-line', 'cur'),
+        line('crowd', 'pea', { category: 'markets', slow: lineSlow }),
+        line('fund', 'pea', { category: 'markets' }),
+      ],
+      snapshot: snapshotOf([amountEntry('cur-line', 50_000), amountEntry('crowd', 25_000), amountEntry('fund', 25_000)]),
+    })
+  test('a slow line in a quick account does not count, its neighbour does', () => {
+    expect(ready(twoLines(false, true)).quick!.lit).toBe(75)
+  })
+  test('a quick line in a slow account counts, its neighbour does not', () => {
+    expect(ready(twoLines(true, false)).quick!.lit).toBe(75)
+  })
+})

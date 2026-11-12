@@ -3,7 +3,11 @@
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { AccountTypeEdit } from '@/components/line/AccountTypeEdit'
+import { BankEdit } from '@/components/line/BankEdit'
+import { CategoryEdit } from '@/components/line/CategoryEdit'
 import { CloseFlow } from '@/components/line/CloseFlow'
+import { CountedEdit } from '@/components/line/CountedEdit'
 import { BoardLeft } from '@/components/money/BoardLeft'
 import { DeleteFlow } from '@/components/line/DeleteFlow'
 import { FiguresEdit } from '@/components/line/FiguresEdit'
@@ -23,7 +27,20 @@ import { useMenuFromModel } from '@/components/ui/use-menu-from-model'
 import { VaultWait } from '@/components/ui/VaultWait'
 import { useModel, type ModelState } from '@/lib/app/use-model'
 import { saveCorrection, type CorrectionState } from '@/lib/correct/save'
-import { fileLine, placeChoices, renameLine, setFinanced, setGroups, setPurchase, setResidence, setSlow, setUnlockYear } from '@/lib/correct/profile-changes'
+import { fileLine, placeChoices, renameLine, setCategory, setFinanced, setGroups, setPurchase, setResidence, setUnlockYear } from '@/lib/correct/profile-changes'
+import {
+  accountTypeChoices,
+  bankChoices,
+  moveAccount,
+  moveToNewAccount,
+  newAccountCompanions,
+  newAccountTypes,
+  setAccountType,
+  setLineSlow,
+} from '@/lib/correct/account-changes'
+import { finishRecount, recountChoices, recountLine, recountPreview, type RecountTarget } from '@/lib/correct/recount'
+import { eurPerUnit } from '@/lib/market/live'
+import type { Line, Profile } from '@/lib/model/types'
 import {
   closeLine,
   closingBounds,
@@ -168,6 +185,8 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
       void write((s) => reopenLine(s.profile.value, s.snapshots, lineId))
     } else if (next === 'close' && view.state.kind === 'closing-unfinished') {
       void write((s) => finishClosing(s.profile.value, s.snapshots, lineId), 'leave')
+    } else if (next === 'recount-finish') {
+      void write((s) => finishRecount(s.profile.value, s.snapshots, lineId))
     } else {
       setEditing(next)
     }
@@ -179,8 +198,11 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
   const homes = profile.lines
     .filter((l) => l.closedOn === undefined && profile.accounts.find((a) => a.id === l.accountId)?.type === 'home')
     .map((l) => ({ id: l.id, name: l.name }))
-  const unlock = view.rows.find((r) => r.kind === 'unlock')
+  const unlock = view.accountRows.find((r) => r.kind === 'unlock')
   const slow = view.rows.find((r) => r.kind === 'slow')
+  const categoryRow = view.rows.find((r) => r.kind === 'category')
+  const account = profile.accounts.find((a) => a.id === accountId)!
+  const establishment = profile.establishments.find((e) => e.id === account.establishmentId)!
   const residence = view.rows.find((r) => r.kind === 'residence')
   const group = view.rows.find((r) => r.kind === 'group')
   const purchase = view.rows.find((r) => r.kind === 'purchase')
@@ -243,8 +265,10 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
       form = (
         <SlowEdit
           slow={slow.slow}
+          wholeAccount={slow.wholeAccount}
           saveError={said}
-          onSave={(next) => profileWrite((p, l) => setSlow(p, l.accountId, next))}
+          // A line alone in its account answers for the account, as before the answers by line.
+          onSave={(next, scope) => profileWrite((p) => setLineSlow(p, lineId, next, slow.wholeAccount ? scope : 'account'))}
           onCancel={leave}
         />
       )
@@ -303,9 +327,57 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
       form = (
         <PlaceEdit
           choices={placeChoices(profile, lineId)}
-          current={line.category ?? view.category ?? undefined}
+          establishment={establishment}
+          newTypes={newAccountTypes(profile, lineId)}
+          companions={newAccountCompanions(profile, lineId)}
           saveError={said}
-          onSubmit={({ to, category }) => profileWrite((p) => fileLine(p, lineId, to, category))}
+          onSubmit={(to) => profileWrite((p) => fileLine(p, lineId, to, null))}
+          // The lines taken along are the ones still open in the same account at save time.
+          onCreate={({ type, name, lineIds }) =>
+            profileWrite((p) => {
+              const along = newAccountCompanions(p, lineId).filter((l) => lineIds.includes(l.id)).map((l) => l.id)
+              return moveToNewAccount(p, [lineId, ...along], type, name)
+            })
+          }
+          onCancel={leave}
+        />
+      )
+    } else if (editing === 'category' && categoryRow?.kind === 'category') {
+      form = (
+        <CategoryEdit
+          category={categoryRow.category}
+          saveError={said}
+          onSave={(next) => profileWrite((p) => setCategory(p, lineId, next))}
+          onCancel={leave}
+        />
+      )
+    } else if (editing === 'accountType') {
+      form = (
+        <AccountTypeEdit
+          establishment={establishment}
+          allowed={accountTypeChoices(profile, accountId)}
+          saveError={said}
+          onSave={(type) => profileWrite((p, l) => setAccountType(p, l.accountId, type))}
+          onCancel={leave}
+        />
+      )
+    } else if (editing === 'bank') {
+      form = (
+        <BankEdit
+          banks={bankChoices(profile, accountId)}
+          saveError={said}
+          onSave={(to) => profileWrite((p, l) => moveAccount(p, l.accountId, to))}
+          onCancel={leave}
+        />
+      )
+    } else if (editing === 'counted') {
+      form = (
+        <CountedForm
+          profile={profile}
+          line={line}
+          snapshots={model.snapshots}
+          saveError={said}
+          onRecount={(target, rate) => write((s) => recountLine(s.profile.value, s.snapshots, lineId, target, rate))}
           onCancel={leave}
         />
       )
@@ -315,4 +387,41 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
   return <LineSheet view={view} form={form} notice={
         view.state.kind === 'open' || (view.state.kind === 'closing-unfinished' && said === SAVE_FAILED) ? null : said
       } onEdit={open} />
+}
+
+// « Compté en » needs today's rate of a currency the snapshots may lack: asked only while it is open.
+function CountedForm({
+  profile,
+  line,
+  snapshots,
+  saveError,
+  onRecount,
+  onCancel,
+}: {
+  profile: Profile
+  line: Line
+  snapshots: Ready['model']['snapshots']
+  saveError: string | null
+  onRecount: (target: RecountTarget, rate: number | null) => Promise<boolean>
+  onCancel: () => void
+}) {
+  const market = useMarket([], { rates: true })
+  const stored = snapshots.map((s) => ({ id: s.id, value: s.value }))
+  const choices = recountChoices(profile, line.id, stored)
+  if (!choices) return null
+  const rateOf = (currency: string) => (market.status === 'ready' ? eurPerUnit(market.market.rates, currency) : null)
+  return (
+    <CountedEdit
+      line={line}
+      kinds={choices.kinds}
+      currencies={choices.currencies}
+      preview={(target) => {
+        const shown = recountPreview(profile, stored, line.id, target, rateOf(target.currency))
+        return shown === 'no-rate' && market.status === 'loading' ? 'waiting' : shown
+      }}
+      saveError={saveError}
+      onRecount={(target) => onRecount(target, rateOf(target.currency))}
+      onCancel={onCancel}
+    />
+  )
 }

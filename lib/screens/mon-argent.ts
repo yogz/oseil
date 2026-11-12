@@ -1,5 +1,6 @@
 // What « Mon argent » shows, as words and figures. Pure: no React, no database.
 
+import { recountUnfinished } from '@/lib/correct/recount'
 import type { Model } from '@/lib/app/use-model'
 import { CATEGORIES, CATEGORY_ORDER, GOAL_COLOR } from '@/lib/catalog'
 import { formatDayMonth, formatEurosShown, formatMonthYear, formatPercent1, formatWholePercent, HIDDEN_AMOUNT } from '@/lib/format'
@@ -121,7 +122,8 @@ export type MonArgentView =
   | { kind: 'unreadable-profile' }
   | { kind: 'resume'; remaining: number; onlyBanks: boolean; entered: Entered }
   | { kind: 'reveal-pending' }
-  | { kind: 'error'; reason: 'inconsistent' | 'unreadable' }
+  // `unfinished`: a recount cut short, whose fiche finishes it (« Terminer »).
+  | { kind: 'error'; reason: 'inconsistent' | 'unreadable'; unfinished?: { href: string; name: string } }
   | ({ kind: 'board' } & Board)
 
 const NO_GRID_NEGATIVE =
@@ -625,7 +627,11 @@ export function monArgentView(model: Model, today: IsoDate, market: Market | nul
     }
     return { kind: 'board', ...buildBoard(model, profile, snapshots, today, market) }
   } catch (error) {
-    if (error instanceof ComputeFailure) return { kind: 'error', reason: error.reason }
+    if (error instanceof ComputeFailure) {
+      const stored = model.snapshots.map((s) => ({ id: s.id, value: s.value }))
+      const cut = profile.lines.find((l) => recountUnfinished(profile, stored, l.id))
+      return { kind: 'error', reason: error.reason, ...(cut ? { unfinished: { href: `/ligne/${cut.id}`, name: cut.name } } : {}) }
+    }
     throw error
   }
 }

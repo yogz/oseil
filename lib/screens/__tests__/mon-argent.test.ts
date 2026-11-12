@@ -509,6 +509,18 @@ describe('the other states', () => {
     expect(monArgentView(modelOf({ snapshots: [snap] }), TODAY)).toEqual({ kind: 'error', reason: 'inconsistent' })
   })
 
+  // A recount cut short (docs/superpowers/specs/2026-11-11-tout-corriger-depuis-la-fiche-design.md): the way
+  // to its fiche, where « Terminer » finishes it, is given.
+  test('a recount cut short points to the fiche that finishes it', () => {
+    const profile = profileOf([account('pea', 'pea')], [line('fund', 'pea', { name: 'Fonds', kind: 'amount' })])
+    const snap = snapshotOf([{ lineId: 'fund', kind: 'units', units: 4, unitPrice: 250, averagePrice: null, seenOn: '2026-09-30' }])
+    expect(monArgentView(modelOf({ profile, snapshots: [snap] }), TODAY)).toEqual({
+      kind: 'error',
+      reason: 'inconsistent',
+      unfinished: { href: '/ligne/fund', name: 'Fonds' },
+    })
+  })
+
   test('every snapshot unreadable is said as unreadable', () => {
     expect(monArgentView(modelOf({ snapshots: [], unreadable: { snapshots: 2 } }), TODAY)).toEqual({
       kind: 'error',

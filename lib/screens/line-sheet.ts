@@ -2,7 +2,9 @@
 
 import type { Model } from '@/lib/app/use-model'
 import { ACCOUNT_TYPES, CATEGORIES, CURRENCIES, GROUP_LABELS, isRanged } from '@/lib/catalog'
+import { accountTypeChoices, slowDecidedByType, lineSlow } from '@/lib/correct/account-changes'
 import { placeChoices } from '@/lib/correct/profile-changes'
+import { recountChoices, recountUnfinished } from '@/lib/correct/recount'
 import { closingBounds, closingUnfinished, deleteLine } from '@/lib/correct/snapshot-changes'
 import type { StoredSnapshot } from '@/lib/correct/types'
 import { currencySymbol, formatDayMonth, formatEurosShown, formatPriceShown, formatRate, formatShortDayMonth, formatUnits } from '@/lib/format'
@@ -29,6 +31,7 @@ import {
   PURCHASE_IN_EUROS_VALUE,
   PURCHASE_TYPED,
   purchaseLabel,
+  KIND_WORDS,
   UNITS_LABEL,
 } from '@/lib/screens/line-words'
 import { titleRows } from '@/lib/screens/titles'
@@ -42,7 +45,13 @@ export type SheetRow =
   | { kind: 'price'; following: boolean } // only for a line « Tes titres » lists
   | { kind: 'financed'; value: string } // the home line's name, or NO_HOME
   | { kind: 'unlock'; year: number | null } // only for an employee-savings account
-  | { kind: 'slow'; slow: boolean } // not for a home, a PER, employee savings or a loan: their type decides
+  // Not for a home, a PER, employee savings or a loan: their type decides. `wholeAccount`: the account
+  // has other open lines, so « Pour tout le compte » is offered.
+  | { kind: 'slow'; slow: boolean; wholeAccount: boolean }
+  | { kind: 'category'; category: CategoryId; value: string } // any line but a loan's and a home's
+  | { kind: 'counted'; value: string } // « parts · $ »: not for a loan or a home
+  | { kind: 'accountType'; value: string } // only when another type would take all its lines
+  | { kind: 'bank'; value: string } // the account moves whole; not for a home
   | { kind: 'residence'; residence: Residence } // only for a home; absent on the account reads 'main'
   // Only a line in parts in another currency with a purchase price: the rate of its purchases
   // (docs/superpowers/specs/2026-11-11-change-a-l-achat-design.md).
@@ -68,8 +77,14 @@ export type LineSheetView = {
   debt: string | null // « 260 000 € dont 80 000 € dus à la banque », for a line a loan finances
   detail: string
   loanAtHome: boolean
-  state: { kind: 'open' } | { kind: 'closed'; on: string } | { kind: 'closing-unfinished'; on: string }
-  rows: SheetRow[] // empty unless state is open
+  state:
+    | { kind: 'open' }
+    | { kind: 'closed'; on: string }
+    | { kind: 'closing-unfinished'; on: string }
+    | { kind: 'recount-unfinished' } // a snapshot holds it in another kind: « Terminer »
+  rows: SheetRow[] // « Cette ligne »; empty unless state is open
+  accountTitle: string | null // « PEA · BoursoBank », over « Son compte »; null when it has no row
+  accountRows: SheetRow[] // « Son compte »: its type, its bank, the year it unlocks
   close: { label: string; possible: boolean }
   canDelete: boolean // false: the only entry of a snapshot
   locked: 'update-running' | 'unreadable' | null
@@ -92,14 +107,16 @@ export function lineSheetView(model: Model, lineId: string, today: IsoDate, mark
 
   const isLoan = account.type === 'loan'
   const stored: StoredSnapshot[] = model.snapshots.map((s) => ({ id: s.id, value: s.value }))
-  const { prices } = market ? usablePrices(profile, saved, market, today) : { prices: {} }
+  // A recount cut short leaves snapshots that disagree with the line: nothing is computed on them.
+  const unfinished = recountUnfinished(profile, stored, lineId)
+  const { prices } = market && !unfinished ? usablePrices(profile, saved, market, today) : { prices: {} }
   const { snapshot } = convertible(profile, withPrices(saved, prices))
   const entry = snapshot.entries.find((e) => e.lineId === lineId)
   const day = formatDayMonth(saved.takenOn, today)
 
   // A loan's amount is what is owed, positive, never in red.
-  const gross = entry ? entryValue(entry, line, snapshot.fx) : null
-  const amountNote = entry ? null : NO_RATE_AMOUNT
+  const gross = entry && !unfinished ? entryValue(entry, line, snapshot.fx) : null
+  const amountNote = entry || unfinished ? null : NO_RATE_AMOUNT
 
   // A line a loan finances: its figure at the top is the one the category detail gives it, what its
   // squares are worth, its value less the loan, the same everywhere. The fiche then says what the
@@ -117,7 +134,7 @@ export function lineSheetView(model: Model, lineId: string, today: IsoDate, mark
 
   const parts: string[] = []
   if (isLoan) parts.push('reste à rembourser')
-  else if (savedEntry.kind === 'units') {
+  else if (savedEntry.kind === 'units' && !unfinished) {
     parts.push(`${formatUnits(savedEntry.units)} ${savedEntry.units > 1 ? 'parts' : 'part'}`)
     const price = formatPriceShown(entry?.kind === 'units' ? entry.unitPrice : savedEntry.unitPrice, line.currency)
     // Only a price taken today is « du jour »; any other is the snapshot's own.
@@ -126,37 +143,49 @@ export function lineSheetView(model: Model, lineId: string, today: IsoDate, mark
   parts.push(`relevé du ${day}`)
 
   const closedOn = line.closedOn
-  const state: LineSheetView['state'] = closingUnfinished(profile, stored, lineId)
+  const state: LineSheetView['state'] = unfinished
+    ? { kind: 'recount-unfinished' }
+    : closingUnfinished(profile, stored, lineId)
     ? { kind: 'closing-unfinished', on: formatDayMonth(closedOn!, today) }
     : closedOn !== undefined
       ? { kind: 'closed', on: formatDayMonth(closedOn, today) }
       : { kind: 'open' }
 
   const rows: SheetRow[] = []
+  const accountRows: SheetRow[] = []
+  const typeLabel = account.type === 'other' ? account.name : ACCOUNT_TYPES[account.type].label
   if (state.kind === 'open') {
     const label = isLoan ? OWED_LABEL : line.kind === 'units' ? UNITS_LABEL : AMOUNT_LABEL
     rows.push({ kind: 'name', value: line.name })
     rows.push({ kind: 'figures', label, value: `au ${formatShortDayMonth(saved.takenOn)}` })
-    if (placeChoices(profile, lineId).moves !== 'none') {
-      const type = account.type === 'other' ? line.name : ACCOUNT_TYPES[account.type].label
-      rows.push({ kind: 'place', value: establishment.kind === 'home' ? establishment.name : `${type} · ${establishment.name}` })
-    }
-    if (account.type === 'home') rows.push({ kind: 'residence', residence: account.residence ?? 'main' })
     const own = categoryOf(line, account)
+    if (own !== null && placeChoices(profile, lineId).category) {
+      rows.push({ kind: 'category', category: own, value: CATEGORIES[own].label })
+    }
     if (own !== null && isRanged(own)) {
       const chapter = chapterOf(line, account, own)
       const group: GroupId = chapter === null ? 'unknown' : (chapter as GroupId)
       rows.push({ kind: 'group', label: own === 'markets' ? GROUP_ZONE : GROUP_TYPE, value: GROUP_LABELS[group], group })
     }
+    // A line among others of its account goes to another account; an account alone moves by its bank.
+    // Its account's name only: its bank is said beside « Son compte ».
+    if (placeChoices(profile, lineId).moves === 'line') rows.push({ kind: 'place', value: account.name })
+    if (account.type === 'home') rows.push({ kind: 'residence', residence: account.residence ?? 'main' })
+    if (!slowDecidedByType(account.type)) {
+      const others = profile.lines.some((l) => l.accountId === account.id && l.id !== lineId && l.closedOn === undefined)
+      rows.push({ kind: 'slow', slow: lineSlow(line, account), wholeAccount: others })
+    }
+    if (recountChoices(profile, lineId)) {
+      rows.push({ kind: 'counted', value: `${KIND_WORDS[line.kind]} · ${currencySymbol(line.currency)}` })
+    }
     const followable = titleRows(profile, undefined).find((row) => row.lineId === lineId)
     if (followable) rows.push({ kind: 'price', following: followable.symbol !== null })
     if (isLoan) rows.push({ kind: 'financed', value: financed?.name ?? NO_HOME })
+    if (accountTypeChoices(profile, account.id).length > 0) accountRows.push({ kind: 'accountType', value: typeLabel })
     if (account.type === 'employee-savings') {
-      rows.push({ kind: 'unlock', year: account.unlockOn ? Number(account.unlockOn.slice(0, 4)) : null })
+      accountRows.push({ kind: 'unlock', year: account.unlockOn ? Number(account.unlockOn.slice(0, 4)) : null })
     }
-    if (!['home', 'per', 'employee-savings', 'loan'].includes(account.type)) {
-      rows.push({ kind: 'slow', slow: account.slow === true })
-    }
+    if (account.type !== 'home') accountRows.push({ kind: 'bank', value: establishment.name })
     const paid = purchaseCost(line, model.snapshots.map((s) => s.value))
     if (paid) {
       rows.push({
@@ -195,6 +224,8 @@ export function lineSheetView(model: Model, lineId: string, today: IsoDate, mark
     loanAtHome: isLoan && establishment.kind === 'home',
     state,
     rows,
+    accountTitle: accountRows.length > 0 ? `${typeLabel} · ${establishment.name}` : null,
+    accountRows,
     close: {
       label: closeWord(account.type),
       possible: closingBounds(stored, lineId, today) !== null,

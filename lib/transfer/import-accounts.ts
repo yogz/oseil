@@ -266,11 +266,6 @@ const AGREED = [
   },
   { key: 'unlockOn', value: (a: AccountCells) => a.unlockOn, show: (v: unknown) => q(dayText(v as IsoDate)) },
   {
-    key: 'slow',
-    value: (a: AccountCells) => a.slow,
-    show: (v: unknown) => q(v ? SETTING_VALUES.yes : SETTING_VALUES.no),
-  },
-  {
     key: 'financedLine',
     value: (a: AccountCells) => (a.financed === undefined || a.financed === null ? a.financed : normalizeWord(a.financed)),
     show: (_v: unknown, a: AccountCells) => q(a.financed!),
@@ -542,7 +537,8 @@ function assemble(
         type: group.type!,
         name: first.name,
         ...(first.unlockOn ? { unlockOn: first.unlockOn } : {}),
-        ...(first.slow ? { slow: true as const } : {}),
+        // « Long à récupérer » is each line's answer: the account says it when all its rows do.
+        ...(group.rows.every((r) => r.account.slow) ? { slow: true as const } : {}),
         ...(residence && residence !== 'main' ? { residence } : {}),
       })
     }
@@ -559,6 +555,7 @@ function assemble(
       ...(line.symbol ? { quoteSymbol: line.symbol } : {}),
       ...(line.closedOn ? { closedOn: line.closedOn } : {}),
       ...(line.purchase ? { purchase: line.purchase } : {}),
+      ...(row.account.slow && !accounts.get(group)!.slow ? { slow: true } : {}),
     })
   }
   for (const [group, account] of accounts) {

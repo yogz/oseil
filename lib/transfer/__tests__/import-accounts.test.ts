@@ -220,7 +220,6 @@ describe('readAccounts', () => {
     expect(messages(result)).toEqual([
       'Onglet Comptes, ligne 3 : le compte « BoursoBank › PEA » dit « PEA » dans « Type de compte » à la ligne 2, et « Compte-titres » ici. Ces cases se répètent sans changer sur chaque ligne d’un compte.',
       'Onglet Comptes, ligne 4 : le compte « BoursoBank › PEA » dit « 01/05/2029 » dans « Débloqué le » à la ligne 2, et rien ici. Ces cases se répètent sans changer sur chaque ligne d’un compte.',
-      'Onglet Comptes, ligne 4 : le compte « BoursoBank › PEA » dit « non » dans « Long à récupérer » à la ligne 2, et « oui » ici. Ces cases se répètent sans changer sur chaque ligne d’un compte.',
     ])
   })
 
@@ -540,7 +539,7 @@ const REFUSAL_CASES: Record<keyof typeof ACCOUNT_REFUSALS, { errors: () => Impor
   strayValue: { errors: () => errorsOf(run({ bank: 'B', slow: 'oui' })), says: 'n’a pas de « Compte »' },
   duplicateLine: { errors: () => errorsOf(run(livret, livret)), says: 'sans identifiant pour les distinguer' },
   duplicateId: { errors: () => errorsOf(run({ ...livret, reference: 'x' }, { ...livret, line: 'B', reference: 'x' })), says: 'est déjà celui' },
-  accountDisagrees: { errors: () => errorsOf(run(livret, { ...livret, line: 'B', slow: 'oui' })), says: 'se répètent sans changer' },
+  accountDisagrees: { errors: () => errorsOf(run(livret, { ...livret, line: 'B', unlockOn: new Date('2029-05-01T00:00:00.000Z') })), says: 'se répètent sans changer' },
   ambiguousAccount: {
     errors: () => errorsOf(run({ ...livret, accountReference: 'a' }, { ...livret, line: 'B', accountReference: 'b' }, { ...livret, line: 'C' })),
     says: 'plusieurs comptes',
@@ -610,3 +609,19 @@ describe('the rate of purchases of a line in another currency', () => {
     expect(messages(run({ ...livret, purchase: '1,2' })).join(' ')).toContain('n’est pas un taux d’achat')
   })
 })
+
+// Quick or slow, line by line (11 November 2026): « Long à récupérer » is a line's own answer.
+describe('« Long à récupérer », line by line', () => {
+  const pea = { bank: 'BoursoBank', account: 'PEA', type: 'PEA' }
+  it('marks the account when every line says « oui »', () => {
+    const profile = profileOf(run({ ...pea, line: 'A', slow: 'oui' }, { ...pea, line: 'B', slow: 'oui' }))
+    expect(profile.accounts[0].slow).toBe(true)
+    expect(profile.lines.every((l) => l.slow === undefined)).toBe(true)
+  })
+  it('otherwise marks only the lines that say it', () => {
+    const profile = profileOf(run({ ...pea, line: 'A', slow: 'oui' }, { ...pea, line: 'B' }))
+    expect(profile.accounts[0].slow).toBeUndefined()
+    expect(profile.lines.map((l) => [l.name, l.slow])).toEqual([['A', true], ['B', undefined]])
+  })
+})
+

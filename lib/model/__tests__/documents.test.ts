@@ -356,3 +356,17 @@ describe('parseProfile: the purchase of a line in another currency', () => {
     expect(parseProfile(withLine({ perEuro: 1.2 }, 'EUR'))).toBeNull()
   })
 })
+
+// docs/superpowers/specs/2026-11-11-tout-corriger-depuis-la-fiche-design.md: quick or slow, line by line.
+describe('parseProfile: a line quick or slow of its own', () => {
+  const withSlow = (slow: unknown) => {
+    const profile = clone(exampleProfile) as unknown as { lines: Record<string, unknown>[] }
+    profile.lines[0] = { ...profile.lines[0], slow }
+    return profile
+  }
+  test('keeps true and false, refuses anything else', () => {
+    expect(parseProfile(withSlow(true))?.lines[0].slow).toBe(true)
+    expect(parseProfile(withSlow(false))?.lines[0].slow).toBe(false)
+    expect(parseProfile(withSlow('oui'))).toBeNull()
+  })
+})

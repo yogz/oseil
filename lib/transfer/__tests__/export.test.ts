@@ -508,3 +508,21 @@ test('the instructions say where crowdfunding, SCPI and Girardin go', () => {
   expect(prompt).toMatch(/SCPI.*« Investissement locatif »/)
   expect(prompt).toMatch(/Girardin.*ne l’inscris pas/)
 })
+
+// Quick or slow, line by line (11 November 2026): each row says its line's answer.
+test('writes the answer of each line, its own or its account’s', () => {
+  const input = fixtureInput()
+  input.profile = { ...input.profile, lines: input.profile.lines.map((l) => (l.id === 'l-usd' ? { ...l, slow: false } : l)) }
+  const rows = sheet(exportSheets(input), SHEETS.accounts).rows
+  const rowOf = (lineId: string) => rows.find((row) => cell(row, 'accounts', 'reference') === lineId)!
+  expect(cell(rowOf('l-usd'), 'accounts', 'slow')).toBeNull()
+  expect(cell(rowOf('l-closed'), 'accounts', 'slow')).toBe('oui')
+})
+
+test('a type that decides quick or slow by itself never says « oui » for a line', () => {
+  const input = fixtureInput()
+  input.profile = { ...input.profile, lines: input.profile.lines.map((l) => (l.id === 'l-pee' ? { ...l, slow: true } : l)) }
+  const rows = sheet(exportSheets(input), SHEETS.accounts).rows
+  expect(cell(rows.find((row) => cell(row, 'accounts', 'reference') === 'l-pee')!, 'accounts', 'slow')).toBeNull()
+})
+

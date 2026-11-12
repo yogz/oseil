@@ -48,13 +48,18 @@ const model = modelOf(followed, [exampleSnapshot])
 describe('the fiche of a line', () => {
   test('describes a fund of a PEA at today’s price, as the category detail does', () => {
     const view = lineSheetView(model, 'etf', TODAY, marketWith(260))!
-    expect(view.rows.map((r) => r.kind)).toEqual(['name', 'figures', 'place', 'group', 'price', 'slow'])
+    // « Cette ligne », then « Son compte » (11 November 2026, « tout corriger depuis la fiche »).
+    expect(view.rows.map((r) => r.kind)).toEqual(['name', 'figures', 'category', 'group', 'slow', 'counted', 'price'])
+    expect(view.accountTitle).toBe('PEA · BoursoBank')
+    expect(view.accountRows.map((r) => r.kind)).toEqual(['accountType', 'bank'])
+    expect(view.rows).toContainEqual({ kind: 'category', category: 'markets', value: 'Placements en bourse' })
+    expect(view.rows).toContainEqual({ kind: 'counted', value: 'parts · €' })
     expect(view.close.label).toBe('Fermé ou tout vendu')
     expect(plain(view.detail)).toBe('100 parts · prix du jour 260,00 € · relevé du 30 septembre')
     expect(plain(view.amount)).toBe('26 000 €')
     expect(view.back).toEqual({ href: '/categorie/markets', label: 'Placements en bourse' })
     expect(view.rows).toContainEqual({ kind: 'price', following: true })
-    expect(view.rows).toContainEqual({ kind: 'place', value: 'PEA · BoursoBank' })
+    expect(view.accountRows).toContainEqual({ kind: 'bank', value: 'BoursoBank' })
     expect(view.rows).toContainEqual({ kind: 'figures', label: 'Ses parts et son prix moyen', value: 'au 30 sept.' })
   })
 
@@ -68,9 +73,9 @@ describe('the fiche of a line', () => {
     const view = lineSheetView(model, 'mortgage-line', TODAY, null)!
     expect(view.loanAtHome).toBe(true)
     expect(view.close.label).toBe('Remboursé')
-    expect(view.rows.map((r) => r.kind)).toEqual(['name', 'figures', 'place', 'financed'])
+    expect(view.rows.map((r) => r.kind)).toEqual(['name', 'figures', 'financed'])
+    expect(view.accountRows).toEqual([{ kind: 'bank', value: 'Chez toi' }])
     expect(view.rows).toContainEqual({ kind: 'figures', label: 'Ce qui reste à rembourser', value: 'au 30 sept.' })
-    expect(view.rows).toContainEqual({ kind: 'place', value: 'Chez toi' })
     expect(view.rows).toContainEqual({ kind: 'financed', value: 'Maison' })
     expect(view.back.href).toBe('/categorie/property')
     expect(view.category).toBeNull()
@@ -206,9 +211,10 @@ describe('the fiche of a line', () => {
       [line('es-l', 'es'), line('es2-l', 'es2'), line('cur-l', 'cur')],
     )
     const m = modelOf(profile, [snapshotOf([amountEntry('es-l', 1), amountEntry('es2-l', 1), amountEntry('cur-l', 1)])])
-    expect(lineSheetView(m, 'es-l', TODAY, null)!.rows).toContainEqual({ kind: 'unlock', year: 2029 })
-    expect(lineSheetView(m, 'es2-l', TODAY, null)!.rows).toContainEqual({ kind: 'unlock', year: null })
-    expect(lineSheetView(m, 'cur-l', TODAY, null)!.rows.some((r) => r.kind === 'unlock')).toBe(false)
+    // An account's year: under « Son compte ».
+    expect(lineSheetView(m, 'es-l', TODAY, null)!.accountRows).toContainEqual({ kind: 'unlock', year: 2029 })
+    expect(lineSheetView(m, 'es2-l', TODAY, null)!.accountRows).toContainEqual({ kind: 'unlock', year: null })
+    expect(lineSheetView(m, 'cur-l', TODAY, null)!.accountRows.some((r) => r.kind === 'unlock')).toBe(false)
   })
 
   test('asks whether it is quick to get back, except for a home, a PER, employee savings and a loan', () => {
@@ -235,8 +241,8 @@ describe('the fiche of a line', () => {
       [snapshotOf(['cur-l', 'oth-l', 'house-l', 'per-l', 'es-l', 'loan-l'].map((id) => amountEntry(id, 1)))],
     )
     const slowRow = (id: string) => lineSheetView(m, id, TODAY, null)!.rows.find((r) => r.kind === 'slow')
-    expect(slowRow('cur-l')).toEqual({ kind: 'slow', slow: false })
-    expect(slowRow('oth-l')).toEqual({ kind: 'slow', slow: true })
+    expect(slowRow('cur-l')).toEqual({ kind: 'slow', slow: false, wholeAccount: false })
+    expect(slowRow('oth-l')).toEqual({ kind: 'slow', slow: true, wholeAccount: false })
     for (const id of ['house-l', 'per-l', 'es-l', 'loan-l']) expect(slowRow(id)).toBeUndefined()
   })
 
@@ -291,5 +297,38 @@ describe('the fiche of a line', () => {
 
   test('has the controller’s copy for a line changed meanwhile', () => {
     expect(CHANGED_MEANWHILE).toBe('Cette ligne a changé entre-temps\u00A0: rien n’a été modifié.')
+  })
+})
+
+// docs/superpowers/specs/2026-11-11-tout-corriger-depuis-la-fiche-design.md
+describe('everything corrected from the fiche', () => {
+  const crowd: Profile = {
+    ...exampleProfile,
+    lines: [
+      ...exampleProfile.lines,
+      line('villa', 'pea', { kind: 'amount', category: 'secured', group: 'unknown', slow: true }),
+      line('reaumur', 'pea', { kind: 'amount', category: 'secured' }),
+    ],
+  }
+  const snapshot = { ...exampleSnapshot, entries: [...exampleSnapshot.entries, amountEntry('villa', 1_000), amountEntry('reaumur', 1_000)] }
+  test('a line among others of its account: where it is filed, its own slow answer, « Pour tout le compte »', () => {
+    const view = lineSheetView(modelOf(crowd, [snapshot]), 'villa', TODAY, null)!
+    expect(view.rows.map((r) => r.kind)).toEqual(['name', 'figures', 'category', 'group', 'place', 'slow', 'counted'])
+    expect(view.rows).toContainEqual({ kind: 'place', value: 'PEA' })
+    expect(view.rows).toContainEqual({ kind: 'slow', slow: true, wholeAccount: true })
+    expect(view.rows).toContainEqual({ kind: 'counted', value: 'montant · €' })
+  })
+  test('a home has no category to choose, no account rows', () => {
+    const view = lineSheetView(modelOf(crowd, [snapshot]), 'house-line', TODAY, null)!
+    expect(view.rows.some((r) => r.kind === 'category' || r.kind === 'counted')).toBe(false)
+    expect(view.accountTitle).toBeNull()
+  })
+  test('a recount cut short: no figure computed, « Terminer » offered', () => {
+    const cut = { ...snapshot, entries: snapshot.entries.map((e) => (e.lineId === 'villa' ? { lineId: 'villa', kind: 'units' as const, units: 4, unitPrice: 250, averagePrice: null, seenOn: e.seenOn } : e)) }
+    const view = lineSheetView(modelOf(crowd, [cut]), 'villa', TODAY, null)!
+    expect(view.state).toEqual({ kind: 'recount-unfinished' })
+    expect(view.amount).toBeNull()
+    expect(view.amountNote).toBeNull()
+    expect(view.rows).toEqual([])
   })
 })

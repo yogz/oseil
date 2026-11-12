@@ -3,6 +3,7 @@ import { SITE_METADATA } from "@/lib/app/site-metadata";
 import localFont from "next/font/local";
 import "./globals.css";
 import { THEME_SCRIPT } from "@/lib/app/theme";
+import { Analytics } from "@vercel/analytics/next";
 
 // The font file lives in this repository, and that is the whole point.
 // The remote Google loader downloads it during the build: when Google declines the
@@ -35,7 +36,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="min-h-full flex flex-col bg-ground text-ink font-sans">{children}</body>
+      <body className="min-h-full flex flex-col bg-ground text-ink font-sans">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }

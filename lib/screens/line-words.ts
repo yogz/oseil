@@ -55,11 +55,12 @@ export const SINCE = 'Depuis quand\u00A0?'
 export const ONLY_LINE = 'C’est la seule ligne d’un de tes relevés\u00A0: corrige-la plutôt que de la supprimer.'
 export const TOO_EARLY = 'Avant ce jour, il n’avait jamais de valeur\u00A0: pour l’effacer, supprime-le.'
 export const IN_THE_FUTURE = 'Choisis un jour passé ou aujourd’hui.'
-export const NO_OTHER_BANK = 'Tu n’as pas d’autre banque ici pour l’instant. En ajouter une viendra avec les Réglages.'
+export const NO_OTHER_BANK = 'Tu n’as pas d’autre banque pour l’instant. Ajoute-la dans les Réglages, puis reviens ici.'
 export const NO_OTHER_ACCOUNT = 'Tu n’as pas d’autre compte où le ranger.'
 export const OPEN_LINES = 'Voir ses lignes'
 export const SHEET_OF = (name: string) => `La fiche de « ${name} »`
 export const DEBT_SENTENCE = (gross: string, owed: string) => `${gross} dont ${owed} dus à la banque`
+export const NO_TODAY_RATE = 'Le cours du jour de cette devise n’est pas arrivé\u00A0: rien n’a été recompté. Réessaie dans un moment.'
 export const CHANGED_MEANWHILE = 'Cette ligne a changé entre-temps\u00A0: rien n’a été modifié.'
 
 // The simple corrections.
@@ -83,6 +84,36 @@ export const GROUP_TYPE = 'Type'
 // The type of a home (RESIDENCE_LABELS): it describes the home, not a moment, so it holds for every snapshot.
 export const RESIDENCE_LABEL = 'Type'
 export const RESIDENCE_HISTORY = 'Il s’applique à tout l’historique, même à tes anciens relevés.'
+// Everything corrected from the fiche (docs/superpowers/specs/2026-11-11-tout-corriger-depuis-la-fiche-design.md).
+export const LINE_SECTION = 'Cette ligne'
+export const ACCOUNT_SECTION = 'Son compte'
+export const CATEGORY_LABEL = 'Catégorie'
+export const COUNTED_LABEL = 'Compté en'
+export const ACCOUNT_TYPE_LABEL = 'Type du compte'
+export const BANK_LABEL = 'Sa banque'
+export const KIND_WORDS = { amount: 'montant', units: 'parts' } as const
+export const RECOUNT_UNFINISHED = 'Son recompte n’est pas allé jusqu’au bout.'
+export const SLOW_WHOLE_ACCOUNT = 'Pour tout le compte'
+export const NEW_ACCOUNT = '+ Un nouveau compte'
+export const NEW_ACCOUNT_NAME = 'Son nom'
+export const NEW_ACCOUNT_ALSO = 'Déplacer aussi'
+export const NEW_ACCOUNT_TYPE = 'Quel compte\u00A0?'
+export const RECOUNT = 'Recompter'
+export const RECOUNT_KIND = 'En parts ou en montant'
+export const RECOUNT_CURRENCY = 'Sa devise'
+export const RECOUNT_UNITS = 'Combien de parts aujourd’hui\u00A0?'
+export const RECOUNT_UNITS_UNREADABLE = 'Écris un nombre de parts plus grand que zéro.'
+export const RECOUNT_WAITING = 'Le cours du jour de cette devise arrive…'
+export const RECOUNT_SAME = 'C’est déjà ainsi qu’il est compté.'
+export const recountSentence = (n: number, before: string | null, after: string | null) => {
+  const which = n === 1 ? 'Ton relevé suivra' : `Tes ${n} relevés suivront`
+  if (before === null || after === null || before === after) return `${which}. ${n === 1 ? 'Sa' : 'Leur'} valeur ne change pas.`
+  return `${which}\u00A0: ${before} deviennent ${after}.`
+}
+export const recountTodayRates = (n: number, total: number) =>
+  n === total
+    ? n === 1 ? 'Il prend le cours du jour, faute d’en avoir un.' : 'Ils prennent le cours du jour, faute d’en avoir un.'
+    : `${n === 1 ? 'Un d’entre eux prend' : `${n} d’entre eux prennent`} le cours du jour, faute d’en avoir un.`
 export const SLOW_YES = 'Oui'
 export const SLOW_NO = 'Non'
 export const CATEGORY_CAPTION = 'Sa catégorie'
@@ -105,6 +136,8 @@ export function outcomeSentence(outcome: CorrectionOutcome | 'failed'): string |
       return TOO_EARLY
     case 'in-the-future':
       return IN_THE_FUTURE
+    case 'no-rate':
+      return NO_TODAY_RATE
     case 'failed':
       return SAVE_FAILED
   }
