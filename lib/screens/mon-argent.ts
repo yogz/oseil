@@ -1,5 +1,6 @@
 // What « Mon argent » shows, as words and figures. Pure: no React, no database.
 
+import { chapterOf, MOSTLY_CRYPTO, mostlyCrypto } from '@/lib/screens/chapters'
 import { homeFilter } from '@/lib/screens/home-in-grid'
 import { recountUnfinished } from '@/lib/correct/recount'
 import type { Model } from '@/lib/app/use-model'
@@ -469,6 +470,14 @@ function buildBoard(
 
     let note: string | null = null
     let pockets: PocketRow[] | undefined
+    // « Or et crypto » mostly crypto: said on its row (12 November 2026).
+    if (category === 'gold') {
+      const lines = entry.lines.map((held) => {
+        const line = profile.lines.find((l) => l.id === held.lineId)!
+        return { value: held.value, chapter: chapterOf(line, profile.accounts.find((a) => a.id === line.accountId)!, 'gold') }
+      })
+      if (mostlyCrypto(lines)) note = MOSTLY_CRYPTO
+    }
     if (category === 'property') {
       pockets = pocketRows(entry, situation, targets)
       // The house's own estimate: another line filed under Immobilier (an « Autre compte »

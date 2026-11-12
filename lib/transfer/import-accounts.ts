@@ -67,7 +67,12 @@ export type AccountsResult = { profile: Profile; index: AccountIndex } | { error
 const pairs = <T>(record: Record<string, T>) => Object.entries(record) as [string, T][]
 const typeOf = wordLookup(pairs(ACCOUNT_TYPES).map(([id, type]) => [type.label, id as AccountTypeId]))
 const categoryOf = wordLookup(pairs(CATEGORIES).map(([id, category]) => [category.label, id as CategoryId]))
-const groupOf = wordLookup(pairs(GROUP_LABELS).map(([id, label]) => [label, id as GroupId]))
+// The words of before 12 November 2026 stay read: a file written then still imports.
+const groupOf = wordLookup<GroupId>([
+  ...pairs(GROUP_LABELS).map(([id, label]): [string, GroupId] => [label, id as GroupId]),
+  ['Obligations et prêts', 'bonds'],
+  ['Non coté', 'unlisted'],
+])
 const kindOf = wordLookup(pairs(KIND_NAMES).map(([id, label]) => [label, id as Kind]))
 const residenceOf = wordLookup(pairs(RESIDENCE_LABELS).map(([id, label]) => [label, id as Residence]))
 const currencyOf = wordLookup(CURRENCIES.map((c): [string, CurrencyCode] => [c.code, c.code]))

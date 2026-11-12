@@ -43,7 +43,7 @@ describe('rangingView', () => {
       'Japon',
       'Pays émergents',
       'Fonds monde',
-      'Non coté',
+      'Hors bourse (non coté, prêts)',
       'Je ne sais pas',
     ])
     expect(view.options.find((o) => o.id === 'unknown')?.label).toBe('Je ne sais pas')

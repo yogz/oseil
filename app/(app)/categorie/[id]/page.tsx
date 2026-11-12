@@ -232,6 +232,7 @@ function Detail({
         <Figure quiet euros={view.euros} percent={view.percent} />
       </p>
       <p className="mt-1 text-body leading-relaxed text-ink-soft">{view.header}</p>
+      {view.cryptoNote ? <p className="text-caption text-ink-muted">{view.cryptoNote}</p> : null}
       {view.purchaseGain ? <PurchaseGain gain={view.purchaseGain} /> : null}
       {view.debtSentence ? (
         <p className="mt-1 text-body leading-relaxed text-ink-soft">{view.debtSentence}</p>
@@ -271,7 +272,7 @@ function Detail({
               open={open}
               squares={view.squares}
               focusedId={focusedId}
-              note={chapter.id === 'world' ? view.worldNote : null}
+              note={chapter.note}
             />
           ))}
         </div>

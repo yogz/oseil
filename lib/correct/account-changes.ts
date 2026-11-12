@@ -21,8 +21,12 @@ const without = <T extends object, K extends keyof T>(value: T, key: K): Omit<T,
 
 export const slowDecidedByType = (type: AccountTypeId) => DECIDED_BY_TYPE.includes(type)
 
-// A line's own answer, else its account's. Only for a type that does not decide it.
-export const lineSlow = (line: Line, account: Account) => line.slow ?? account.slow === true
+// What a line is without an answer of its own: slow when « Hors bourse » (non coté, prêts: decided by Nicolas on
+// 12 November 2026), else its account's.
+const slowByDefault = (line: Line, account: Account) => line.group === 'unlisted' || account.slow === true
+
+// A line's own answer, else its default. Only for a type that does not decide it.
+export const lineSlow = (line: Line, account: Account) => line.slow ?? slowByDefault(line, account)
 
 // « Récupérable en quelques semaines », for this line or (`scope` 'account') for its whole account,
 // whose lines then lose their own answer. A line that says what its account says carries no mark.
@@ -34,7 +38,7 @@ export function setLineSlow(profile: Profile, lineId: string, slow: boolean, sco
     const marked = mapAccount(profile, account.id, (a) => (slow ? { ...a, slow: true } : without(a, 'slow')))
     return { ...marked, lines: marked.lines.map((l) => (l.accountId === account.id ? (without(l, 'slow') as Line) : l)) }
   }
-  return mapLine(profile, lineId, (l) => (slow === (account.slow === true) ? (without(l, 'slow') as Line) : { ...l, slow }))
+  return mapLine(profile, lineId, (l) => (slow === slowByDefault(l, account) ? (without(l, 'slow') as Line) : { ...l, slow }))
 }
 
 // Whether `type` can take every line of an account, closed ones too: their kind, their number.

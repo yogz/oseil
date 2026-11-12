@@ -372,7 +372,7 @@ test('shows the zone of a markets line, and changes it in one profile write', as
     'Japon',
     'Pays émergents',
     'Fonds monde',
-    'Non coté',
+    'Hors bourse (non coté, prêts)',
     'Je ne sais pas',
   ])
   await user.selectOptions(select, 'États-Unis')
@@ -391,7 +391,7 @@ test('a secured line reads « Type », and cancelling saves nothing', async () =
   ready(secured, sharesSnapshot)
   mocks.params.current = { id: 'shares-l' }
   render(<LinePage />)
-  expect(screen.getByRole('button', { name: /^Type(?! du compte)/ })).toHaveTextContent('Obligations et prêts')
+  expect(screen.getByRole('button', { name: /^Type(?! du compte)/ })).toHaveTextContent('Obligations')
   await user.click(screen.getByRole('button', { name: /^Type(?! du compte)/ }))
   expect(screen.getByRole('combobox', { name: 'Type' })).toHaveValue('bonds')
   await user.click(screen.getByRole('button', { name: 'Annuler' }))

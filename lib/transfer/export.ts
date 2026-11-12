@@ -1,6 +1,6 @@
 // The model into sheets: what `writeWorkbook` turns into the exported file, and the
 // template a person fills in by hand. Every column comes from COLUMNS, in its order.
-import { slowDecidedByType } from '@/lib/correct/account-changes'
+import { lineSlow, slowDecidedByType } from '@/lib/correct/account-changes'
 import { ACCOUNT_TYPES, CATEGORIES, GOAL_CATEGORIES, GROUP_LABELS, RESIDENCE_LABELS } from '@/lib/catalog'
 import { entryValue } from '@/lib/model/situation'
 import type {
@@ -130,7 +130,7 @@ function accountRows(profile: Profile): Cell[][] {
       purchase: line.purchase ? ('inEuros' in line.purchase ? PURCHASE_IN_EUROS_WORD : line.purchase.perEuro) : null,
       // Each line's own answer, else its account's (11 November 2026, « tout corriger depuis la fiche »).
       // A type that decides by itself (a PER, a home…) leaves it empty, as the import asks.
-      slow: !slowDecidedByType(account.type) && (line.slow ?? account.slow === true) ? SETTING_VALUES.yes : null,
+      slow: !slowDecidedByType(account.type) && lineSlow(line, account) ? SETTING_VALUES.yes : null,
       reference: line.id,
     })
   const accountRowsOf = (account: Account) => {

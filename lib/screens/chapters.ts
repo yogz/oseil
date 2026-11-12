@@ -22,6 +22,20 @@ export const CHAPTER_LABELS: Record<ChapterId, string> = {
   location: 'En location',
 }
 
+// Said under a chapter (spec of 12 November 2026): what its name alone does not say about its risk.
+export const CHAPTER_NOTES: Partial<Record<ChapterId, string>> = {
+  bonds: 'Peut baisser un peu\u00A0: une obligation ne garantit pas ton capital.',
+  unlisted: 'Pas en bourse, long à revendre\u00A0: tu peux perdre une partie de ce que tu y as mis.',
+}
+
+// « Or et crypto » mostly crypto: said, since it varies far more than gold.
+export const MOSTLY_CRYPTO = 'Surtout de la crypto\u00A0: elle varie bien plus que l’or.'
+export function mostlyCrypto(lines: ReadonlyArray<{ value: number; chapter: ChapterId | null }>): boolean {
+  const total = lines.reduce((s, l) => s + Math.max(0, l.value), 0)
+  const crypto = lines.filter((l) => l.chapter === 'crypto').reduce((s, l) => s + Math.max(0, l.value), 0)
+  return total > 0 && crypto * 2 > total
+}
+
 const SAVINGS_BOOKS: readonly AccountTypeId[] = ['livret-a', 'ldds', 'lep', 'livret-jeune', 'pel-cel', 'other-savings']
 
 export function chapterOf(line: Line, account: Account, category: CategoryId): ChapterId | null {

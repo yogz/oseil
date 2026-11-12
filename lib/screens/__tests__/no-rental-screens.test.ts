@@ -97,6 +97,8 @@ const boardShape = (model: Model): unknown => {
 
 const DETAIL_KEYS = [
   'chapters',
+  // « Surtout de la crypto » (12 November 2026): null unless the crypto is most of « Or et crypto ».
+  'cryptoNote',
   'debtSentence',
   'debts',
   'euros',

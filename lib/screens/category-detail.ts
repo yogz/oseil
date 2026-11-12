@@ -31,7 +31,7 @@ import type { CategoryId, Cents, Establishment, GoalCategory, IsoDate } from '@/
 import { convertible, usablePrices, withPrices } from '@/lib/market/live'
 import type { Market } from '@/lib/market/types'
 import { lastKnownPrice, unconvertedSentence } from '@/lib/market/words'
-import { CHAPTER_LABELS, chapterOf, WORLD_FUND_NOTE, type ChapterId } from '@/lib/screens/chapters'
+import { CHAPTER_LABELS, CHAPTER_NOTES, chapterOf, MOSTLY_CRYPTO, mostlyCrypto, WORLD_FUND_NOTE, type ChapterId } from '@/lib/screens/chapters'
 import { DEBT_SENTENCE } from '@/lib/screens/line-words'
 import { debtsOf } from '@/lib/screens/debts'
 import { cushionGoalOf, excludedSentence, noGridSentence, pocketSentence } from '@/lib/screens/mon-argent'
@@ -67,6 +67,8 @@ export type GainFigure = { tone: { euros: Tone; percent: Tone }; euros: string; 
 export type Said = { euros: string; percent: string }
 
 export type DetailChapter = {
+  // Said under it: what its name alone does not say (« Fonds monde », « Obligations », « Hors bourse »).
+  note: string | null
   id: ChapterId
   label: string
   euros: string
@@ -101,6 +103,7 @@ export type CategoryDetailView = {
   tooSmall: DetailLine[]
   titlesLink: boolean // the category holds a line whose price could be followed
   worldNote: string | null // « Placements en bourse » with a line in « Fonds monde »: what MSCI World holds in the United States
+  cryptoNote: string | null // « Or et crypto » mostly crypto (12 November 2026)
   chapters: DetailChapter[] | null // null: one chapter would hold everything, or nothing to tell apart
   ranging: { href: string; label: string } | null // the way to « Ranger par zone/type »
   // Immobilier holding something Chez toi: the way to « Ta grille », in the settings (planche 3, option B,
@@ -452,7 +455,8 @@ function detailOf(
   }
   const rentalSquares = byChapter.get('location')?.squares ?? 0
   const chapters: DetailChapter[] | null =
-    byChapter.size < 2 && !inPockets
+    // « Or et crypto » always shows which it holds, even one of them only (12 November 2026).
+    byChapter.size < 2 && !inPockets && category !== 'gold'
       ? null
       : [...byChapter.entries()]
           .sort(([ida, a], [idb, b]) =>
@@ -501,6 +505,7 @@ function detailOf(
                     percent: `${label}, ${percent}, ${subSaid}, ${gainSaid.percent}`,
                   }
                 : null,
+              note: id === 'world' ? WORLD_FUND_NOTE : (CHAPTER_NOTES[id] ?? null),
               ...pocketAim(id, c),
               home: inPockets && id === 'chez-toi' && c.squares > 0 && rentalSquares > 0,
             }
@@ -551,6 +556,10 @@ function detailOf(
     tooSmall: order.filter((o) => o.tooSmall).map((o) => o.line),
     titlesLink: listed.some((held) => followable.has(held.lineId)),
     worldNote: category === 'markets' && detailLines.some((l) => l.chapter === 'world') ? WORLD_FUND_NOTE : null,
+    cryptoNote:
+      category === 'gold' && mostlyCrypto(listed.map((held, i) => ({ value: held.value, chapter: detailLines[i].chapter })))
+        ? MOSTLY_CRYPTO
+        : null,
     chapters,
     ranging,
     squares,

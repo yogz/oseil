@@ -625,3 +625,20 @@ describe('« Long à récupérer », line by line', () => {
   })
 })
 
+// The chapters renamed on 12 November 2026 (« Obligations », « Hors bourse (non coté, prêts) »): a file written
+// before still imports, its old words read as the new chapters.
+it('reads the chapters’ words of before: « Obligations et prêts », « Non coté »', () => {
+  const av = { bank: 'Linxea', account: 'Assurance-vie', type: 'Assurance-vie' }
+  const pea = { bank: 'BoursoBank', account: 'PEA', type: 'PEA' }
+  const profile = profileOf(
+    run(
+      { ...av, line: 'Fonds obligataire', category: 'Épargne sécurisée', group: 'Obligations et prêts' },
+      { ...pea, line: 'Projet immobilier', category: 'Placements en bourse', group: 'Non coté' },
+    ),
+  )
+  expect(profile.lines.map((l) => [l.name, l.group])).toEqual([
+    ['Fonds obligataire', 'bonds'],
+    ['Projet immobilier', 'unlisted'],
+  ])
+})
+

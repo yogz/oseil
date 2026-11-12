@@ -3,13 +3,14 @@ import type { AccountTypeId, CategoryId, CurrencyCode, Establishment, GoalCatego
 export const GROUP_LABELS: Record<GroupId, string> = {
   'euro-fund': 'Fonds euros',
   'money-market': 'Monétaire',
-  bonds: 'Obligations et prêts',
+  // The loans left for « Hors bourse » (docs/superpowers/specs/2026-11-12-frontieres-des-categories-design.md).
+  bonds: 'Obligations',
   europe: 'Europe',
   us: 'États-Unis',
   japan: 'Japon',
   emerging: 'Pays émergents',
   world: 'Fonds monde',
-  unlisted: 'Non coté',
+  unlisted: 'Hors bourse (non coté, prêts)',
   unknown: 'Je ne sais pas',
 }
 
