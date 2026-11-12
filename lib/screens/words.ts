@@ -68,6 +68,15 @@ export function cushionGoalWords(held: number, target: number): string {
   return 'ton coussin n’est pas complet'
 }
 
+// The header of the available money's detail, aimed at in months (planche 2, option B, Nicolas, 12 November
+// 2026): one unit, the months, rounded to the half as in Repères. « Environ 7 mois de côté, pour un objectif de 4. »
+export function cushionHeader(held: number, goal: number): string {
+  const aimed = `pour un objectif de ${String(goal).replace('.', ',')}`
+  if (held < 0.5) return `Moins d’un demi-mois de côté, ${aimed}.`
+  const whole = Math.floor(held)
+  return `Environ ${whole}\u00A0mois${held - whole >= 0.5 ? ' et demi' : ''} de côté, ${aimed}.`
+}
+
 // « 4 mois de dépenses, 6 400 € »: the goal of the available money, in months then in euros.
 export function cushionGoalText(cushion: { months: number; euros: string; basis: 'expenses' | 'salary' }): string {
   const months = Number.isInteger(cushion.months) ? String(cushion.months) : String(cushion.months).replace('.', ',')

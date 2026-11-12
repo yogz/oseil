@@ -277,8 +277,8 @@ const AVAILABLE_OF_EXAMPLE = {
   ],
   tooSmall: [],
   chapters: [
-    ['savings-books', '6 carrés sur 10 · 1 ligne'],
-    ['current-accounts', '4 carrés sur 10 · 1 ligne'],
+    ['savings-books', ''],
+    ['current-accounts', ''],
   ],
 }
 const PROPERTY_OF_EXAMPLE = {
@@ -320,8 +320,8 @@ describe('a person without a rental sees the detail of a category as before', ()
       ],
       tooSmall: [],
       chapters: [
-        ['savings-books', '8 carrés sur 12 · 1 ligne'],
-        ['current-accounts', '4 carrés sur 12 · 1 ligne'],
+        ['savings-books', ''],
+        ['current-accounts', ''],
       ],
     })
   })

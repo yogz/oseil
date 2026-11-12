@@ -611,11 +611,12 @@ function simulationOf(grid: GridOnly, targets: Record<GoalCategory, number>, mis
 export function cushionGoalOf(
   allocation: GoalAllocation,
   budget: Budget | null,
-): ((available: Cents) => { words: string; cushion: NonNullable<RowGoal['cushion']> }) | null {
+): ((available: Cents) => { words: string; held: number; cushion: NonNullable<RowGoal['cushion']> }) | null {
   const months = allocation.cushionMonths
   if (months === undefined || !budget || budget.monthly <= 0) return null
   return (available) => ({
     words: cushionGoalWords(cushion(available, budget)!.months, months),
+    held: cushion(available, budget)!.months,
     cushion: { months, euros: formatEurosShown(months * budget.monthly), basis: budget.basis },
   })
 }

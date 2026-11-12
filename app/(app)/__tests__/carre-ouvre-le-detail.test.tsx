@@ -387,7 +387,8 @@ describe.each(SIZES)('a category, %s: a touch outside the grid', (_, desktop) =>
     const row = within(block).getAllByRole('listitem')[0]
     tap(row)
     tap(within(row).getByRole('img', { name: /carrés?$/ }))
-    tap(within(block).getByText(/1 ligne$/))
+    // The chapter's sub-row: its small squares (planche 4, option B: no caption beside them).
+    tap(block.querySelector('.size-square-s')!)
     expect(mocks.push).not.toHaveBeenCalled()
   })
 

@@ -239,7 +239,8 @@ test('a category opens when there is no grid at all', () => {
   render(<CategoryPage />)
   expect(mocks.replace).not.toHaveBeenCalled()
   expect(screen.getByText(/ce que tu dois dépasse ce que tu possèdes/)).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /Compte courant/ })).toHaveAttribute('href', '/ligne/cur-l')
+  // Its name only repeats its type: its bank (« e ») is its title (planche 1, option B).
+  expect(screen.getByRole('link', { name: /^e\b/ })).toHaveAttribute('href', '/ligne/cur-l')
   expect(screen.getByRole('link', { name: /Prêt perso/ })).toHaveAttribute('href', '/ligne/loan-l')
   expect(screen.queryByRole('img', { name: /carré/ })).not.toBeInTheDocument()
 })
@@ -304,7 +305,8 @@ describe('the chapters of a category', () => {
     expect(us).toHaveTextContent(/50\s000\s€/)
     expect(screen.getByRole('button', { name: /Europe/ })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('button', { name: /Je ne sais pas/ })).toBeInTheDocument()
-    expect(screen.getAllByText(/carrés? sur \d+ · 1 ligne/).length).toBeGreaterThan(0)
+    // Planche 4, option B (Nicolas, 12 November 2026): its squares, with no « N carrés sur M · 1 ligne ».
+    expect(screen.queryAllByText(/carrés? sur \d+\s·/)).toHaveLength(0)
     expect(screen.queryByRole('link', { name: /us-line/ })).not.toBeInTheDocument()
     expect(screen.queryByText('Trop petit pour un carré')).not.toBeInTheDocument()
   })
@@ -425,8 +427,8 @@ describe('the gain since purchase of « Placements en bourse »', () => {
     expect(gains[0].tone).toContain('text-loss')
     expect(gains[1].tone).toContain('text-gain')
     expect(gains[2].tone).toContain('text-ink-muted')
-    expect(screen.getByText((_, el) => el?.tagName === 'SPAN' && /· 2 lignes, 1 sans prix$/.test(plain(el.textContent ?? '')))).toBeInTheDocument()
-    expect(screen.getByText((_, el) => el?.tagName === 'SPAN' && /· 1 ligne sans prix$/.test(plain(el.textContent ?? '')))).toBeInTheDocument()
+    // Its squares say the rest: the sub-line keeps only the lines without a price (planche 4, option B).
+    expect(screen.getAllByText((_, el) => el?.tagName === 'SPAN' && plain(el.textContent ?? '') === '1 ligne sans prix')).toHaveLength(2)
   })
 
   test('a line without a purchase price says so, once its chapter is open', async () => {

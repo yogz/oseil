@@ -6,7 +6,7 @@ import { setAmountsHidden } from '@/lib/format'
 import type { GoalAllocation } from '@/lib/model/types'
 import { categoryDetailView } from '@/lib/screens/category-detail'
 import { monArgentView, type Board } from '@/lib/screens/mon-argent'
-import { CUSHION_BEYOND_ALL, GOALS_NEED_BUDGET } from '@/lib/screens/words'
+import { CUSHION_BEYOND_ALL, cushionHeader, GOALS_NEED_BUDGET } from '@/lib/screens/words'
 import { PROFILES, TODAY } from './profils/profiles'
 
 beforeAll(() => setAmountsHidden(false))
@@ -65,11 +65,25 @@ test('a goal in months with the budget erased: no gap anywhere, and it is said',
   })
 })
 
-test('the detail of the available money shows its goal in months too', () => {
+// Planche 2, option B (Nicolas, 12 November 2026): one unit, the months, as in Repères; no square
+// count that repeats the big figure, no euro amount, and « au-delà » no longer hides how far beyond.
+function leaDetail(livret: number) {
   const model = PROFILES.lea()
   model.goals = [{ id: 'objectifs', value: IN_MONTHS, updatedAt: '2026-11-01T00:00:00Z' }]
-  const detail = categoryDetailView(model, 'available', TODAY)
-  expect(plain(detail?.header)).toBe('73 carrés sur 100, au-delà de ton coussin (4 mois de dépenses, 6 400 €)')
+  const entry = model.snapshots[0].value.entries.find((e) => e.lineId === 'livret-ligne')!
+  if (entry.kind === 'amount') entry.amount = livret * 100
+  return categoryDetailView(model, 'available', TODAY)
+}
+
+test('the detail of the available money says its months, then its goal in months', () => {
+  expect(plain(leaDetail(9_500)?.header)).toBe('Environ 7 mois de côté, pour un objectif de 4.')
+  expect(plain(leaDetail(4_600)?.header)).toBe('Environ 4 mois de côté, pour un objectif de 4.')
+  expect(plain(leaDetail(3_000)?.header)).toBe('Environ 3 mois de côté, pour un objectif de 4.')
+})
+
+test('the header’s words: under half a month, half months, a goal of one and a half', () => {
+  expect(plain(cushionHeader(0, 4))).toBe('Moins d’un demi-mois de côté, pour un objectif de 4.')
+  expect(plain(cushionHeader(2.5, 1.5))).toBe('Environ 2 mois et demi de côté, pour un objectif de 1,5.')
 })
 
 test('a goal in percents is told as before', () => {

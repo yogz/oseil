@@ -495,7 +495,9 @@ describe('the chapters of a category', () => {
       expect(markets.chapters!.flatMap((c) => c.lines).find((l) => l.lineId === held.lineId)!.squares).toBe(held.squares)
     }
     const europe = markets.chapters!.find((c) => c.id === 'europe')!
-    expect(plain(europe.sub)).toBe(`${squaresIn(europe.lines)} carrés sur ${total} · 2 lignes sans prix`)
+    // Planche 4, option B (Nicolas, 12 November 2026): its squares are drawn, so no « N carrés sur M », no
+    // count of the lines listed beneath; only what the squares do not say.
+    expect(plain(europe.sub)).toBe('2 lignes sans prix')
     expect(europe.lines.map((l) => l.lineId)).toContain('eu-tiny')
     expect(markets.tooSmall.map((l) => l.lineId)).toContain('eu-tiny')
     expect(markets.lines.find((l) => l.lineId === 'us-line')!.chapter).toBe('us')
@@ -533,8 +535,9 @@ describe('the chapters of a category', () => {
     )!
     const us = view.chapters!.find((c) => c.id === 'us')!
     expect(us.lines.map((l) => l.squares)).toEqual([1])
-    expect(us.sub).toMatch(/ sans prix$/)
-    expect(us.sub.replace(/ sans prix$/, '')).toBe(`1 carré sur ${squaresIn(view.chapters!.flatMap((c) => c.lines))} · 1 ligne`)
+    // Its one square is drawn: the sub-line only says what it does not (planche 4, option B); VoiceOver hears it all.
+    expect(plain(us.sub)).toBe('1 ligne sans prix')
+    expect(plain(us.said!.percent)).toContain(`1 carré sur ${squaresIn(view.chapters!.flatMap((c) => c.lines))}, 1 ligne`)
   })
 
   test('chapters is null for one chapter only, or a ranged category nobody ranged', () => {
@@ -640,13 +643,13 @@ describe('the gain since purchase of « Placements en bourse »', () => {
 
   test('an exact zero has no sign; an amount line is left out of the gain and counted', () => {
     expect(figure(chapter('europe').gain)).toEqual({ tone: both('zero'), euros: '0 €', percent: '0,0 %' })
-    expect(plain(chapter('europe').sub)).toMatch(/· 2 lignes, 1 sans prix$/)
+    expect(plain(chapter('europe').sub)).toBe('1 ligne sans prix')
   })
 
   test('a chapter with no known gain says it does not know, never zero', () => {
     expect(chapter('unknown').gain).toBe('unknown')
-    expect(plain(chapter('unknown').sub)).toMatch(/· 1 ligne sans prix$/)
-    expect(plain(chapter('us').sub)).toMatch(/· 2 lignes$/)
+    expect(plain(chapter('unknown').sub)).toBe('1 ligne sans prix')
+    expect(plain(chapter('us').sub)).toBe('')
   })
 
   test('a loss carries the typographic minus', () => {
@@ -819,3 +822,73 @@ describe('the gain since purchase of « Placements en bourse »', () => {
     expect(available.chapters!.flatMap((c) => c.lines).every((l) => l.noPrice === null)).toBe(true)
   })
 })
+
+// Planche 1, option B (Nicolas, 12 November 2026): a line whose name only repeats its account's type
+// (« Compte courant » three times) takes its bank as its title, and its grey line goes.
+describe('the name of a line that only repeats its type', () => {
+  const banks: Profile = {
+    schema: 1,
+    establishments: [
+      { id: 'ca', name: 'Crédit Agricole', kind: 'institution' },
+      { id: 'bb', name: 'BoursoBank', kind: 'institution', catalogId: 'boursobank' },
+    ],
+    accounts: [
+      { id: 'cc1', establishmentId: 'ca', type: 'current', name: 'Compte courant' },
+      { id: 'cc2', establishmentId: 'bb', type: 'current', name: 'Compte courant' },
+      { id: 'joint', establishmentId: 'bb', type: 'current', name: 'Compte de Léa' },
+    ],
+    lines: [
+      { id: 'l1', accountId: 'cc1', name: 'Compte courant', kind: 'amount', currency: 'EUR' },
+      { id: 'l2', accountId: 'cc2', name: 'compte courant', kind: 'amount', currency: 'EUR' },
+      { id: 'l3', accountId: 'joint', name: 'Compte de Léa', kind: 'amount', currency: 'EUR' },
+    ],
+  }
+  const snap: Snapshot = {
+    schema: 1, takenOn: '2026-10-31', fx: {}, contributions: {}, arrivals: {},
+    entries: ['l1', 'l2', 'l3'].map((lineId) => ({ lineId, kind: 'amount' as const, amount: 100_000, seenOn: '2026-10-31' })),
+  }
+  const lines = () => {
+    const view = categoryDetailView(modelOf({ profile: banks, snapshots: [snap] }), 'available', TODAY)!
+    return [...(view.chapters?.flatMap((c) => c.lines) ?? []), ...view.lines].map((l) => [l.name, plain(l.where)])
+  }
+  test('its bank becomes its title; a name of one’s own stays, its bank beneath', () => {
+    expect(lines()).toEqual(expect.arrayContaining([
+      ['Crédit Agricole', ''],
+      ['BoursoBank', ''],
+      ['Compte de Léa', 'Compte courant chez BoursoBank'],
+    ]))
+  })
+  test('two such lines at one bank keep their names, so they stay apart', () => {
+    const twice: Profile = { ...banks, accounts: banks.accounts.map((a) => (a.id === 'cc1' ? { ...a, establishmentId: 'bb' } : a)) }
+    const view = categoryDetailView(modelOf({ profile: twice, snapshots: [snap] }), 'available', TODAY)!
+    const all = [...(view.chapters?.flatMap((c) => c.lines) ?? []), ...view.lines]
+    expect(all.filter((l) => l.name === 'BoursoBank')).toHaveLength(0)
+  })
+})
+
+// A chapter that mixes types (« Livrets »: a Livret A, an LDDS) keeps the type as the title, which says
+// something there; only the bank stays beneath it (ruled on the e2e run, 12 November 2026).
+describe('a line whose type tells it apart from its chapter', () => {
+  const mixed: Profile = {
+    schema: 1,
+    establishments: [{ id: 'bb', name: 'BoursoBank', kind: 'institution', catalogId: 'boursobank' }],
+    accounts: [
+      { id: 'la', establishmentId: 'bb', type: 'livret-a', name: 'Livret A' },
+      { id: 'ld', establishmentId: 'bb', type: 'ldds', name: 'LDDS' },
+    ],
+    lines: [
+      { id: 'la-l', accountId: 'la', name: 'Livret A', kind: 'amount', currency: 'EUR' },
+      { id: 'ld-l', accountId: 'ld', name: 'LDDS', kind: 'amount', currency: 'EUR' },
+    ],
+  }
+  const snap: Snapshot = {
+    schema: 1, takenOn: '2026-10-31', fx: {}, contributions: {}, arrivals: {},
+    entries: ['la-l', 'ld-l'].map((lineId) => ({ lineId, kind: 'amount' as const, amount: 100_000, seenOn: '2026-10-31' })),
+  }
+  test('keeps its type as its title, its bank alone beneath', () => {
+    const view = categoryDetailView(modelOf({ profile: mixed, snapshots: [snap] }), 'available', TODAY)!
+    const all = [...(view.chapters?.flatMap((c) => c.lines) ?? []), ...view.lines].map((l) => [l.name, plain(l.where)])
+    expect(all).toEqual(expect.arrayContaining([['Livret A', 'chez BoursoBank'], ['LDDS', 'chez BoursoBank']]))
+  })
+})
+

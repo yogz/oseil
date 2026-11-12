@@ -1,7 +1,7 @@
 // What the detail of one category shows, as words and figures. Pure: no React, no database.
 
 import type { Model } from '@/lib/app/use-model'
-import { bankAt, CATEGORIES, isRanged } from '@/lib/catalog'
+import { ACCOUNT_TYPES, bankAt, CATEGORIES, isRanged } from '@/lib/catalog'
 import {
   formatDayMonth,
   formatEurosShown,
@@ -25,7 +25,7 @@ import {
   UnknownLineError,
 } from '@/lib/model/situation'
 import { buildGrid, shareLabel } from '@/lib/model/squares'
-import type { CategoryId, Cents, GoalCategory, IsoDate } from '@/lib/model/types'
+import type { CategoryId, Cents, Establishment, GoalCategory, IsoDate } from '@/lib/model/types'
 import { convertible, usablePrices, withPrices } from '@/lib/market/live'
 import type { Market } from '@/lib/market/types'
 import { lastKnownPrice, unconvertedSentence } from '@/lib/market/words'
@@ -34,7 +34,7 @@ import { DEBT_SENTENCE } from '@/lib/screens/line-words'
 import { debtsOf } from '@/lib/screens/debts'
 import { cushionGoalOf, excludedSentence, noGridSentence, pocketSentence } from '@/lib/screens/mon-argent'
 import { titleRows } from '@/lib/screens/titles'
-import { cushionGoalText, NO_GOAL, whereWords } from '@/lib/screens/words'
+import { cushionHeader, NO_GOAL, whereWords } from '@/lib/screens/words'
 
 export type DetailLine = {
   lineId: string
@@ -244,7 +244,7 @@ export function categoryDetailView(
     // The available money aimed at in months says its goal in months, as on Mon argent.
     const inMonths = goal && category === 'available' && cushionOf ? cushionOf(entry.value) : null
     header = inMonths
-      ? `${squaresWord(entry.squares)} sur 100, ${inMonths.words} (${cushionGoalText(inMonths.cushion)})`
+      ? cushionHeader(inMonths.held, inMonths.cushion.months)
       : goal
         ? `${squaresWord(entry.squares)} sur 100, ${gapWords(goal.actual, goal.target)} (${squaresWord(goal.target)})`
         : `${squaresWord(entry.squares)} sur 100`
@@ -318,6 +318,37 @@ export function categoryDetailView(
       priceToSet: noPrice !== null && snapshotEntry.kind === 'units',
     }
   })
+  // Planche 1, option B (Nicolas, 12 November 2026): a line whose name only repeats its account's type, at
+  // a bank, and said plainly (« Compte courant chez BoursoBank »: no year, no « à la retraite »). Where its
+  // chapter's name already says that type (« Comptes courants »), its bank becomes its title and its grey
+  // line goes; two such lines at one bank keep their names, to stay apart. Anywhere else (« Livret A » in
+  // « Livrets »), the type says something: it stays the title, its bank alone beneath.
+  const singular = (words: string) => words.toLowerCase().split(' ').map((w) => w.replace(/s$/, '')).join(' ')
+  const plainHere = new Map<string, Establishment>() // line id → its bank
+  for (const held of listed) {
+    const line = profile.lines.find((l) => l.id === held.lineId)!
+    const account = profile.accounts.find((a) => a.id === line.accountId)!
+    const establishment = profile.establishments.find((e) => e.id === account.establishmentId)!
+    const label = ACCOUNT_TYPES[account.type].label
+    const repeats = line.name.trim().toLowerCase() === label.toLowerCase()
+    if (repeats && establishment.kind === 'institution' && whereWords(line, account, establishment) === `${label} ${bankAt(establishment)}`) {
+      plainHere.set(line.id, establishment)
+    }
+  }
+  const titles = [...plainHere.values()].map((e) => e.name)
+  for (const line of detailLines) {
+    const bank = plainHere.get(line.lineId)
+    if (bank === undefined) continue
+    const held = profile.lines.find((l) => l.id === line.lineId)!
+    const label = ACCOUNT_TYPES[profile.accounts.find((a) => a.id === held.accountId)!.type].label
+    const saysType = line.chapter !== null && singular(CHAPTER_LABELS[line.chapter]) === singular(label)
+    if (saysType && titles.filter((t) => t === bank.name).length === 1) {
+      line.name = bank.name
+      line.where = ''
+    } else {
+      line.where = bankAt(bank)
+    }
+  }
 
   // A loan reads as part of the line it finances, in this category: « une fois déduits … encore dus à … »,
   // under a figure that is already the line less the loan. It stays a row of its own when it finances
@@ -395,7 +426,7 @@ export function categoryDetailView(
             const count = tellsGain ? countWithPrices(c.lines.length, missing) : linesWord(c.lines.length)
             // A pocket under its loans has no square to count, not « less than one ». With no line,
             // nothing to count: only its gap and its bar are said.
-            const sub =
+            const counted =
               c.lines.length === 0
                 ? ''
                 : !entry || (inPockets && c.value <= 0)
@@ -403,10 +434,16 @@ export function categoryDetailView(
                   : c.squares === 0
                     ? `moins d’un carré · ${count}`
                     : `${squaresWord(c.squares)} sur ${entry.squares} · ${count}`
+            // Shown: its squares are drawn and its lines listed beneath, so only what neither says (planche
+            // 4, option B, Nicolas, 12 November 2026). VoiceOver, which sees no square, still hears it all.
+            const sub =
+              c.lines.length > 0 && entry && !(inPockets && c.value <= 0) && c.squares > 0
+                ? tellsGain && missing > 0 ? `${linesWord(missing)} sans prix` : ''
+                : counted
             const label = CHAPTER_LABELS[id]
             const gain = tellsGain ? gainFigure(boughtHere) : null
             const gainSaid = gain?.said ?? { euros: UNKNOWN_SAID, percent: UNKNOWN_SAID }
-            const subSaid = sub.replace(' · ', ', ')
+            const subSaid = counted.replace(' · ', ', ')
             return {
               id,
               label,

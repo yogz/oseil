@@ -234,7 +234,7 @@ function LineItem({
       <div className="flex items-center gap-3">
         <div className="flex min-h-11 min-w-0 flex-1 flex-col justify-center">
           <span className="truncate text-body text-ink">{line.name}</span>
-          <span className="text-caption text-ink-muted">{line.where}</span>
+          {line.where ? <span className="text-caption text-ink-muted">{line.where}</span> : null}
         </div>
         <span className="text-body text-ink">
           <Figure euros={line.euros} percent={line.percent} />

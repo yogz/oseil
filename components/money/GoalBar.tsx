@@ -8,7 +8,7 @@ import { FILL } from './HundredSquares'
 
 // Full class names, so Tailwind can see them. What is missing is an outline with a pale veil of
 // the tint (planche 7, option C, Nicolas, 10 November 2026): the shortfall shows from afar, and the
-// full part stays the only solid one.
+// full part stays the only solid one. What is beyond the goal takes it too (planche 3, 12 November 2026).
 const OUTLINE: Record<CategoryId, string> = {
   available: 'border-cat-available bg-cat-available/25',
   secured: 'border-cat-secured bg-cat-secured/25',
@@ -62,11 +62,14 @@ export function GoalBar({ category, actual, target, scale, place = 'mon-argent' 
             className={`h-full ${FILL[category]}`}
             style={{ width: pct(filled, extent) }}
           />
+          {/* Beyond the goal, the same outline and veil as what is missing (planche 3, option B, Nicolas,
+              12 November 2026): only what reaches the goal is solid, so a bar three times its goal no
+              longer reads « reached » from end to end. */}
           {excess > 0 && (
             <div
               data-part="excess"
               data-squares={excess}
-              className={`h-full ${FILL[category]}`}
+              className={`h-full border ${filled > 0 ? 'border-l-0' : ''} ${OUTLINE[category]}`}
               style={{ width: pct(excess, extent) }}
             />
           )}

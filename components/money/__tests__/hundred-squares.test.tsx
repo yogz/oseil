@@ -145,7 +145,6 @@ test('GoalBar width is max(actual, target) over the shared scale', () => {
 test('GoalBar takes the tint of its category, the tick stays neutral', () => {
   const { container } = render(<GoalBar category="markets" actual={10} target={6} scale={20} />)
   expect(part(container, 'filled')).toHaveClass('bg-cat-markets')
-  expect(part(container, 'excess')).toHaveClass('bg-cat-markets')
   expect(part(container, 'target-line')).toHaveClass('bg-ink')
   cleanup()
   const short = render(<GoalBar category="gold" actual={15} target={19} scale={19} />)
@@ -330,3 +329,22 @@ test('the echo moves with the vocabulary: dims quickly with the curve to leave, 
   expect(rule('back')).toMatch(/transition-duration:\s*var\(--motion-mid\)/)
   expect(rule('back')).toMatch(/transition-timing-function:\s*var\(--motion-enter\)/)
 })
+
+// Planche 3, option B (Nicolas, 12 November 2026): beyond the goal, the solid part stops at the target
+// line and what is beyond is an outline with the pale veil, as what is missing: a full bar read « reached,
+// well done » when three times the goal was held.
+test('GoalBar beyond its goal: solid up to the line, the rest outlined over a pale veil', () => {
+  const { container } = render(<GoalBar category="available" actual={15} target={5} scale={15} />)
+  expect(part(container, 'filled')).toHaveAttribute('data-squares', '5')
+  expect(part(container, 'filled')).toHaveClass('bg-cat-available')
+  const beyond = part(container, 'excess')!
+  expect(beyond).toHaveAttribute('data-squares', '10')
+  expect(beyond).toHaveClass('border-cat-available', 'bg-cat-available/25', 'border-l-0')
+  expect(beyond).not.toHaveClass('bg-cat-available')
+})
+
+test('GoalBar with a goal of 0: the outline keeps its own left edge', () => {
+  const { container } = render(<GoalBar category="gold" actual={4} target={0} scale={4} />)
+  expect(part(container, 'excess')).not.toHaveClass('border-l-0')
+})
+
