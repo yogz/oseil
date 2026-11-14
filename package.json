@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:prod": "E2E_PROD=1 playwright test",
+    "demo:reset": "E2E_DEMO=1 playwright test",
     "test:rls": "tsx scripts/check-rls.ts",
     "check:rls:prod": "tsx scripts/check-rls-prod.ts",
     "check:rls:dev": "SUPABASE_PROJECT_REF=$DEV_SUPABASE_PROJECT_REF tsx scripts/check-rls-prod.ts",
