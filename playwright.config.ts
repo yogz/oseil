@@ -17,6 +17,17 @@ const live = process.env.E2E_LIVE === '1'
 // « nico »: with E2E_DEMO=1 it runs alone, and the ordinary runs leave it out.
 const demo = process.env.E2E_DEMO === '1'
 
+// Every journey but the live ones runs on the dev base, never the real one: their test users, and the demo
+// accounts, would land among real people. A shell opened before a change of mise's templates can keep the real
+// base in its environment (seen on 14 November 2026): refused here, whatever started the run.
+if (!live) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+  const dev = process.env.DEV_SUPABASE_PROJECT_REF
+  if (!dev || !url.includes(dev)) {
+    throw new Error(`The journeys run on the dev base only, and this machine points at ${url || 'no base'}. Run them through mise: mise exec -- npm run test:e2e`)
+  }
+}
+
 // mise gives this machine the dev base (mise-supabase-dev.tmpl). The live journeys talk to
 // https://oseil.fr, so to the real base: their admin client takes its keys (PROD_*, from
 // mise-supabase.tmpl), never the dev ones.

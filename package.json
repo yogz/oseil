@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "check:design": "bash scripts/check-design.sh",
+    "verify": "bash scripts/verify.sh",
     "publish:public": "bash scripts/publish-public.sh",
     "pretest": "npm run check:design",
     "test": "vitest run",
