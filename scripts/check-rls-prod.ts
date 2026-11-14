@@ -21,6 +21,8 @@ function need(name: string): string {
 
 const token = need("SUPABASE_ACCESS_TOKEN");
 const ref = need("SUPABASE_PROJECT_REF");
+// `npm run check:rls:dev` points the same check at the dev base.
+const base = ref === process.env.DEV_SUPABASE_PROJECT_REF ? "Base de dev" : "Base réelle";
 
 async function select<T>(query: string): Promise<T[]> {
   const response = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
@@ -40,10 +42,10 @@ async function main(): Promise<void> {
     ...functionsProblems(await select<FunctionRow>(FUNCTIONS_QUERY)).map((p) => `fonctions : ${p}`),
   ];
   if (problems.length === 0) {
-    console.log("✓ Base réelle : droits, règles et fonctions conformes à la liste attendue");
+    console.log(`✓ ${base} : droits, règles et fonctions conformes à la liste attendue`);
     return;
   }
-  console.error("✗ Base réelle : écarts avec la liste attendue :");
+  console.error(`✗ ${base} : écarts avec la liste attendue :`);
   for (const p of problems) console.error(`  - ${p}`);
   process.exit(1);
 }

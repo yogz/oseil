@@ -14,6 +14,20 @@ const production = process.env.E2E_PROD === '1'
 // The ordinary runs leave them out.
 const live = process.env.E2E_LIVE === '1'
 
+// mise gives this machine the dev base (mise-supabase-dev.tmpl). The live journeys talk to
+// https://oseil.fr, so to the real base: their admin client takes its keys (PROD_*, from
+// mise-supabase.tmpl), never the dev ones.
+if (live) {
+  for (const [name, prod] of [
+    ['NEXT_PUBLIC_SUPABASE_URL', 'PROD_SUPABASE_URL'],
+    ['SUPABASE_SECRET_KEY', 'PROD_SUPABASE_SECRET_KEY'],
+  ]) {
+    const value = process.env[prod]
+    if (!value) throw new Error(`${prod} is missing: the live journeys need the real base (mise exec).`)
+    process.env[name] = value
+  }
+}
+
 export default defineConfig({
   testDir: './e2e',
   ...(live ? { testMatch: '**/*.live.spec.ts' } : { testIgnore: '**/*.live.spec.ts' }),
