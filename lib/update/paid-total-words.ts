@@ -8,6 +8,10 @@ import type { AccountTypeId, Cents, IsoDate } from '@/lib/model/types'
 export const PAID_TOTAL_LABEL = 'Total versé depuis l’ouverture'
 const COPY = 'Recopie le chiffre de ta banque, souvent appelé « versements » ou « montant investi ».'
 const EMPLOYER = 'Ton employeur compris.'
+// Dividends paid in cash land on the account's cash line and would read as effort; two totals set them
+// right (decided by Nicolas, 14 November 2026). Only accounts that hold shares.
+const DIVIDENDS = 'Il rend aussi juste le partage de tes dividendes.'
+const PAYS_DIVIDENDS: readonly AccountTypeId[] = ['pea', 'pea-pme', 'securities']
 const TAKEN_OUT = 'Tu as retiré de l’argent ? Prends le total moins les retraits. Pas sous les yeux ? Laisse vide.'
 
 export function paidTotalWords(input: {
@@ -20,6 +24,7 @@ export function paidTotalWords(input: {
   const hint = [
     previous === null ? null : `Au relevé du ${since} : ${formatEuros(previous.total)}.`,
     COPY,
+    PAYS_DIVIDENDS.includes(type) ? DIVIDENDS : null,
     type === 'employee-savings' ? EMPLOYER : null,
     TAKEN_OUT,
   ]

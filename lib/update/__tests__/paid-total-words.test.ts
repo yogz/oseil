@@ -3,6 +3,7 @@ import { paidTotalWords } from '../paid-total-words'
 
 const TIP = 'Recopie le chiffre de ta banque, souvent appelé « versements » ou « montant investi ».'
 const OUT = 'Tu as retiré de l’argent ? Prends le total moins les retraits. Pas sous les yeux ? Laisse vide.'
+const DIVIDENDS = 'Il rend aussi juste le partage de tes dividendes.'
 const previous = { total: 1_200_000, on: '2026-09-30' }
 
 describe('paidTotalWords', () => {
@@ -19,8 +20,17 @@ describe('paidTotalWords', () => {
 
   test('a previous total: recalled first, with its short date', () => {
     const words = paidTotalWords({ type: 'pea', previous, typed: null })
-    expect(words.hint).toBe(`Au relevé du 30 sept. : 12 000 €. ${TIP} ${OUT}`)
+    expect(words.hint).toBe(`Au relevé du 30 sept. : 12 000 €. ${TIP} ${DIVIDENDS} ${OUT}`)
     expect(words.deduced).toBeNull()
+  })
+
+  test('a share account says the total also sets its dividends right; gold, crypto and insurance do not', () => {
+    for (const type of ['pea', 'pea-pme', 'securities'] as const) {
+      expect(paidTotalWords({ type, previous: null, typed: null }).hint).toBe(`${TIP} ${DIVIDENDS} ${OUT}`)
+    }
+    for (const type of ['gold', 'crypto', 'life-insurance', 'per'] as const) {
+      expect(paidTotalWords({ type, previous: null, typed: null }).hint).toBe(`${TIP} ${OUT}`)
+    }
   })
 
   test('employee savings: the employer is counted', () => {
