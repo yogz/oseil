@@ -13,7 +13,7 @@ describe('splitChange', () => {
   it('counts a savings account increase as your effort', () => {
     const profile = profileOf([account('a', 'livret-a')], [line('l', 'a')])
     const r = splitChange(profile, snapshotOf([amountEntry('l', 10_000)]), snapshotOf([amountEntry('l', 10_300)]))
-    expect(r).toEqual({ effort: 30_000, markets: 0, property: 0, existingAdded: 0, total: 30_000 })
+    expect(r).toEqual({ effort: 30_000, markets: 0, property: 0, existingAdded: 0, total: 30_000, estimatedInterest: 0 })
     check(r)
   })
 
@@ -132,7 +132,7 @@ describe('splitChange', () => {
         snapshotOf([unitsEntry('l', 10, 150, 100), amountEntry('cash', 0)]),
         snapshotOf([unitsEntry('l', 5, 150, 100), amountEntry('cash', 750)]),
       )
-      expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0 })
+      expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0, estimatedInterest: 0 })
     })
 
     it('a partial sale after the price moved keeps only the price change as markets', () => {
@@ -153,7 +153,7 @@ describe('splitChange', () => {
         snapshotOf([unitsEntry('l', 10, 150, 100), amountEntry('cash', 0)]),
         snapshotOf([unitsEntry('l', 0, 150, 100), amountEntry('cash', 1_500)]),
       )
-      expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0 })
+      expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0, estimatedInterest: 0 })
     })
 
     it('a line closed and removed is unchanged: what it was worth leaves as effort', () => {
@@ -162,7 +162,7 @@ describe('splitChange', () => {
         snapshotOf([unitsEntry('l', 10, 150, 100), amountEntry('cash', 0)]),
         snapshotOf([amountEntry('cash', 1_500)]),
       )
-      expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0 })
+      expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0, estimatedInterest: 0 })
     })
 
     it('fewer parts and a new average price (a sale and a purchase) count as a sale at the day’s price', () => {
@@ -173,7 +173,7 @@ describe('splitChange', () => {
         snapshotOf([unitsEntry('l', 10, 150, 100)]),
         snapshotOf([unitsEntry('l', 8, 150, 110)]),
       )
-      expect(r).toEqual({ effort: -30_000, markets: 0, property: 0, existingAdded: 0, total: -30_000 })
+      expect(r).toEqual({ effort: -30_000, markets: 0, property: 0, existingAdded: 0, total: -30_000, estimatedInterest: 0 })
     })
 
     it('a purchase still counts the parts bought at their cost', () => {
@@ -240,7 +240,7 @@ describe('splitChange', () => {
           snapshotOf([amountEntry('l', 1_000)], { USD: 0.9 }),
           snapshotOf([amountEntry('l', 1_000)], { USD: 0.95 }),
         )
-        expect(r).toEqual({ effort: 0, markets: 5_000, property: 0, existingAdded: 0, total: 5_000 })
+        expect(r).toEqual({ effort: 0, markets: 5_000, property: 0, existingAdded: 0, total: 5_000, estimatedInterest: 0 })
       })
     }
 
@@ -276,7 +276,7 @@ describe('splitChange', () => {
       { arrivals: { 'h-l': 'opened', 'm-l': 'opened' } },
     )
     const r = splitChange(profile, before, after)
-    expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0 })
+    expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0, estimatedInterest: 0 })
   })
 
   it('ignores the contributions of an entirely new contributions account', () => {
@@ -301,14 +301,14 @@ describe('splitChange', () => {
       arrivals: { u: 'existing' },
     })
     const r = splitChange(lifeWithFund, lifeBefore, after)
-    expect(r).toEqual({ effort: 0, markets: 30_000, property: 0, existingAdded: 500_000, total: 530_000 })
+    expect(r).toEqual({ effort: 0, markets: 30_000, property: 0, existingAdded: 500_000, total: 530_000, estimatedInterest: 0 })
     check(r)
   })
 
   it('a fund with no arrival, added to a life insurance followed before, counts as one the person already had', () => {
     const after = snapshotOf([amountEntry('f', 30_000), amountEntry('u', 5_000)])
     const r = splitChange(lifeWithFund, lifeBefore, after)
-    expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 500_000, total: 500_000 })
+    expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 500_000, total: 500_000, estimatedInterest: 0 })
     check(r)
   })
 
@@ -318,7 +318,7 @@ describe('splitChange', () => {
       contributions: { a: 100_000 },
     })
     const r = splitChange(lifeWithFund, lifeBefore, after)
-    expect(r).toEqual({ effort: 100_000, markets: 10_000, property: 0, existingAdded: 500_000, total: 610_000 })
+    expect(r).toEqual({ effort: 100_000, markets: 10_000, property: 0, existingAdded: 500_000, total: 610_000, estimatedInterest: 0 })
     check(r)
   })
 
@@ -330,7 +330,7 @@ describe('splitChange', () => {
       contributions: { a: 500_000 },
     })
     const r = splitChange(lifeWithFund, lifeBefore, after)
-    expect(r).toEqual({ effort: 500_000, markets: 0, property: 0, existingAdded: 0, total: 500_000 })
+    expect(r).toEqual({ effort: 500_000, markets: 0, property: 0, existingAdded: 0, total: 500_000, estimatedInterest: 0 })
     check(r)
   })
 
@@ -339,7 +339,7 @@ describe('splitChange', () => {
       arrivals: { u: 'opened' },
     })
     const r = splitChange(lifeWithFund, lifeBefore, after)
-    expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0 })
+    expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0, estimatedInterest: 0 })
     check(r)
   })
 
@@ -347,7 +347,7 @@ describe('splitChange', () => {
     const before = snapshotOf([amountEntry('f', 30_000), amountEntry('u', 5_000)])
     const after = snapshotOf([amountEntry('f', 35_000)])
     const r = splitChange(lifeWithFund, before, after)
-    expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0 })
+    expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0, estimatedInterest: 0 })
     check(r)
   })
 
@@ -472,5 +472,105 @@ describe('splitChange with the total paid in', () => {
     expect(r.effort).toBe(380_000)
     expect(r.markets).toBe(30_000)
     check(r)
+  })
+})
+
+// docs/superpowers/specs/2026-11-14-interets-livrets-design.md
+describe('splitChange, the estimated interest of a livret', () => {
+  const dated = (s: Snapshot, takenOn: string): Snapshot => ({ ...s, takenOn })
+  // 10 000 € on a Livret A over 31 December 2025: 2025 at its average rate, 215,75 €.
+  const y2025 = 21_575
+
+  it('moves the interest of a Livret A from effort to markets, the total unchanged', () => {
+    const profile = profileOf([account('a', 'livret-a')], [line('l', 'a')])
+    const before = dated(snapshotOf([amountEntry('l', 10_000)]), '2025-11-30')
+    const after = dated(snapshotOf([amountEntry('l', 10_215.75)]), '2026-01-15')
+    const r = splitChange(profile, before, after)
+    expect(r).toEqual({ effort: 0, markets: y2025, property: 0, existingAdded: 0, total: y2025, estimatedInterest: y2025 })
+    check(r)
+  })
+
+  it('estimates the LDDS at the Livret A rate and the LEP at its own', () => {
+    const profile = profileOf([account('d', 'ldds'), account('p', 'lep')], [line('d1', 'd'), line('p1', 'p')])
+    const before = dated(snapshotOf([amountEntry('d1', 10_000), amountEntry('p1', 10_000)]), '2025-11-30')
+    const after = dated(snapshotOf([amountEntry('d1', 10_000), amountEntry('p1', 10_000)]), '2026-01-15')
+    // LEP 2025: 4 % in January (31 days), 3,5 % from 1 February (181), 2,7 % from 1 August (153).
+    const lep = Math.round((1_000_000 * (31 * 0.04 + 181 * 0.035 + 153 * 0.027)) / 365)
+    const r = splitChange(profile, before, after)
+    expect(r.estimatedInterest).toBe(y2025 + lep)
+    expect(r.markets).toBe(y2025 + lep)
+    expect(r.effort).toBe(-(y2025 + lep))
+    check(r)
+  })
+
+  it('takes a withdrawal net of the interest: effort is the change less the interest', () => {
+    const profile = profileOf([account('a', 'livret-a')], [line('l', 'a')])
+    const before = dated(snapshotOf([amountEntry('l', 10_000)]), '2025-11-30')
+    const after = dated(snapshotOf([amountEntry('l', 7_000)]), '2026-01-15')
+    const r = splitChange(profile, before, after)
+    expect(r.total).toBe(-300_000)
+    expect(r.markets).toBe(y2025)
+    expect(r.effort).toBe(-300_000 - y2025)
+    check(r)
+  })
+
+  it('estimates only on the lines present on both sides: a line closed or opened in the period adds nothing', () => {
+    const profile = profileOf(
+      [account('a', 'livret-a'), account('b', 'livret-a'), account('c', 'livret-a')],
+      [line('kept', 'a'), line('closed', 'a'), line('opened', 'b'), line('gone', 'c')],
+    )
+    const before = dated(
+      snapshotOf([amountEntry('kept', 10_000), amountEntry('closed', 5_000), amountEntry('gone', 8_000)]),
+      '2025-11-30',
+    )
+    const after = withExtra(dated(snapshotOf([amountEntry('kept', 10_000), amountEntry('opened', 3_000)]), '2026-01-15'), {
+      arrivals: { opened: 'opened' },
+    })
+    const r = splitChange(profile, before, after)
+    expect(r.estimatedInterest).toBe(y2025) // only the 10 000 € of « kept »
+    expect(r.markets).toBe(y2025)
+    expect(r.effort).toBe(-500_000 + 300_000 - 800_000 - y2025)
+    check(r)
+  })
+
+  it('estimates each 31 December of a long period on the balance held at its start', () => {
+    const profile = profileOf([account('a', 'livret-a')], [line('l', 'a')])
+    const before = dated(snapshotOf([amountEntry('l', 10_000)]), '2024-11-30')
+    const after = dated(snapshotOf([amountEntry('l', 12_000)]), '2026-01-15')
+    expect(splitChange(profile, before, after).estimatedInterest).toBe(30_000 + y2025)
+  })
+
+  it('leaves a relevé taken on 31 December without that year’s interest', () => {
+    const profile = profileOf([account('a', 'livret-a')], [line('l', 'a')])
+    const june = dated(snapshotOf([amountEntry('l', 10_000)]), '2025-06-30')
+    const december31 = dated(snapshotOf([amountEntry('l', 10_000)]), '2025-12-31')
+    const march = dated(snapshotOf([amountEntry('l', 10_000)]), '2026-03-01')
+    expect(splitChange(profile, june, december31).estimatedInterest).toBe(0)
+    expect(splitChange(profile, december31, march).estimatedInterest).toBe(y2025)
+  })
+
+  it('changes nothing for a livret jeune, a PEL or CEL, another livret or a current account', () => {
+    const types = ['livret-jeune', 'pel-cel', 'other-savings', 'current'] as const
+    const profile = profileOf(
+      types.map((t) => account(t, t)),
+      types.map((t) => line(`${t}-l`, t)),
+    )
+    const before = dated(snapshotOf(types.map((t) => amountEntry(`${t}-l`, 10_000))), '2025-11-30')
+    const after = dated(snapshotOf(types.map((t) => amountEntry(`${t}-l`, 10_300))), '2026-01-15')
+    expect(splitChange(profile, before, after)).toEqual({
+      effort: 120_000,
+      markets: 0,
+      property: 0,
+      existingAdded: 0,
+      total: 120_000,
+      estimatedInterest: 0,
+    })
+  })
+
+  it('does not estimate a line in another currency on a livret', () => {
+    const profile = profileOf([account('a', 'livret-a')], [line('l', 'a', { currency: 'USD' })])
+    const before = dated(snapshotOf([amountEntry('l', 10_000)], { USD: 1.1 }), '2025-11-30')
+    const after = dated(snapshotOf([amountEntry('l', 10_000)], { USD: 1.1 }), '2026-01-15')
+    expect(splitChange(profile, before, after).estimatedInterest).toBe(0)
   })
 })

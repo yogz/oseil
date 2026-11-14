@@ -191,11 +191,12 @@ describe('8. Thomas, over a year', () => {
     expect(plain(history().sinceFirst.euros)).toBe('+3 300 €')
     expect(plain(history().sinceFirst.percent)).toBe('+12,0 %')
   })
-  test('what he put in is no gain: his effort +4 300 €, the markets −1 000 €', () => {
+  // Estimated livret interest, decided by Nicolas on 14 November 2026: 215,75 € on his 10 000 € Livret A over 31 December 2025.
+  test('what he put in is no gain: his effort +4 084 €, the markets −784 €', () => {
     const rows = history().split.rows.map((r) => [r.part, plain(r.amount)])
     expect(rows).toEqual([
-      ['effort', '4 300 €'],
-      ['markets', '−1 000 €'],
+      ['effort', '4 084 €'],
+      ['markets', '−784 €'],
     ])
   })
   test('35, 34, 27 then 25 squares away from his goals', () => {

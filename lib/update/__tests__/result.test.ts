@@ -6,7 +6,7 @@ import type { Rates } from '@/lib/market/types'
 import type { Profile, Snapshot, UpdateDraft } from '@/lib/model/types'
 import { confirmLine, markStep, restateValue, setTakenOn, setValue, startDraft } from '../draft'
 import { putAddedLine, setPaidTotal } from '../lines'
-import { resultView, type ResultView } from '../result'
+import { resultView, splitView, type ResultView } from '../result'
 
 const TODAY = '2026-11-07'
 const base = exampleSnapshot
@@ -310,6 +310,34 @@ describe('resultView: the split', () => {
     expect(view.changes).toEqual([])
     expect(view.loans).toBeNull()
     expect(view.unchanged).toBe('Rien n’a bougé depuis le 30 septembre.')
+  })
+})
+
+// docs/superpowers/specs/2026-11-14-interets-livrets-design.md
+describe('splitView: the estimated interest of the livrets', () => {
+  const split = (estimatedInterest: number) => ({
+    effort: 100_000,
+    markets: 20_000 + estimatedInterest,
+    property: 0,
+    existingAdded: 0,
+    total: 120_000 + estimatedInterest,
+    estimatedInterest,
+  })
+  const markets = (estimatedInterest: number) =>
+    splitView(split(estimatedInterest), 0, 'déjà').rows.find((r) => r.part === 'markets')!
+
+  test('says the interest is in the markets row when the period holds some, with no amount of its own', () => {
+    expect(markets(21_575)).toEqual({
+      ...MARKETS,
+      detail: 'ce que ton argent a rapporté tout seul, intérêts des livrets estimés compris',
+      amount: formatEuros(41_575),
+      loss: false,
+    })
+    expect(splitView(split(21_575), 0, 'déjà').rows.map((r) => r.part)).toEqual(['effort', 'markets'])
+  })
+
+  test('keeps the usual words when the period holds none', () => {
+    expect(markets(0).detail).toBe('ce que ton argent a rapporté tout seul')
   })
 })
 

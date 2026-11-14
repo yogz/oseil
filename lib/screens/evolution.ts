@@ -341,7 +341,7 @@ function goalsOf(items: Item[], allocations: GoalAllocation[], budget: Budget | 
 }
 
 function splitOf(profile: Profile, items: Item[]) {
-  const total: ChangeSplit = { effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0 }
+  const total: ChangeSplit = { effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0, estimatedInterest: 0 }
   const unknown: string[] = []
   const accountOf = new Map(profile.accounts.map((a) => [a.id, a]))
 
@@ -354,6 +354,7 @@ function splitOf(profile: Profile, items: Item[]) {
     total.property += part.property
     total.existingAdded += part.existingAdded
     total.total += part.total
+    total.estimatedInterest += part.estimatedInterest
 
     // An account handled as a whole, that moved, with nothing known of what was paid in (no sum, no
     // total on both sides): its whole change went to « marchés ». The result screen's very rule.

@@ -50,6 +50,16 @@ describe('the invented person', () => {
     expect(misplaced).toEqual([12, 14, 2, 4])
   })
 
+  // Estimated livret interest, decided by Nicolas on 14 November 2026: 280,48 € on the 13 000 € livret over 31 December 2025.
+  test('the year splits 11 295 € of effort and 4 205 € for the markets, interest of the livrets included', () => {
+    const evolution = evolutionView(examplePerson(), EXAMPLE_TODAY)
+    if (evolution.kind !== 'history') throw new Error('expected a history')
+    const row = (part: string) => evolution.split.rows.find((r) => r.part === part)!
+    expect(plain(row('effort').amount)).toBe('11 295 €')
+    expect(plain(row('markets').amount)).toBe('4 205 €')
+    expect(row('markets').detail).toBe('ce que ton argent a rapporté tout seul, intérêts des livrets estimés compris')
+  })
+
   test('the rebalancing is a move: the year still adds 25 000 €, and nothing reads as a loss', () => {
     const evolution = evolutionView(examplePerson(), EXAMPLE_TODAY)
     if (evolution.kind !== 'history') throw new Error('expected a history')

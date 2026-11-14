@@ -158,7 +158,11 @@ export function splitView(
     {
       part: 'markets',
       label: 'Les marchés et les intérêts',
-      detail: 'ce que ton argent a rapporté tout seul',
+      // The interest of the livrets is estimated, not read: said only when the period holds some.
+      detail:
+        split.estimatedInterest > 0
+          ? 'ce que ton argent a rapporté tout seul, intérêts des livrets estimés compris'
+          : 'ce que ton argent a rapporté tout seul',
       amount: euros(split.markets),
       // « Le crédit n’est jamais en rouge » : only a real loss of the markets is.
       loss: wholeEuros(split.markets) < 0,

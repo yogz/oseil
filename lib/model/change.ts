@@ -1,4 +1,5 @@
 import { ACCOUNT_TYPES, takesPaidTotal } from '@/lib/catalog'
+import { estimatedInterest, isEstimatedLivret } from '@/lib/model/livret-interest'
 import { costToEuroCents, fewer } from '@/lib/model/purchase-cost'
 import { entryMinorUnits, entryValue, toEuroCents, UnknownLineError } from '@/lib/model/situation'
 import type { Cents, Line, Profile, Snapshot, SnapshotEntry } from '@/lib/model/types'
@@ -9,6 +10,9 @@ export type ChangeSplit = {
   property: Cents
   existingAdded: Cents
   total: Cents
+  // The interest of a Livret A, LDDS or LEP estimated from the official rates, already in markets
+  // (docs/superpowers/specs/2026-11-14-interets-livrets-design.md).
+  estimatedInterest: Cents
 }
 
 // Between two snapshots, splits the change in net worth into your effort,
@@ -90,6 +94,8 @@ function walk(
     if (lineIds.every((lineId) => after.arrivals[lineId] === 'opened')) openedWithTotal.add(accountId)
   }
   const openedValue = new Map<string, Cents>()
+  // A livret's balance held at `before`, on its lines present on both sides, in euros.
+  const livretBalance = new Map<string, Cents>()
 
   let effort = 0
   let markets = 0
@@ -111,6 +117,9 @@ function walk(
     const wholeAccount =
       (change === 'contributions' && presentB.has(account.id) && presentA.has(account.id)) || byTotals(account.id)
     const alreadyHad = !entryB && after.arrivals[id] !== 'opened'
+    if (isEstimatedLivret(account.type) && entryB && entryA && line.currency === 'EUR') {
+      livretBalance.set(account.id, (livretBalance.get(account.id) ?? 0) + nB)
+    }
     if (openedWithTotal.has(account.id)) {
       openedValue.set(account.id, (openedValue.get(account.id) ?? 0) + nA)
     } else if (wholeAccount && !alreadyHad) {
@@ -163,5 +172,19 @@ function walk(
     markets += value - paidIn
   }
 
-  return { split: { effort, markets, property, existingAdded, total }, wholeAccounts: wholeAccountDelta }
+  // The interest paid each 31 December of the period, once per account: it is markets, and the rest of
+  // the livret's change stays effort (a withdrawal stays a withdrawal, interest taken off).
+  let interest = 0
+  for (const [accountId, balance] of livretBalance) {
+    const type = accounts.get(accountId)!.type
+    if (!isEstimatedLivret(type)) continue
+    interest += estimatedInterest(type, balance, before.takenOn, after.takenOn)
+  }
+  markets += interest
+  effort -= interest
+
+  return {
+    split: { effort, markets, property, existingAdded, total, estimatedInterest: interest },
+    wholeAccounts: wholeAccountDelta,
+  }
 }

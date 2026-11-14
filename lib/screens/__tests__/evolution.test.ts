@@ -343,6 +343,18 @@ describe('where it comes from', () => {
     expect(effort.label).toBe('Ton effort')
     expect(markets.label).toBe('Les marchés et les intérêts')
   })
+
+  // docs/superpowers/specs/2026-11-14-interets-livrets-design.md
+  test('says the estimated interest of the livrets when a period of the history holds a 31 December', () => {
+    const middle = at('2026-03-31', snapshotOf([amountEntry('liv', 11_000), amountEntry('per-line', 21_000), amountEntry('usd', 10_000)], { USD: 0.85 }))
+    // Only the first period holds a 31 December: the sum over the periods carries it.
+    expect(splitChange(profile, older, middle).estimatedInterest).toBeGreaterThan(0)
+    expect(splitChange(profile, middle, newer).estimatedInterest).toBe(0)
+    const markets = (snapshots: Snapshot[]) =>
+      history(evolutionView(modelOf(snapshots), TODAY)).split.rows.find((r) => r.part === 'markets')!
+    expect(markets([older, middle, newer]).detail).toBe('ce que ton argent a rapporté tout seul, intérêts des livrets estimés compris')
+    expect(markets([middle, newer]).detail).toBe('ce que ton argent a rapporté tout seul')
+  })
 })
 
 describe('Tes relevés', () => {
