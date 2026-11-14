@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { THEME_SCRIPT } from "@/lib/app/theme";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 // The font file lives in this repository, and that is the whole point.
 // The remote Google loader downloads it during the build: when Google declines the
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-ground text-ink font-sans">
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
