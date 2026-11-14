@@ -43,6 +43,23 @@ test('Mon argent has no « Se déconnecter », and keeps the way to the Réglage
   expect(screen.getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')
 })
 
+// The third pictogram (planche 9E, Nicolas, 14 November 2026): the magnifier, just left of the gear.
+test('the magnifier « Trouver » sits just left of the gear of the Réglages', () => {
+  render(<HomePage />)
+  const find = screen.getByRole('link', { name: 'Trouver' })
+  expect(find).toHaveAttribute('href', '/trouver')
+  expect(find.nextElementSibling).toBe(screen.getByRole('link', { name: 'Réglages' }))
+})
+
+// Without the pill the line is the title, the magnifier and the gear: it fits from 249 px of screen,
+// the title keeps the threshold it had (360 px).
+test('without « Mettre à jour », the title keeps its 360 px threshold', () => {
+  render(<HomePage />)
+  const title = screen.getByRole('heading', { level: 1, name: 'Mon argent' })
+  expect(title.className).toContain('max-[22.5rem]:sr-only')
+  expect(title.className).not.toContain('max-[24rem]:sr-only')
+})
+
 test('a vault that cannot be opened for now offers to try again', async () => {
   const user = userEvent.setup()
   const retry = vi.fn()

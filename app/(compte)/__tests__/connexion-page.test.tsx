@@ -26,6 +26,7 @@ import {
 import { accountHere } from '@/lib/auth/account-here'
 import { IDLE_CLOSED_SENTENCE, idleClock } from '@/lib/app/idle-lock'
 import { faceIdMarker } from '@/lib/auth/face-id-marker'
+import { rememberedEmail } from '@/lib/auth/remembered-email'
 import { FACE_ID_NO_PRF, faceIdActivationFailed } from '@/lib/auth/messages'
 import { clearPendingRecovery, readPendingRecovery } from '@/lib/auth/pending-recovery'
 
@@ -497,6 +498,238 @@ describe('Utiliser Face ID', () => {
   })
 })
 
+// Planche 4B (Nicolas, 12 November 2026): once Face ID has served on this device, it comes first.
+describe('Face ID first, once it has served here', () => {
+  const PILL = /^Me reconnecter avec /
+  const IPHONE =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1'
+  const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+  async function ready(prepared = preparedSignIn()) {
+    faceIdMarker.set('a-credential')
+    mocks.supported.mockResolvedValue(true)
+    mocks.prepareFaceIdSignIn.mockResolvedValue(prepared)
+    render(<SignInPage />)
+    const pill = await screen.findByRole('button', { name: PILL })
+    await vi.waitFor(() => expect(pill).toBeEnabled())
+    return pill
+  }
+
+  test('without the marker, the screen is as before', async () => {
+    mocks.supported.mockResolvedValue(true)
+    mocks.prepareFaceIdSignIn.mockResolvedValue(preparedSignIn())
+    render(<SignInPage />)
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: /^Utiliser / })).toBeEnabled())
+
+    expect(screen.getByRole('heading', { name: 'Te connecter' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Me connecter' })).toHaveClass('bg-ink')
+    expect(screen.getByRole('link', { name: 'Créer mon compte' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: PILL })).not.toBeInTheDocument()
+    expect(screen.queryByText('Ou avec ton mot de passe')).not.toBeInTheDocument()
+  })
+
+  test('with the marker: « Te reconnecter », the Face ID pill, then the password, outlined', async () => {
+    idleClock.markClosed()
+    const pill = await ready()
+
+    expect(screen.getByRole('heading', { name: 'Te reconnecter' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Te connecter' })).not.toBeInTheDocument()
+    expect(pill).toHaveTextContent('Me reconnecter avec ton empreinte')
+    expect(pill).toHaveClass('bg-ink', 'rounded-full')
+    const caption = screen.getByText('Ou avec ton mot de passe')
+    expect(caption).toHaveClass('text-caption', 'text-ink-muted')
+    const submit = screen.getByRole('button', { name: 'Me reconnecter' })
+    expect(submit).toHaveAttribute('type', 'submit')
+    expect(submit).toHaveClass('border', 'rounded-full')
+    expect(submit).not.toHaveClass('bg-ink')
+    // The old link went: the pill replaced it. And the person has an account here.
+    expect(screen.queryByRole('button', { name: /^Utiliser / })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Créer mon compte' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Me connecter' })).not.toBeInTheDocument()
+
+    // In the order of planche 4B: the notice, the pill, the caption, the form, « Mot de passe oublié ? ».
+    const notice = screen.getAllByRole('status').find((element) => element.textContent === IDLE_CLOSED_SENTENCE)!
+    const field = screen.getByLabelText('Ton adresse e-mail')
+    const forgot = screen.getByRole('link', { name: /Mot de passe oublié/ })
+    expect(follows(notice, pill)).toBe(true)
+    expect(follows(pill, caption)).toBe(true)
+    expect(follows(caption, field)).toBe(true)
+    expect(follows(field, submit)).toBe(true)
+    expect(follows(submit, forgot)).toBe(true)
+  })
+
+  // No jump: the layout is chosen from the marker as the page opens, the pill waiting for the device.
+  test('from the first render, « Te reconnecter » and the pill, disabled, before the device answers', () => {
+    faceIdMarker.set('a-credential')
+    mocks.supported.mockReturnValue(never())
+    render(<SignInPage />)
+
+    expect(screen.getByRole('heading', { name: 'Te reconnecter' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: PILL })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Me reconnecter' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Créer mon compte' })).not.toBeInTheDocument()
+    expect(mocks.prepareFaceIdSignIn).not.toHaveBeenCalled()
+  })
+
+  test('the pill keeps waiting, disabled, while the sign-in is prepared', async () => {
+    faceIdMarker.set('a-credential')
+    mocks.supported.mockResolvedValue(true)
+    mocks.prepareFaceIdSignIn.mockReturnValue(never())
+    render(<SignInPage />)
+    await vi.waitFor(() => expect(mocks.prepareFaceIdSignIn).toHaveBeenCalled())
+
+    expect(screen.getByRole('heading', { name: 'Te reconnecter' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: PILL })).toBeDisabled()
+  })
+
+  // After an attempt, a preparation that fails does not move the message into the links.
+  test('after a refusal, a preparation that fails keeps the screen, the message under the pill', async () => {
+    const pill = await ready()
+    mocks.prepareFaceIdSignIn.mockRejectedValue(new Error('network'))
+    mocks.signInWithFaceId.mockRejectedValue(new FaceIdUnavailableError())
+
+    fireEvent.click(pill)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cette clé est rangée dans un gestionnaire')
+    await vi.waitFor(() => expect(mocks.prepareFaceIdSignIn).toHaveBeenCalledTimes(2))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(screen.getByRole('heading', { name: 'Te reconnecter' })).toBeInTheDocument()
+    expect(pill).toBeDisabled()
+    expect(follows(pill, screen.getByRole('alert'))).toBe(true)
+    expect(follows(screen.getByRole('alert'), screen.getByText('Ou avec ton mot de passe'))).toBe(true)
+  })
+
+  test('says Face ID on an iPhone', async () => {
+    vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue(IPHONE)
+    const pill = await ready()
+    expect(pill).toHaveTextContent('Me reconnecter avec Face ID')
+  })
+
+  test('the address of the last sign-in is filled in', async () => {
+    rememberedEmail.set('me@example.com')
+    await ready()
+    expect(screen.getByLabelText('Ton adresse e-mail')).toHaveValue('me@example.com')
+  })
+
+  test('the pill waits, disabled, while the sign-in is being prepared', async () => {
+    faceIdMarker.set('a-credential')
+    mocks.supported.mockResolvedValue(true)
+    mocks.prepareFaceIdSignIn.mockReturnValue(never())
+    render(<SignInPage />)
+    const pill = await screen.findByRole('button', { name: PILL })
+
+    expect(pill).toBeDisabled()
+    fireEvent.click(pill)
+    expect(mocks.signInWithFaceId).not.toHaveBeenCalled()
+  })
+
+  // Safari: nothing awaited between the tap and the passkey.
+  test('a tap reaches the browser’s passkey prompt within the tap itself', async () => {
+    const prepared = preparedSignIn()
+    const pill = await ready(prepared)
+    mocks.signInWithFaceId.mockImplementation(realFaceId.signInWithFaceId)
+    mocks.get.mockReturnValue(never())
+
+    fireEvent.click(pill)
+
+    expect(mocks.get).toHaveBeenCalledTimes(1)
+    expect(mocks.get).toHaveBeenCalledWith(prepared.options)
+  })
+
+  test('goes home once signed in, the address of the session remembered', async () => {
+    const pill = await ready()
+    mocks.getSession.mockResolvedValue({ data: { session: { user: { id: USER_ID, email: 'me@example.com' } } }, error: null })
+    mocks.signInWithFaceId.mockResolvedValue(undefined)
+
+    fireEvent.click(pill)
+
+    await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
+    expect(accountHere.isSet()).toBe(true)
+    expect(rememberedEmail.read()).toBe('me@example.com')
+  })
+
+  test('the outlined pill signs in with the password, as before', async () => {
+    rememberedEmail.set('a@b.fr')
+    mocks.signIn.mockResolvedValue(unlocked())
+    await ready()
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('Ton mot de passe'), 'correct horse battery')
+    await user.click(screen.getByRole('button', { name: 'Me reconnecter' }))
+
+    await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
+    expect(mocks.signIn).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      email: 'a@b.fr',
+      password: 'correct horse battery',
+    })
+  })
+
+  test('a refusal of the pill is said under it, and the screen stays', async () => {
+    const pill = await ready()
+    mocks.signInWithFaceId.mockRejectedValue(new FaceIdUnavailableError())
+
+    fireEvent.click(pill)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cette clé est rangée dans un gestionnaire')
+    expect(follows(pill, screen.getByRole('alert'))).toBe(true)
+    expect(follows(screen.getByRole('alert'), screen.getByText('Ou avec ton mot de passe'))).toBe(true)
+    await vi.waitFor(() => expect(mocks.prepareFaceIdSignIn).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(pill).toBeEnabled())
+    expect(screen.getByRole('heading', { name: 'Te reconnecter' })).toBeInTheDocument()
+  })
+
+  // Face ID no longer opens the vault here: the marker goes, and with it the Face ID first screen.
+  test('when its packet no longer opens, the plain screen comes back, with the message', async () => {
+    const pill = await ready()
+    mocks.signInWithFaceId.mockImplementation(async () => {
+      faceIdMarker.clear()
+      throw new FaceIdNoLongerOpensError()
+    })
+
+    fireEvent.click(pill)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Ton empreinte n’ouvre plus ton coffre sur cet appareil. Connecte-toi avec ton mot de passe.',
+    )
+    await vi.waitFor(() => expect(screen.getByRole('heading', { name: 'Te connecter' })).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Me connecter' })).toHaveClass('bg-ink')
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    ['the device cannot create a passkey', () => mocks.supported.mockResolvedValue(false)],
+    [
+      'the sign-in cannot be prepared',
+      () => {
+        mocks.supported.mockResolvedValue(true)
+        mocks.prepareFaceIdSignIn.mockRejectedValue(new Error('passkeys are not enabled'))
+      },
+    ],
+    [
+      'the page is away from the site’s address',
+      () => {
+        openedAt('http://localhost:3000/connexion')
+        mocks.supported.mockResolvedValue(true)
+        mocks.prepareFaceIdSignIn.mockResolvedValue(preparedSignIn())
+      },
+    ],
+  ])('the marker alone is not enough: the plain screen when %s', async (_, setup) => {
+    faceIdMarker.set('a-credential')
+    setup()
+    render(<SignInPage />)
+
+    await vi.waitFor(() => expect(mocks.supported).toHaveBeenCalled())
+    await act(async () => {
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(screen.queryByRole('button', { name: PILL })).not.toBeInTheDocument())
+    expect(screen.getByRole('heading', { name: 'Te connecter' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Me connecter' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Créer mon compte' })).toBeInTheDocument()
+  })
+})
+
 describe('Ouvrir avec Face ID la prochaine fois ?', () => {
   const OFFER = /^Ouvrir avec .+ la prochaine fois\u00A0\?$/
 
@@ -569,7 +802,8 @@ describe('Ouvrir avec Face ID la prochaine fois ?', () => {
     render(<SignInPage />)
     await user.type(screen.getByLabelText('Ton adresse e-mail'), 'a@b.fr')
     await user.type(screen.getByLabelText('Ton mot de passe'), 'correct horse battery')
-    await user.click(screen.getByRole('button', { name: 'Me connecter' }))
+    // With the marker, Face ID comes first and the password's pill says « Me reconnecter ».
+    await user.click(screen.getByRole('button', { name: /^Me (re)?connecter$/ }))
 
     await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
     expect(screen.queryByRole('heading', { name: OFFER })).not.toBeInTheDocument()
@@ -759,13 +993,15 @@ describe('Ouvrir avec Face ID la prochaine fois ?', () => {
   })
 
   // The key that opens the password packet is held by the screen alone.
-  test('keeps nothing of the sign-in in the browser’s storage', async () => {
+  test('keeps nothing of the sign-in in the browser’s storage but the remembered address', async () => {
     await offer()
-    // Only the bare « an account was used here » flag and the time of the last activity
-    // (lib/app/idle-lock.ts), which say nothing of the person.
+    // Only the bare « an account was used here » flag, the time of the last activity
+    // (lib/app/idle-lock.ts), and the address typed (lib/auth/remembered-email.ts): nothing
+    // of the password, nor of the keys.
     const keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).sort()
-    expect(keys).toEqual(['oseil-compte-ici', 'oseil-derniere-activite'])
+    expect(keys).toEqual(['oseil-adresse', 'oseil-compte-ici', 'oseil-derniere-activite'])
     expect(localStorage.getItem('oseil-compte-ici')).toBe('1')
+    expect(localStorage.getItem('oseil-adresse')).toBe('a@b.fr')
     expect(sessionStorage.length).toBe(0)
   })
 })
@@ -927,6 +1163,86 @@ test('an address not confirmed yet can have its link sent again', async () => {
     redirectTo: 'https://oseil.fr/connexion',
   })
   expect(await screen.findByText(/C’est reparti/)).toBeInTheDocument()
+})
+
+// Nicolas, 12 November 2026: the address of the last sign-in here fills the field
+// (lib/auth/remembered-email.ts). It is read and written on the device only.
+describe('the remembered address', () => {
+  test('fills the field as the page opens', async () => {
+    rememberedEmail.set('me@example.com')
+    render(<SignInPage />)
+    await vi.waitFor(() => expect(screen.getByLabelText('Ton adresse e-mail')).toHaveValue('me@example.com'))
+  })
+
+  test('leaves the field empty when nothing is remembered', async () => {
+    render(<SignInPage />)
+    await vi.waitFor(() => expect(mocks.getSession).toHaveBeenCalled())
+    expect(screen.getByLabelText('Ton adresse e-mail')).toHaveValue('')
+  })
+
+  test('a password sign-in remembers the address, as the account knows it', async () => {
+    mocks.signIn.mockResolvedValue(unlocked())
+    const user = userEvent.setup()
+    render(<SignInPage />)
+    await user.type(screen.getByLabelText('Ton adresse e-mail'), ' Me@Example.com')
+    await user.type(screen.getByLabelText('Ton mot de passe'), 'correct horse battery')
+    await user.click(screen.getByRole('button', { name: 'Me connecter' }))
+    await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
+    expect(rememberedEmail.read()).toBe('me@example.com')
+  })
+
+  test('a refused sign-in remembers nothing, and keeps the address remembered before', async () => {
+    rememberedEmail.set('me@example.com')
+    mocks.signIn.mockRejectedValue(new Error('refused'))
+    const user = userEvent.setup()
+    render(<SignInPage />)
+    const field = screen.getByLabelText('Ton adresse e-mail')
+    await vi.waitFor(() => expect(field).toHaveValue('me@example.com'))
+    await user.clear(field)
+    await user.type(field, 'other@example.com')
+    await user.type(screen.getByLabelText('Ton mot de passe'), 'wrong')
+    await user.click(screen.getByRole('button', { name: 'Me connecter' }))
+    await screen.findByRole('alert')
+    expect(rememberedEmail.read()).toBe('me@example.com')
+  })
+
+  test('a Face ID sign-in remembers the address of the session it opened', async () => {
+    mocks.supported.mockResolvedValue(true)
+    mocks.prepareFaceIdSignIn.mockResolvedValue(preparedSignIn())
+    render(<SignInPage />)
+    const button = await screen.findByRole('button', { name: /^Utiliser / })
+    await vi.waitFor(() => expect(button).toBeEnabled())
+    mocks.getSession.mockResolvedValue({ data: { session: { user: { id: USER_ID, email: 'me@example.com' } } }, error: null })
+    mocks.signInWithFaceId.mockResolvedValue(undefined)
+
+    fireEvent.click(button)
+
+    await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
+    expect(rememberedEmail.read()).toBe('me@example.com')
+  })
+
+  test('a Face ID sign-in still goes home when the session cannot be read', async () => {
+    mocks.supported.mockResolvedValue(true)
+    mocks.prepareFaceIdSignIn.mockResolvedValue(preparedSignIn())
+    render(<SignInPage />)
+    const button = await screen.findByRole('button', { name: /^Utiliser / })
+    await vi.waitFor(() => expect(button).toBeEnabled())
+    mocks.getSession.mockRejectedValue(new Error('storage'))
+    mocks.signInWithFaceId.mockResolvedValue(undefined)
+
+    fireEvent.click(button)
+
+    await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
+    expect(rememberedEmail.read()).toBeNull()
+  })
+
+  test('the address a confirmation link brings outranks the one remembered', async () => {
+    rememberedEmail.set('old@example.com')
+    openedAt(`${SITE}?code=abc123`)
+    mocks.getSession.mockResolvedValue({ data: { session: { user: { id: USER_ID, email: 'new@example.com' } } }, error: null })
+    render(<SignInPage />)
+    await vi.waitFor(() => expect(screen.getByLabelText('Ton adresse e-mail')).toHaveValue('new@example.com'))
+  })
 })
 
 // The vault closed by itself (lib/app/idle-lock.ts): the sign-in says why the person is here.

@@ -195,3 +195,17 @@ test('the security note leads to the public code', async () => {
   const link = within(note).getByRole('link', { name: /Le code est ouvert/ })
   expect(link).toHaveAttribute('href', 'https://github.com/yogz/oseil')
 })
+
+// After « Supprimer mon compte », the site sends the person here with a full load (`/?compte=supprime`).
+test('arriving after deleting an account, the landing says the account is gone', async () => {
+  render(await LandingPage({ searchParams: Promise.resolve({ compte: 'supprime' }) }))
+  expect(screen.getByRole('status')).toHaveTextContent('Ton compte a été supprimé.')
+})
+
+test('without that word in the address, the landing says nothing of a deletion', async () => {
+  for (const searchParams of [{}, { compte: 'autre' }, { compte: ['supprime', 'supprime'] }]) {
+    const { unmount } = render(await LandingPage({ searchParams: Promise.resolve(searchParams) }))
+    expect(screen.queryByText('Ton compte a été supprimé.')).toBeNull()
+    unmount()
+  }
+})

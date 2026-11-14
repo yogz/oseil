@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { DeviceKeyNotClearedError, signOut } from '@/lib/auth/account'
+import { rememberedEmail } from '@/lib/auth/remembered-email'
 import { loadPage } from '@/lib/navigation'
 import { createBrowserSupabase } from '@/lib/supabase/browser'
 import { indexedDbKeyStore } from '@/lib/vault/device'
@@ -21,6 +22,9 @@ export function SignOutFrame({ title, after, children }: { title?: string; after
 
   async function leave() {
     setLeaving('yes')
+    // Leaving by choice: the address of the sign-in goes too (lib/auth/remembered-email.ts). Only
+    // here, not in signOut, which also closes the vault by itself after a while.
+    rememberedEmail.clear()
     try {
       await signOut(createBrowserSupabase(), indexedDbKeyStore())
     } catch (error) {
@@ -59,7 +63,7 @@ export function SignOutFrame({ title, after, children }: { title?: string; after
           type="button"
           onClick={leave}
           disabled={leaving === 'yes'}
-          className={`${LINK} text-body text-ink-muted disabled:opacity-40`}
+          className={`${LINK} text-body text-ink disabled:opacity-40`}
         >
           Se déconnecter
         </button>

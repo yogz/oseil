@@ -35,9 +35,26 @@ describe('the « an account was used here » marker', () => {
     expect(() => accountHere.set()).not.toThrow()
   })
 
+  test('is cleared, and only it, when the account is deleted', () => {
+    const storage = memoryStorage()
+    vi.stubGlobal('localStorage', storage)
+    storage.setItem('oseil-apparence', 'clair')
+
+    accountHere.set()
+    accountHere.clear()
+    expect(accountHere.isSet()).toBe(false)
+    expect(storage.getItem('oseil-apparence')).toBe('clair')
+  })
+
+  test('clearing it does not throw when the storage refuses', () => {
+    vi.stubGlobal('localStorage', throwingStorage())
+    expect(() => accountHere.clear()).not.toThrow()
+  })
+
   test('reads as not set when there is no storage at all (server render)', () => {
     vi.stubGlobal('localStorage', undefined)
     expect(accountHere.isSet()).toBe(false)
     expect(() => accountHere.set()).not.toThrow()
+    expect(() => accountHere.clear()).not.toThrow()
   })
 })

@@ -119,6 +119,106 @@ describe('splitChange', () => {
     }
   })
 
+  // A partial sale: 10 parts bought 100, worth 150; 5 sold at 150, the 750 € landing on the current account.
+  describe('a sale of parts with an average price', () => {
+    const profile = profileOf(
+      [account('a', 'securities'), account('c', 'current')],
+      [line('l', 'a', { kind: 'units' }), line('cash', 'c')],
+    )
+
+    it('a partial sale at an unchanged price is neither effort nor markets', () => {
+      const r = splitChange(
+        profile,
+        snapshotOf([unitsEntry('l', 10, 150, 100), amountEntry('cash', 0)]),
+        snapshotOf([unitsEntry('l', 5, 150, 100), amountEntry('cash', 750)]),
+      )
+      expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0 })
+    })
+
+    it('a partial sale after the price moved keeps only the price change as markets', () => {
+      // 10 parts at 150 become 5 at 160, the 5 sold at 160 (800 € on the current account).
+      const r = splitChange(
+        profile,
+        snapshotOf([unitsEntry('l', 10, 150, 100), amountEntry('cash', 0)]),
+        snapshotOf([unitsEntry('l', 5, 160, 100), amountEntry('cash', 800)]),
+      )
+      expect(r.markets).toBe(10_000) // 10 parts × 10 €
+      expect(r.effort).toBe(0)
+      check(r)
+    })
+
+    it('selling every part, the line kept at zero, is neither effort nor markets', () => {
+      const r = splitChange(
+        profile,
+        snapshotOf([unitsEntry('l', 10, 150, 100), amountEntry('cash', 0)]),
+        snapshotOf([unitsEntry('l', 0, 150, 100), amountEntry('cash', 1_500)]),
+      )
+      expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0 })
+    })
+
+    it('a line closed and removed is unchanged: what it was worth leaves as effort', () => {
+      const r = splitChange(
+        profile,
+        snapshotOf([unitsEntry('l', 10, 150, 100), amountEntry('cash', 0)]),
+        snapshotOf([amountEntry('cash', 1_500)]),
+      )
+      expect(r).toEqual({ effort: 0, markets: 0, property: 0, existingAdded: 0, total: 0 })
+    })
+
+    it('fewer parts and a new average price (a sale and a purchase) count as a sale at the day’s price', () => {
+      // 10 parts, average 100, worth 150; 5 sold and 3 bought at 150: 8 parts, average 110, worth 150.
+      // The rule pinned here: the 2 parts fewer leave at 150, the change of the average is not read.
+      const r = splitChange(
+        profile,
+        snapshotOf([unitsEntry('l', 10, 150, 100)]),
+        snapshotOf([unitsEntry('l', 8, 150, 110)]),
+      )
+      expect(r).toEqual({ effort: -30_000, markets: 0, property: 0, existingAdded: 0, total: -30_000 })
+    })
+
+    it('a purchase still counts the parts bought at their cost', () => {
+      // 10 parts, average 100, worth 150; 5 more bought at 160: average (1000 + 800) / 15 = 120, worth 160.
+      const r = splitChange(
+        profile,
+        snapshotOf([unitsEntry('l', 10, 150, 100)]),
+        snapshotOf([unitsEntry('l', 15, 160, 120)]),
+      )
+      expect(r.effort).toBe(80_000)
+      expect(r.markets).toBe(10_000)
+      check(r)
+    })
+  })
+
+  describe('parts in dollars whose purchase the person described', () => {
+    // 10 parts, average 100, worth 150 $; 5 more bought: the average becomes 120, worth 160 $; 1 $ = 0,90 €.
+    // The average grew by 15 × 120 − 10 × 100 = 800 in the average's money.
+    const before = snapshotOf([unitsEntry('l', 10, 150, 100)], { USD: 0.9 })
+    const after = snapshotOf([unitsEntry('l', 15, 160, 120)], { USD: 0.9 })
+    const total = 81_000 // 15 × 160 × 0,9 − 10 × 150 × 0,9
+
+    it('an average price in euros is what was spent, with no rate', () => {
+      const profile = profileOf(
+        [account('a', 'securities')],
+        [line('l', 'a', { kind: 'units', currency: 'USD', purchase: { inEuros: true } })],
+      )
+      const r = splitChange(profile, before, after)
+      expect(r.effort).toBe(80_000)
+      expect(r.markets).toBe(total - 80_000)
+      check(r)
+    })
+
+    it('a typed rate (1 € = 1,25 $) turns the dollars spent into euros', () => {
+      const profile = profileOf(
+        [account('a', 'securities')],
+        [line('l', 'a', { kind: 'units', currency: 'USD', purchase: { perEuro: 1.25 } })],
+      )
+      const r = splitChange(profile, before, after)
+      expect(r.effort).toBe(64_000)
+      expect(r.markets).toBe(total - 64_000)
+      check(r)
+    })
+  })
+
   it('falls back to the price when the average price is missing', () => {
     const profile = profileOf([account('a', 'pea')], [line('l', 'a', { kind: 'units' })])
     const r = splitChange(
@@ -128,6 +228,34 @@ describe('splitChange', () => {
     )
     expect(r.effort).toBe(10_000)
     check(r)
+  })
+
+  describe('an amount in dollars', () => {
+    // 1 000 $ on both dates; the dollar goes from 0,90 € to 0,95 €: 50 € that the rate made.
+    for (const type of ['securities', 'current'] as const) {
+      it(`on a ${type} account, what the rate did is markets, not effort`, () => {
+        const profile = profileOf([account('a', type)], [line('l', 'a', { currency: 'USD' })])
+        const r = splitChange(
+          profile,
+          snapshotOf([amountEntry('l', 1_000)], { USD: 0.9 }),
+          snapshotOf([amountEntry('l', 1_000)], { USD: 0.95 }),
+        )
+        expect(r).toEqual({ effort: 0, markets: 5_000, property: 0, existingAdded: 0, total: 5_000 })
+      })
+    }
+
+    it('what was put in stays effort, at the rate of the day', () => {
+      // 1 000 $ become 1 200 $: the 200 $ added are 190 € of effort, the 50 € of the rate markets.
+      const profile = profileOf([account('a', 'current')], [line('l', 'a', { currency: 'USD' })])
+      const r = splitChange(
+        profile,
+        snapshotOf([amountEntry('l', 1_000)], { USD: 0.9 }),
+        snapshotOf([amountEntry('l', 1_200)], { USD: 0.95 }),
+      )
+      expect(r.markets).toBe(5_000)
+      expect(r.effort).toBe(19_000)
+      check(r)
+    })
   })
 
   it('counts an amount line in a cost-basis account as effort', () => {

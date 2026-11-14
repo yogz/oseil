@@ -14,6 +14,7 @@ import { FILL } from '@/components/money/HundredSquares'
 import { Button } from '@/components/ui/Button'
 import { PageColumns } from '@/components/ui/PageColumns'
 import { Unfold } from '@/components/ui/Unfold'
+import { FindCorner } from '@/components/ui/FindLink'
 import { TabBar } from '@/components/ui/TabBar'
 import { useTopMenuInfo } from '@/components/ui/top-menu-info'
 import { VaultWait } from '@/components/ui/VaultWait'
@@ -51,9 +52,11 @@ export default function CategoryPage() {
       {state.status === 'ready' ? (
         <ReadyBody state={state} category={id as CategoryId} />
       ) : (
-        <Link href="/" className={BACK}>
-          ‹ Mon argent
-        </Link>
+        <FindCorner>
+          <Link href="/" className={BACK}>
+            ‹ Mon argent
+          </Link>
+        </FindCorner>
       )}
       {state.status === 'loading' ? <VaultWait phase="open" /> : null}
 
@@ -161,9 +164,11 @@ function ReadyBody({ state, category }: { state: Ready; category: CategoryId }) 
         {/* On a phone the way back takes the place of Mon argent's header row (both 44 px): the grid
             below sits where it sat there, at the same width, and nothing jumps when the page changes. */}
         {desktop ? null : (
-          <Link href="/" className={BACK}>
-            ‹ Mon argent
-          </Link>
+          <FindCorner>
+            <Link href="/" className={BACK}>
+              ‹ Mon argent
+            </Link>
+          </FindCorner>
         )}
         {/* B6: the detail in the reading column, Mon argent's grid on its left (nothing without one);
             on a phone, the grid first and the detail under it. */}
@@ -220,9 +225,11 @@ function Detail({
   return (
     <div className="flex animate-board-in flex-col motion-reduce:animate-none">
       {back ? (
-        <Link href="/" className={BACK}>
-          ‹ Mon argent
-        </Link>
+        <FindCorner>
+          <Link href="/" className={BACK}>
+            ‹ Mon argent
+          </Link>
+        </FindCorner>
       ) : null}
       <h1 className="flex items-center gap-3 pt-2 text-title font-semibold leading-tight tracking-[-0.01em]">
         <CategorySquare category={category} className="size-square-m" />
@@ -234,6 +241,12 @@ function Detail({
       <HeaderSentence header={view.header} headerPercent={view.headerPercent} />
       {view.cryptoNote ? <p className="text-caption text-ink-muted">{view.cryptoNote}</p> : null}
       {view.purchaseGain ? <PurchaseGain gain={view.purchaseGain} /> : null}
+      {/* « À compléter », where the gain it would make exact is told. */}
+      {view.complete ? (
+        <Link href={view.complete.href} className={`${QUIET_LINK} text-body`}>
+          {view.complete.label}
+        </Link>
+      ) : null}
       {view.debtSentence ? (
         <p className="mt-1 text-body leading-relaxed text-ink-soft">{view.debtSentence}</p>
       ) : null}

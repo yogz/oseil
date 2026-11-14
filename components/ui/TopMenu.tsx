@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Brand } from './Brand'
+import { FindLink } from './FindLink'
 import { TABS, type TabId } from './TabBar'
 
 export type TopMenuTab = TabId
@@ -7,8 +8,8 @@ export type TopMenuTab = TabId
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
 const ITEM = `inline-flex min-h-11 items-center text-body ${FOCUS}`
 
-// The three tabs as a menu at the top, from lg (planche 20): « Mettre à jour » and « Réglages » on
-// its right. Fixed like the tab bar it replaces; the layout leaves room. The date of the figures is
+// The three tabs as a menu at the top, from lg (planche 20): « Mettre à jour », the magnifier of
+// « Trouver » and « Réglages » on its right. Fixed like the tab bar it replaces; the layout leaves room. The date of the figures is
 // no longer here (A2, Nicolas, 11 November 2026): at 1 280 px it pushed « Mon argent » and « Mettre à
 // jour » onto two lines. Each screen says it under its own figures, as on a phone.
 export function TopMenu({
@@ -56,6 +57,8 @@ export function TopMenu({
               Mettre à jour
             </Link>
           ) : null}
+          {/* The magnifier of « Trouver », left of « Réglages »; ⌘K opens it too (lib/app/use-find-shortcut.ts). */}
+          <FindLink />
           <Link
             href="/reglages"
             aria-current={settings ? 'page' : undefined}

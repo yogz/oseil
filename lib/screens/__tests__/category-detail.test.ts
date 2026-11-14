@@ -929,3 +929,51 @@ test('in percents, the header says the gap and the goal, not the squares again',
   const noGoal = categoryDetailView(modelOf({ goals: [] }), 'markets', TODAY)!
   expect(noGoal.headerPercent).toBe('')
 })
+
+describe('the purchase price asked where the gain is told', () => {
+  // small and big: titles with no average price; amount: an amount line, « sans prix » but never a gap.
+  const profile = profileOf(
+    [account('pea', 'pea'), account('livret', 'livret-a')],
+    [
+      line('known', 'pea', { kind: 'units', group: 'us' }),
+      line('small', 'pea', { kind: 'units', group: 'us' }),
+      line('big', 'pea', { kind: 'units', group: 'europe' }),
+      line('amount', 'pea', { group: 'europe' }),
+      line('livret-line', 'livret'),
+    ],
+  )
+  const viewOf = (entries: Parameters<typeof snapshotOf>[0], category: 'markets' | 'available' = 'markets', p: Profile = profile) =>
+    categoryDetailView(modelOf({ profile: p, snapshots: [snapshotOf(entries)], goals: [] }), category, TODAY)!
+
+  test('several titles: the plural, to the sheet of the biggest of them', () => {
+    const view = viewOf([
+      unitsEntry('known', 10, 100, 90),
+      unitsEntry('small', 10, 50, null),
+      unitsEntry('big', 10, 300, 0),
+      amountEntry('amount', 9_000),
+      amountEntry('livret-line', 1_000),
+    ])
+    expect(view.complete).toEqual({ label: 'Ajoute leur prix d’achat pour les compter ›', href: '/ligne/big' })
+  })
+
+  test('one title: the singular, to its sheet', () => {
+    const view = viewOf([unitsEntry('known', 10, 100, 90), unitsEntry('small', 10, 50, null), amountEntry('amount', 9_000)])
+    expect(view.complete).toEqual({ label: 'Ajoute son prix d’achat pour le compter ›', href: '/ligne/small' })
+  })
+
+  test('an amount line is « sans prix » on the page but no gap: it can never take a price', () => {
+    const view = viewOf([unitsEntry('known', 10, 100, 90), amountEntry('amount', 9_000)])
+    expect([...view.lines, ...(view.chapters?.flatMap((c) => c.lines) ?? [])].some((l) => l.noPrice !== null)).toBe(true)
+    expect(view.complete).toBeNull()
+  })
+
+  test('« Je ne sais pas » answered: no row', () => {
+    const answered = { ...profile, lines: profile.lines.map((l) => (l.id === 'small' ? { ...l, purchaseUnknown: true as const } : l)) }
+    expect(viewOf([unitsEntry('known', 10, 100, 90), unitsEntry('small', 10, 50, null)], 'markets', answered).complete).toBeNull()
+  })
+
+  test('no gap, or another category: no row', () => {
+    expect(viewOf([unitsEntry('known', 10, 100, 90)]).complete).toBeNull()
+    expect(viewOf([unitsEntry('small', 10, 50, null), amountEntry('livret-line', 1_000)], 'available').complete).toBeNull()
+  })
+})

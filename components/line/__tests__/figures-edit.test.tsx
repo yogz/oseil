@@ -2,7 +2,8 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+import type { Figures } from '@/lib/correct/types'
 import { amountEntry, unitsEntry } from '@/lib/model/__tests__/fixtures'
 import type { AccountTypeId } from '@/lib/model/types'
 import { IS_CORRECTION } from '@/lib/screens/line-words'
@@ -115,4 +116,64 @@ test('cancel writes nothing', async () => {
   await user.click(screen.getByRole('button', { name: 'Annuler' }))
   expect(onCancel).toHaveBeenCalled()
   expect(onSubmit).not.toHaveBeenCalled()
+})
+
+// Corriger un relevé passé: the same form, dated with that relevé (planche 8D).
+describe('dated with a past relevé', () => {
+  const labels = {
+    amount: 'Son montant ce jour-là (EUR)',
+    units: 'Ses parts ce jour-là',
+    price: 'Le prix d’une part ce jour-là (EUR)',
+    average: 'Son prix moyen ce jour-là (EUR, laisse vide si tu ne le sais pas)',
+  }
+
+  test('takes its title, its labels and its button from the page', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(true)
+    render(
+      <FiguresEdit
+        entry={unitsEntry('etf', 80, 200, 180)}
+        currency="EUR"
+        accountType="pea"
+        label="Son montant"
+        title="Ses parts et son prix moyen au 16 novembre 2025"
+        labels={labels}
+        submitLabel="Corriger le 16 novembre 2025"
+        saveError={null}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Ses parts et son prix moyen au 16 novembre 2025' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Ses parts ce jour-là')).toHaveValue('80')
+    expect(screen.getByLabelText('Le prix d’une part ce jour-là (EUR)')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Son prix moyen ce jour-là/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Enregistrer' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Corriger le 16 novembre 2025' }))
+    expect(onSubmit).toHaveBeenCalledWith({ kind: 'units', units: 80, unitPrice: 200, averagePrice: 180 })
+  })
+
+  test('says what the figures typed would do, as they are typed', async () => {
+    const user = userEvent.setup()
+    const notes = (figures: Figures | null) => <p>{figures?.kind === 'amount' ? `vu ${figures.amount}` : 'rien'}</p>
+    render(
+      <FiguresEdit
+        entry={amountEntry('livret', 100)}
+        currency="EUR"
+        accountType="livret-a"
+        label="Son montant"
+        labels={labels}
+        notes={notes}
+        saveError={null}
+        onSubmit={vi.fn().mockResolvedValue(true)}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('vu 10000')).toBeInTheDocument()
+    const field = screen.getByLabelText('Son montant ce jour-là (EUR)')
+    await user.clear(field)
+    expect(screen.getByText('rien')).toBeInTheDocument()
+    await user.type(field, '250')
+    expect(screen.getByText('vu 25000')).toBeInTheDocument()
+  })
 })

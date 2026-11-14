@@ -3,6 +3,7 @@
 // monthly repayments and new estimates would otherwise move the gap on their own.
 
 import { CUSHION_MONTHS, GOAL_CATEGORIES, GOAL_PRESETS } from '@/lib/catalog'
+import { formatWholePercent } from '@/lib/format'
 import { heldValue } from '@/lib/model/goals'
 import type { Situation } from '@/lib/model/situation'
 import { largestRemainder, type Grid } from '@/lib/model/squares'
@@ -68,6 +69,13 @@ export function applyPreset(preset: GoalPreset, current: GoalsDraft): GoalsDraft
 
 export function remaining(draft: GoalsDraft): number {
   return WHOLE - GOAL_CATEGORIES.reduce((sum, c) => sum + draft[c], 0)
+}
+
+// The line under the rows. At 100 % every « + » is greyed: the line says how to move a share
+// (UX review, 12 November 2026).
+export function placedSentence(left: number): string {
+  if (left === 0) return `${formatWholePercent(WHOLE)} répartis : baisse une part pour en monter une autre.`
+  return `Il reste ${formatWholePercent(left)} à placer`
 }
 
 // One percent at a time: never below 0, never more than 100 in total.

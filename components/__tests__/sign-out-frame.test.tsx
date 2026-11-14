@@ -32,14 +32,17 @@ function show(props: { title?: string } = {}) {
   )
 }
 
-test('shows the screen, then a discreet « Se déconnecter » under it, before what comes after', () => {
+test('shows the screen, then « Se déconnecter » under it in the text colour, before what comes after', () => {
   show()
   const content = screen.getByText('Le contenu de l’écran')
   const button = screen.getByRole('button', { name: 'Se déconnecter' })
   expect(content.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(button.compareDocumentPosition(screen.getByRole('navigation')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(button.className).toContain('min-h-11')
-  expect(button.className).toContain('text-ink-muted')
+  // In the colour of the text, underlined: in muted grey it read as disabled (UX review, 12 November 2026).
+  expect(button.className).toMatch(/(^|\s)text-ink(\s|$)/)
+  expect(button.className).not.toContain('text-ink-muted')
+  expect(button.className).toContain('underline')
 })
 
 test.each([

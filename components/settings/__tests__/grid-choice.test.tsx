@@ -61,3 +61,11 @@ test('no home: no « Ta grille »', () => {
   render(<DisplaySection state={stateOf(noHome)} />)
   expect(screen.queryByText('Ta grille')).toBeNull()
 })
+
+// UX review, 12 November 2026: « En euros / En % » read as part of « Apparence » without its own label.
+test('« En euros / En % » is labelled « Tes catégories », like « Apparence » and « Ta grille »', () => {
+  render(<DisplaySection state={stateOf(noHome)} />)
+  const group = screen.getByRole('group', { name: 'Tes catégories' })
+  expect(group).toContainElement(screen.getByRole('button', { name: 'En euros' }))
+  expect(group).toContainElement(screen.getByRole('button', { name: 'En %' }))
+})

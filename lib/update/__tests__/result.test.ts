@@ -230,6 +230,22 @@ describe('resultView: the split', () => {
     ])
   })
 
+  test('a typed 0 paid in is a known answer: no note', () => {
+    const fund = putAddedLine(
+      profile,
+      fresh(),
+      {
+        accountId: 'life',
+        name: 'Fonds actions',
+        entry: { kind: 'units', units: 10, unitPrice: 500, averagePrice: 500 },
+        arrival: 'opened',
+      },
+      TODAY,
+      id,
+    )
+    expect(resultOf(setContribution(fund.draft, 'life', 0)).notes).toEqual([])
+  })
+
   test('a fund the person already had, added to the life insurance, is no reason for a note', () => {
     const fund = putAddedLine(
       profile,

@@ -7,19 +7,22 @@ import { browserWebAuthn, rpIdServesHost } from '@/lib/auth/webauthn'
 import { createBrowserSupabase } from '@/lib/supabase/browser'
 import { indexedDbKeyStore } from '@/lib/vault/device'
 
-type FaceIdSignInProps = {
-  /** What checks the person on this device: « Face ID », « Touch ID », « Windows Hello », « ton empreinte ». */
-  label: FaceIdLabel
-  /** The session and the vault are open. */
-  onSignedIn: () => void
-  /** The look of a link of the page: this acts in place, so it is a button dressed as one. */
-  className: string
+export type FaceIdSignIn = {
+  /** Preparing: shown, but not ready for a tap. Unavailable: shown nowhere, the password is there. */
+  state: 'off' | 'preparing' | 'ready' | 'unavailable'
+  busy: boolean
+  /** What the last attempt said went wrong, in the device's word. It outlives the next round. */
+  error: string | null
+  /** To be called from the tap itself, nothing awaited before it. */
+  signIn: () => void
 }
 
-// « Utiliser Face ID », a quiet link under the password form. The sign-in is
-// prepared with Supabase before the tap, so that the tap goes straight to the
-// passkey: Safari can refuse a WebAuthn request that does not follow it at once.
-export function FaceIdSignIn({ label, onSignedIn, className }: FaceIdSignInProps) {
+// The Face ID sign-in of the sign-in page, whichever way the page shows it: a quiet link under the
+// password form, or the first pill when Face ID has served on this device (planche 4B). The sign-in
+// is prepared with Supabase before the tap, so that the tap goes straight to the passkey: Safari can
+// refuse a WebAuthn request that does not follow it at once. Without a `label` (a device that cannot
+// create a passkey, or one that has not said yet), nothing is asked of Supabase.
+export function useFaceIdSignIn(label: FaceIdLabel | null, onSignedIn: () => void): FaceIdSignIn {
   // A prepared sign-in serves once: each round prepares a fresh one.
   const [round, setRound] = useState(0)
   const [prepared, setPrepared] = useState<PreparedSignIn | null>(null)
@@ -28,12 +31,13 @@ export function FaceIdSignIn({ label, onSignedIn, className }: FaceIdSignInProps
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (label === null) return
     let live = true
     prepareFaceIdSignIn(createBrowserSupabase()).then(
       (ready) => {
         if (!live) return
         // Away from the site's address (a preview, localhost), the browser
-        // would refuse the passkey: the password is right below.
+        // would refuse the passkey: the password is right there.
         if (rpIdServesHost(ready.options.rpId, window.location.hostname)) {
           setPrepared(ready)
           // Each round says whether Face ID is there: one that prepared a
@@ -41,7 +45,7 @@ export function FaceIdSignIn({ label, onSignedIn, className }: FaceIdSignInProps
           setUnavailable(false)
         } else setUnavailable(true)
       },
-      // Supabase refused, or the network did: the password is right below.
+      // Supabase refused, or the network did: the password is right there.
       () => {
         if (live) setUnavailable(true)
       },
@@ -49,10 +53,10 @@ export function FaceIdSignIn({ label, onSignedIn, className }: FaceIdSignInProps
     return () => {
       live = false
     }
-  }, [round])
+  }, [round, label])
 
   function signIn() {
-    if (!prepared) return
+    if (!prepared || label === null) return
     if (hasExpired(prepared)) {
       // Asking Supabase again now would come between the tap and the prompt:
       // a fresh sign-in is prepared instead, and waits for one more tap.
@@ -73,26 +77,6 @@ export function FaceIdSignIn({ label, onSignedIn, className }: FaceIdSignInProps
       })
   }
 
-  if (unavailable && !error) return null
-
-  return (
-    <div className="flex flex-col items-start">
-      {unavailable ? null : (
-        <button
-          type="button"
-          disabled={!prepared || busy}
-          aria-busy={busy}
-          onClick={signIn}
-          className={`${className} disabled:opacity-60`}
-        >
-          {`Utiliser ${label}`}
-        </button>
-      )}
-      {error ? (
-        <p role="alert" className="mb-2 text-body font-medium leading-normal text-ink">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  )
+  const state = label === null ? 'off' : unavailable ? 'unavailable' : prepared ? 'ready' : 'preparing'
+  return { state, busy, error, signIn }
 }

@@ -1,18 +1,20 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { AuthApiError, type SupabaseClient } from '@supabase/supabase-js'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { signOut } from '@/lib/auth/account'
 import { formatEuros, formatEurosShown, setAmountsHidden } from '@/lib/format'
 import { saveProfile } from '@/lib/model/repository'
 import { exampleProfile } from '@/lib/model/__tests__/fixtures'
 import type { VaultState } from '@/lib/vault/use-vault'
-import { forgetEverything, rememberedModel } from '../session-memory'
+import { forgetEverything, rememberVault, rememberedModel, rememberedVault, vaultMark } from '../session-memory'
 import { useModel } from '../use-model'
 
 const mocks = vi.hoisted(() => ({
   vault: { current: { status: 'loading' } as VaultState },
-  client: { tag: 'client' },
+  client: { tag: 'client' } as { tag: string; auth?: { getUser: () => Promise<unknown> } },
+  finishDeletion: vi.fn(),
+  loadPage: vi.fn(),
   loadProfile: vi.fn(),
   loadSnapshots: vi.fn(),
   loadGoals: vi.fn(),
@@ -22,6 +24,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/vault/use-vault', () => ({ useVault: () => mocks.vault.current }))
 vi.mock('@/lib/supabase/browser', () => ({ createBrowserSupabase: () => mocks.client }))
+vi.mock('@/lib/auth/account', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth/account')>()),
+  finishDeletion: mocks.finishDeletion,
+}))
+vi.mock('@/lib/navigation', () => ({ loadPage: mocks.loadPage }))
+const KEYS = { tag: 'keys' }
+vi.mock('@/lib/vault/device', () => ({ indexedDbKeyStore: () => KEYS }))
 // The reads are faked; the writes are the real ones.
 vi.mock('@/lib/model/repository', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/model/repository')>()),
@@ -48,6 +57,9 @@ const REMEMBERED_KEY = { key: 'remembered' } as unknown as CryptoKey
 
 beforeEach(() => {
   forgetEverything()
+  delete mocks.client.auth
+  mocks.finishDeletion.mockReset().mockResolvedValue(undefined)
+  mocks.loadPage.mockReset()
   mocks.vault.current = { status: 'ready', dataKey: KEY, userId: 'someone' }
   mocks.loadProfile.mockReset().mockResolvedValue({ profile: null, unreadable: 0 })
   mocks.loadSnapshots.mockReset().mockResolvedValue({ snapshots: [], unreadable: 2 })
@@ -100,6 +112,45 @@ test('fails when one read rejects, and retry reads again', async () => {
   })
   await waitFor(() => expect(result.current.status).toBe('ready'))
   expect(mocks.loadProfile).toHaveBeenCalledTimes(2)
+})
+
+// Deleted from another device: the token still works for up to an hour, and the base gives it nothing.
+describe('an account deleted elsewhere', () => {
+  const answer = (value: unknown) => {
+    const getUser = vi.fn(() => Promise.resolve(value))
+    mocks.client.auth = { getUser }
+    return getUser
+  }
+
+  test('an empty reading whose account is gone forgets the device and goes to the landing that says so', async () => {
+    const getUser = answer({ data: { user: null }, error: new AuthApiError('User not found', 403, 'user_not_found') })
+    rememberVault({ userId: 'someone', dataKey: KEY }, vaultMark())
+    const { result } = renderHook(() => useModel())
+    await waitFor(() => expect(mocks.loadPage).toHaveBeenCalledWith('/?compte=supprime'))
+    expect(getUser).toHaveBeenCalledTimes(1)
+    expect(mocks.finishDeletion).toHaveBeenCalledWith(mocks.client, KEYS)
+    expect(mocks.finishDeletion.mock.invocationCallOrder[0]).toBeLessThan(mocks.loadPage.mock.invocationCallOrder[0])
+    // Never the first launch of an account that no longer exists, nor anything kept for the next screen.
+    expect(result.current.status).toBe('loading')
+    expect(rememberedModel('someone')).toBeNull()
+    expect(rememberedVault()).toBeNull()
+  })
+
+  test('an empty reading whose account still exists is shown, as a first launch', async () => {
+    answer({ data: { user: { id: 'someone' } }, error: null })
+    const { result } = renderHook(() => useModel())
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(mocks.finishDeletion).not.toHaveBeenCalled()
+    expect(mocks.loadPage).not.toHaveBeenCalled()
+  })
+
+  test('a reading with a profile does not ask the server who is signed in', async () => {
+    const getUser = answer({ data: { user: null }, error: new AuthApiError('User not found', 403, 'user_not_found') })
+    mocks.loadProfile.mockResolvedValue({ profile: { id: 'p', value: exampleProfile, updatedAt: '' }, unreadable: 0 })
+    const { result } = renderHook(() => useModel())
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(getUser).not.toHaveBeenCalled()
+  })
 })
 
 test('reload reads again without going back through loading', async () => {

@@ -94,9 +94,10 @@ test('the settings, from the first launch to a new password and a new recovery k
   // 2. Mon argent leads to the Réglages.
   await page.getByRole('link', { name: 'Réglages', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Réglages', level: 1 })).toBeVisible()
+  // The first two titles open their screen (planche 3B): « Mes objectifs › ».
   await expect(page.getByRole('heading', { level: 2 })).toHaveText([
-    'Mes objectifs',
-    'Mes dépenses par mois',
+    /^Mes objectifs\s*›$/,
+    /^Mes dépenses par mois\s*›$/,
     'Mes banques',
     'Affichage',
     'Mes chiffres en fichier',
@@ -117,7 +118,7 @@ test('the settings, from the first launch to a new password and a new recovery k
   await expect(section(page, 'Affichage').getByRole('button', { name: 'En euros' })).toHaveAttribute('aria-pressed', 'true')
 
   // 4. The monthly spending comes from the first launch screen and returns here.
-  await section(page, 'Mes dépenses par mois').getByRole('link', { name: 'Modifier' }).click()
+  await section(page, 'Mes dépenses par mois').getByRole('link', { name: 'Mes dépenses par mois' }).click()
   await expect(page).toHaveURL(/\/premier-lancement\/depenses\?depuis=reglages$/)
   await fill(page, 'Tes dépenses par mois', '2000')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
@@ -148,8 +149,13 @@ test('the settings, from the first launch to a new password and a new recovery k
   await banks.getByRole('button', { name: 'Revolut', exact: true }).click()
   await expect(banks.getByRole('button', { name: 'Retirer : Revolut' })).toBeVisible({ timeout: 15_000 })
   await expect(banks.getByRole('listitem').first()).toContainText('BoursoBank')
+  // The arrows are hidden at rest (planche 2B): « Changer l’ordre » shows them, « Terminé » hides them.
+  await expect(banks.getByRole('button', { name: /^Monter/ })).toHaveCount(0)
+  await banks.getByRole('button', { name: 'Changer l’ordre' }).click()
   await banks.getByRole('button', { name: 'Monter : Revolut' }).click()
   await expect(banks.getByRole('listitem').first()).toContainText('Revolut', { timeout: 15_000 })
+  await banks.getByRole('button', { name: 'Terminé' }).click()
+  await expect(banks.getByRole('button', { name: /^Monter/ })).toHaveCount(0)
   await shot(page, 'reglages-5-banques')
   // A bank that still holds an account has no « Retirer ».
   await expect(banks.getByRole('button', { name: 'Retirer : BoursoBank' })).toHaveCount(0)

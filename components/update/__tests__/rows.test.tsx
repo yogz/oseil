@@ -88,9 +88,9 @@ test('the price of a part left in its box always has two decimals', async () => 
 
 test('a contribution since an abbreviated date does not end on two points', () => {
   render(
-    <ContributionField account={account('livret-a', 'livret-a', { name: 'Livret A' })} since="2026-09-30" cents={0} onValue={vi.fn()} />,
+    <ContributionField account={account('livret-a', 'livret-a', { name: 'Livret A' })} since="2026-09-30" cents={null} onValue={vi.fn()} />,
   )
-  expect(document.body.textContent).toContain('Depuis le 30 sept. Pas sûr')
+  expect(document.body.textContent).toContain('Depuis le 30 sept. Rien versé')
   expect(document.body.textContent).not.toContain('..')
 })
 
@@ -267,6 +267,16 @@ test('gold speaks of units, and an unknown average price is said', async () => {
   sees('Recopie ce que montre ta banque. Avant : 2 unités à prix moyen inconnu.')
 })
 
+test('a title with no purchase price: the button asks for it, and opens the same boxes', async () => {
+  const user = userEvent.setup()
+  const before = unitsEntry('etf', 100, 250, null)
+  render(<UnitsRow {...props({ line: etfLine, account: peaAccount, entry: before, before })} asksPurchase />)
+  expect(screen.queryByRole('button', { name: /prix moyen ont changé/ })).toBeNull()
+  await user.click(screen.getByRole('button', { name: /^Tu as son prix d’achat sous les yeux.\?$/ }))
+  expect((screen.getByLabelText('Combien de parts as-tu ?') as HTMLInputElement).value).toBe('100')
+  expect((screen.getByLabelText('À quel prix les as-tu achetées, en moyenne ?') as HTMLInputElement).value).toBe('')
+})
+
 const houseAccount = account('house', 'home', { name: 'Maison' })
 const houseLine = line('house-line', 'house', { name: 'Maison' })
 const houseBefore = amountEntry('house-line', 300_000)
@@ -290,12 +300,33 @@ test('a home shows its estimate date, confirms, and opens its box on « Changer 
   expect(onValue).toHaveBeenCalledWith({ kind: 'amount', amount: 30_000_000 })
 })
 
+test('a contribution not answered is an empty box; a typed 0 is an answer', async () => {
+  const user = userEvent.setup()
+  const onValue = vi.fn()
+  render(<ContributionField account={account('life', 'life-insurance')} since="2026-09-30" cents={null} onValue={onValue} />)
+  const box = screen.getByLabelText('Combien a été versé dessus ?') as HTMLInputElement
+  expect(box.value).toBe('')
+  await user.type(box, '0')
+  await user.tab()
+  expect(onValue).toHaveBeenCalledWith(0)
+})
+
+test('a contribution box emptied is unknown again', async () => {
+  const user = userEvent.setup()
+  const onValue = vi.fn()
+  render(<ContributionField account={account('life', 'life-insurance')} since="2026-09-30" cents={150_000} onValue={onValue} />)
+  const box = screen.getByLabelText('Combien a été versé dessus ?') as HTMLInputElement
+  await user.clear(box)
+  await user.tab()
+  expect(onValue).toHaveBeenCalledWith(null)
+  expect(screen.queryByText('Ce montant n’est pas lisible.')).toBeNull()
+})
+
 test('a contribution takes a minus sign for money taken out', async () => {
   const user = userEvent.setup()
   const onValue = vi.fn()
-  render(<ContributionField account={account('life', 'life-insurance')} since="2026-09-30" cents={0} onValue={onValue} />)
+  render(<ContributionField account={account('life', 'life-insurance')} since="2026-09-30" cents={null} onValue={onValue} />)
   const box = screen.getByLabelText('Combien a été versé dessus ?') as HTMLInputElement
-  expect(box.value).toBe('0')
   await user.clear(box)
   await user.type(box, '-2000')
   await user.tab()
@@ -303,16 +334,16 @@ test('a contribution takes a minus sign for money taken out', async () => {
 })
 
 test('the contribution hint changes for employee savings', () => {
-  render(<ContributionField account={account('es', 'employee-savings')} since="2026-09-30" cents={0} onValue={vi.fn()} />)
-  sees('Depuis le 30 sept., ton employeur compris. Pas sûr ? Laisse 0 : on comptera tout comme des intérêts, et l’écran le dira. Tu en as retiré ? Écris-le avec un moins devant.')
+  render(<ContributionField account={account('es', 'employee-savings')} since="2026-09-30" cents={null} onValue={vi.fn()} />)
+  sees('Depuis le 30 sept., ton employeur compris. Rien versé ? Écris 0. Pas sûr ? Laisse vide : on comptera tout comme des intérêts, et l’écran le dira. Tu en as retiré ? Écris-le avec un moins devant.')
 })
 
 test('an unreadable contribution is refused', async () => {
   const user = userEvent.setup()
   const onValue = vi.fn()
-  render(<ContributionField account={account('life', 'life-insurance')} since="2026-09-30" cents={0} onValue={onValue} />)
+  render(<ContributionField account={account('life', 'life-insurance')} since="2026-09-30" cents={null} onValue={onValue} />)
   const box = screen.getByRole('textbox')
-  await user.clear(box)
+  await user.type(box, 'douze')
   fireEvent.blur(box)
   expect(screen.getByText('Ce montant n’est pas lisible.')).toBeTruthy()
   expect(onValue).not.toHaveBeenCalled()

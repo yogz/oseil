@@ -26,6 +26,8 @@ export type RowProps = {
   // price or the last one, since today's could not be had. Worded with the line's currency
   // (todaysPriceHint, failedPriceHint): the row shows it in place of its own currency hint.
   priceHint?: string
+  // A line in parts with no purchase price in the base snapshot (asksPurchasePrice): its link asks for it.
+  asksPurchase?: boolean
 }
 
 // Under an empty box: a line with no value yet (no base entry, nothing typed), to be filled.

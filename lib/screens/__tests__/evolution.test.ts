@@ -337,11 +337,34 @@ describe('where it comes from', () => {
 })
 
 describe('Tes relevés', () => {
-  test('lists the snapshots newest first with their square value', () => {
+  test('lists the snapshots newest first, each a link to its own page', () => {
     const view = history(evolutionView(modelOf([older, newer]), TODAY))
     expect(view.snapshots.map((s) => plain(s.date))).toEqual(['30 septembre 2026', '30 juin 2025'])
     expect(view.snapshots.map((s) => plain(s.net))).toEqual(['42 600 €', '38 500 €'])
-    expect(view.snapshots.map((s) => plain(s.squareValue))).toEqual(['426 €', '385 €'])
+    expect(view.snapshots.map((s) => s.href)).toEqual(['/releve/s1', '/releve/s0'])
+  })
+
+  test('marks the latest snapshot « le dernier », and only it', () => {
+    const view = history(evolutionView(modelOf([older, newer]), TODAY))
+    expect(view.snapshots.map((s) => s.last)).toEqual([true, false])
+  })
+
+  // Review Focus 2: two snapshots of the same day, the latest is the last in the repository's order.
+  test('of two snapshots of the same day, the latest is the last one stored', () => {
+    const view = history(evolutionView(modelOf([older, newer, newer]), TODAY))
+    expect(view.snapshots.map((s) => [s.id, s.last])).toEqual([
+      ['s2', true],
+      ['s1', false],
+      ['s0', false],
+    ])
+  })
+
+  test('marks nothing « le dernier » when the latest snapshot is not in the list', () => {
+    // A line the profile does not know: this snapshot cannot be read, it is left out of the list.
+    const unknown = at('2026-10-30', snapshotOf([amountEntry('liv', 12_000), amountEntry('ghost', 10_000)]))
+    const view = history(evolutionView(modelOf([older, newer, unknown]), TODAY))
+    expect(view.snapshots.map((s) => s.id)).toEqual(['s1', 's0'])
+    expect(view.snapshots.some((s) => s.last)).toBe(false)
   })
 })
 

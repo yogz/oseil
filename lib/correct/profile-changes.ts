@@ -56,7 +56,55 @@ export function setUnlockYear(profile: Profile, accountId: string, year: number 
     })
   }
   if (!Number.isInteger(year) || year < 1900 || year > 2099) throw new Error(`Invalid year ${year}`)
-  return mapAccount(profile, accountId, (a) => ({ ...a, unlockOn: `${year}-01-01` }))
+  return mapAccount(profile, accountId, (a) => {
+    const { unlockUnknown: _removed, ...rest } = a // a real year answers « I don't know »
+    void _removed
+    return { ...rest, unlockOn: `${year}-01-01` }
+  })
+}
+
+// « Je ne sais pas » answers: each is only ever true, and `on: false` removes the field.
+function setFlag<T extends Line | Account, K extends keyof T>(item: T, key: K, on: boolean): T {
+  if (on) return { ...item, [key]: true }
+  const { [key]: _removed, ...rest } = item
+  void _removed
+  return rest as T
+}
+
+export const setPurchaseUnknown = (profile: Profile, lineId: string, on: boolean): Profile => {
+  findLine(profile, lineId)
+  return mapLine(profile, lineId, (l) => setFlag(l, 'purchaseUnknown', on))
+}
+
+export const setUnquoted = (profile: Profile, lineId: string, on: boolean): Profile => {
+  findLine(profile, lineId)
+  return mapLine(profile, lineId, (l) => setFlag(l, 'unquoted', on))
+}
+
+export function setUnlockUnknown(profile: Profile, accountId: string, on: boolean): Profile {
+  if (findAccount(profile, accountId).type !== 'employee-savings') throw new Error('Only employee savings have an unlock year')
+  return mapAccount(profile, accountId, (a) => setFlag(a, 'unlockUnknown', on))
+}
+
+export function setNoHome(profile: Profile, loanAccountId: string, on: boolean): Profile {
+  if (findAccount(profile, loanAccountId).type !== 'loan') throw new Error('Only a loan finances a property')
+  return mapAccount(profile, loanAccountId, (a) => setFlag(a, 'noHome', on))
+}
+
+// The « je ne sais pas » answer a line's fiche gives, by line: the purchase price and the quote belong
+// to the line, the unlock year and the home financed to its account.
+export function answerUnknown(profile: Profile, lineId: string, kind: 'purchase' | 'quote' | 'unlock' | 'loan', on: boolean): Profile {
+  const { accountId } = findLine(profile, lineId)
+  switch (kind) {
+    case 'purchase':
+      return setPurchaseUnknown(profile, lineId, on)
+    case 'quote':
+      return setUnquoted(profile, lineId, on)
+    case 'unlock':
+      return setUnlockUnknown(profile, accountId, on)
+    case 'loan':
+      return setNoHome(profile, accountId, on)
+  }
 }
 
 // The type of a home. A main residence is written as no mark, as every home was before the types.
@@ -96,7 +144,11 @@ export function setFinanced(profile: Profile, loanAccountId: string, homeLineId:
   const home = findLine(profile, homeLineId)
   const homeAccount = findAccount(profile, home.accountId)
   if (homeAccount.type !== 'home' || home.closedOn !== undefined) throw new Error('A loan finances an open home line')
-  return mapAccount(profile, loanAccountId, (a) => ({ ...a, financedLineId: homeLineId }))
+  return mapAccount(profile, loanAccountId, (a) => {
+    const { noHome: _removed, ...rest } = a // naming a home answers « none »
+    void _removed
+    return { ...rest, financedLineId: homeLineId }
+  })
 }
 
 // A bank that can lend: not the employee savings, not a crypto platform.

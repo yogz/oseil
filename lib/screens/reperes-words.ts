@@ -133,6 +133,11 @@ export function sameHoldingFact(name: string, accounts: number, total: string): 
   return `Tu détiens « ${name} » sur ${count} comptes différents, ${total} en tout.`
 }
 
+// Several holdings, each on several accounts, in one sentence (biggest first).
+export function sameHoldingsFact(names: string[], total: string): string {
+  return `Tu détiens ${joinAnd(names.map((n) => `« ${n} »`))} chacun sur plusieurs comptes, ${total} en tout.`
+}
+
 // `share`: of what is his outside the homes. `employers`: their names, when they are known.
 export function employerFact(share: number, employers: string[], several: boolean, homes: Homes = NO_HOMES): string {
   const part = share < 0.2 ? 'Une petite partie' : 'Une partie'

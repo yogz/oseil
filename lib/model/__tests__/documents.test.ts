@@ -93,6 +93,9 @@ describe('parseProfile, chapter of a line', () => {
     // Japan has its own chapter since 9 November 2026.
     kept.lines[2] = { ...kept.lines[2], group: 'japan' }
     expect(parseProfile(kept)?.lines[2].group).toBe('japan')
+    // « Matières premières » has its own chapter since 14 November 2026.
+    kept.lines[2] = { ...kept.lines[2], group: 'commodities' }
+    expect(parseProfile(kept)?.lines[2].group).toBe('commodities')
 
     const refused = clone(exampleProfile)
     refused.lines[2] = { ...refused.lines[2], group: 'asia' as never }
@@ -368,5 +371,29 @@ describe('parseProfile: a line quick or slow of its own', () => {
     expect(parseProfile(withSlow(true))?.lines[0].slow).toBe(true)
     expect(parseProfile(withSlow(false))?.lines[0].slow).toBe(false)
     expect(parseProfile(withSlow('oui'))).toBeNull()
+  })
+})
+
+describe('parseProfile: the « I don’t know » flags', () => {
+  const flagged = (target: 'line' | 'account', key: string, value: unknown) => {
+    const profile = clone(exampleProfile)
+    const list = (target === 'line' ? profile.lines : profile.accounts) as Array<Record<string, unknown>>
+    list[0][key] = value
+    return profile
+  }
+  const cases: Array<['line' | 'account', string]> = [
+    ['line', 'purchaseUnknown'],
+    ['line', 'unquoted'],
+    ['account', 'unlockUnknown'],
+    ['account', 'noHome'],
+  ]
+  test.each(cases)('%s.%s round-trips when true', (target, key) => {
+    const profile = flagged(target, key, true)
+    expect(parseProfile(clone(profile))).toEqual(profile)
+  })
+  test.each(cases)('%s.%s is refused with any other value', (target, key) => {
+    for (const value of [false, 'true', 1, null]) {
+      expect(parseProfile(flagged(target, key, value))).toBeNull()
+    }
   })
 })

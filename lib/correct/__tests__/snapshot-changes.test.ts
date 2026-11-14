@@ -10,6 +10,7 @@ import {
   closingRewrites,
   closingUnfinished,
   correctFigures,
+  correctFiguresAt,
   deleteLine,
   finishClosing,
   reopenLine,
@@ -180,6 +181,219 @@ describe('correctFigures', () => {
     expect(() => correctFigures(snaps, 'gold-line', { kind: 'amount', amount: 1 })).toThrow()
     expect(() => correctFigures(snaps, 'etf', { kind: 'amount', amount: 1 })).toThrow()
     expect(() => correctFigures(snaps, 'livret-a-line', { kind: 'units', units: 1, unitPrice: 1, averagePrice: null })).toThrow()
+  })
+})
+
+describe('correctFiguresAt', () => {
+  const unlocked = { latestLocked: false }
+  const locked = { latestLocked: true }
+  type At = ReturnType<typeof correctFiguresAt>
+  function done(result: At): { writes: Write[]; others: number; latestToo: boolean } {
+    if ('refused' in result) throw new Error(`Refused: ${result.refused}`)
+    return result
+  }
+  const fixed = { kind: 'amount', amount: 3_400_000 } as const
+
+  it('corrects the chosen relevé and its identical neighbours, before and after, and stops where the value differs', () => {
+    const history = [
+      s('a', '2026-08-01', [livret(500_000, '2026-08-01')]),
+      s('b', '2026-09-01', [livret(340_000, '2026-09-01')]),
+      s('c', '2026-10-01', [livret(340_000, '2026-09-01')]),
+      s('d', '2026-11-01', [livret(340_000, '2026-09-01')]),
+      s('e', '2026-11-08', [livret(360_000, '2026-11-08')]),
+    ]
+    const before = structuredClone(history)
+    const result = done(correctFiguresAt(history, 'c', 'livret-a-line', fixed, unlocked))
+    // The farthest first, the chosen relevé last: a cut in between leaves a correction a redo finishes.
+    expect(ids(result.writes)).toEqual(['b', 'd', 'c'])
+    for (const w of snapshotWrites(result.writes)) expect(w.value.entries).toEqual([livret(3_400_000, '2026-09-01')])
+    expect(result.others).toBe(2)
+    expect(result.latestToo).toBe(false)
+    expect(history).toEqual(before)
+  })
+
+  it('never touches the date, the rates, the arrivals or the contributions', () => {
+    const history = [
+      s('a', '2026-09-01', [livret(340_000, '2026-09-01')], { fx: { USD: 1.08 }, contributions: { acc: 100 } }),
+      s('b', '2026-10-01', [livret(340_000, '2026-09-01')], { arrivals: { 'livret-a-line': 'existing' } }),
+      s('c', '2026-11-01', [livret(1, '2026-11-01')]),
+    ]
+    for (const w of snapshotWrites(done(correctFiguresAt(history, 'a', 'livret-a-line', fixed, unlocked)).writes)) {
+      const original = history.find((x) => x.id === w.id)!.value
+      expect({ ...w.value, entries: [] }).toEqual({ ...original, entries: [] })
+    }
+  })
+
+  // The same wrong figure carried forward up to today.
+  const toToday = [
+    s('a', '2026-09-01', [livret(500_000, '2026-09-01')]),
+    s('b', '2026-10-01', [livret(340_000, '2026-10-01')]),
+    s('c', '2026-11-01', [livret(340_000, '2026-10-01')]),
+    s('d', '2026-11-08', [livret(340_000, '2026-10-01')]),
+  ]
+
+  it('corrects the latest relevé too when the same figure reaches it, and says so', () => {
+    const result = done(correctFiguresAt(toToday, 'b', 'livret-a-line', fixed, unlocked))
+    expect(ids(result.writes)).toEqual(['d', 'c', 'b'])
+    expect(result.others).toBe(2)
+    expect(result.latestToo).toBe(true)
+  })
+
+  it('never writes the latest relevé while an update is running', () => {
+    const result = done(correctFiguresAt(toToday, 'b', 'livret-a-line', fixed, locked))
+    expect(ids(result.writes)).toEqual(['c', 'b'])
+    expect(result.others).toBe(1)
+    expect(result.latestToo).toBe(false)
+    // Every field of a units line, carried forward up to today: still nothing written in the latest.
+    const funds = ['a', 'b', 'c'].map((id, i) => s(id, `2026-0${7 + i}-01` as IsoDate, [unitsEntry('etf', 100, 250, 200, '2026-07-01')]))
+    const units = done(correctFiguresAt(funds, 'a', 'etf', { kind: 'units', units: 1, unitPrice: 2, averagePrice: 3 }, locked))
+    expect(ids(units.writes)).not.toContain('c')
+    expect(ids(units.writes)).toEqual(['b', 'a'])
+  })
+
+  it('throws when asked for the latest relevé while an update is running', () => {
+    expect(() => correctFiguresAt(toToday, 'd', 'livret-a-line', fixed, locked)).toThrow(/locked/)
+  })
+
+  describe('two relevés taken the same day', () => {
+    // The latest is the last in the repository's order, not the one with a later date.
+    const sameDay = [
+      s('a', '2026-10-01', [livret(340_000, '2026-10-01')]),
+      s('b', '2026-11-01', [livret(340_000, '2026-10-01')]),
+      s('c', '2026-11-01', [livret(340_000, '2026-10-01')]),
+    ]
+
+    it('stops before the last of them while an update is running', () => {
+      const result = done(correctFiguresAt(sameDay, 'b', 'livret-a-line', fixed, locked))
+      expect(ids(result.writes)).toEqual(['a', 'b'])
+      expect(result.latestToo).toBe(false)
+    })
+
+    it('reaches the last of them otherwise, and corrects it as the fiche does when it is the one chosen', () => {
+      expect(done(correctFiguresAt(sameDay, 'b', 'livret-a-line', fixed, unlocked)).latestToo).toBe(true)
+      expect(done(correctFiguresAt(sameDay, 'c', 'livret-a-line', fixed, unlocked)).writes).toEqual(
+        correctFigures(sameDay, 'livret-a-line', fixed),
+      )
+    })
+  })
+
+  // Monthly buying: the price moves every relevé, the parts stay.
+  const fund = (id: string, takenOn: IsoDate, units: number, unitPrice: number, averagePrice: number | null = 200) =>
+    s(id, takenOn, [unitsEntry('etf', units, unitPrice, averagePrice, takenOn)])
+  const funds = [
+    fund('a', '2026-07-01', 90, 230),
+    fund('b', '2026-08-01', 100, 240),
+    fund('c', '2026-09-01', 100, 245),
+    fund('d', '2026-10-01', 100, 250),
+    fund('e', '2026-11-01', 100, 255),
+  ]
+
+  it('carries only the parts on a units line whose price changed every relevé', () => {
+    const result = done(correctFiguresAt(funds, 'c', 'etf', { kind: 'units', units: 120, unitPrice: 245, averagePrice: 200 }, unlocked))
+    expect(ids(result.writes)).toEqual(['e', 'b', 'd', 'c'])
+    expect(applied(funds, result.writes)).toEqual({
+      a: funds[0].value,
+      b: fund('b', '2026-08-01', 120, 240).value,
+      c: fund('c', '2026-09-01', 120, 245).value,
+      d: fund('d', '2026-10-01', 120, 250).value,
+      e: fund('e', '2026-11-01', 120, 255).value,
+    })
+    expect(result.others).toBe(3)
+    expect(result.latestToo).toBe(true)
+  })
+
+  it('corrects the price in the chosen relevé alone when its neighbours had another', () => {
+    const result = done(correctFiguresAt(funds, 'c', 'etf', { kind: 'units', units: 100, unitPrice: 247, averagePrice: 200 }, unlocked))
+    expect(ids(result.writes)).toEqual(['c'])
+    expect(snapshotWrites(result.writes)[0].value.entries[0]).toEqual(unitsEntry('etf', 100, 247, 200, '2026-09-01'))
+    expect(result.others).toBe(0)
+  })
+
+  it('never carries an unknown average price to the neighbours', () => {
+    const unknown = [fund('a', '2026-08-01', 100, 240, null), fund('b', '2026-09-01', 100, 245, null), fund('c', '2026-10-01', 100, 250, null)]
+    const result = done(correctFiguresAt(unknown, 'b', 'etf', { kind: 'units', units: 120, unitPrice: 245, averagePrice: 210 }, unlocked))
+    expect(applied(unknown, result.writes)).toEqual({
+      a: fund('a', '2026-08-01', 120, 240, null).value,
+      b: fund('b', '2026-09-01', 120, 245, 210).value,
+      c: fund('c', '2026-10-01', 120, 250, null).value,
+    })
+  })
+
+  it('refuses to erase a figure known on a past relevé', () => {
+    expect(correctFiguresAt(funds, 'c', 'etf', { kind: 'units', units: 100, unitPrice: 245, averagePrice: null }, unlocked)).toEqual({
+      refused: 'erase',
+    })
+    // An average price that was never known may stay unknown.
+    const unknown = [fund('a', '2026-08-01', 100, 240, null), fund('b', '2026-09-01', 100, 245, null)]
+    const kept = done(correctFiguresAt(unknown, 'a', 'etf', { kind: 'units', units: 110, unitPrice: 240, averagePrice: null }, unlocked))
+    expect(ids(kept.writes)).toEqual(['b', 'a'])
+  })
+
+  it('on the latest relevé, does what the fiche does today, erasing included', () => {
+    const typo = [
+      s('a', '2026-09-01', [livret(500_000, '2026-09-01')]),
+      s('b', '2026-10-01', [livret(340_000, '2026-10-01')]),
+      s('c', '2026-11-01', [livret(340_000, '2026-10-01')]),
+    ]
+    const result = done(correctFiguresAt(typo, 'c', 'livret-a-line', fixed, unlocked))
+    expect(result).toEqual({ writes: correctFigures(typo, 'livret-a-line', fixed), others: 1, latestToo: false })
+    const erase = { kind: 'units', units: 100, unitPrice: 255, averagePrice: null } as const
+    expect(done(correctFiguresAt(funds, 'e', 'etf', erase, unlocked)).writes).toEqual(correctFigures(funds, 'etf', erase))
+  })
+
+  it('announces as « others » exactly the relevés written besides the chosen one', () => {
+    for (const [history, id] of [
+      [toToday, 'a'],
+      [toToday, 'b'],
+      [toToday, 'c'],
+      [funds, 'b'],
+      [funds, 'd'],
+    ] as const) {
+      for (const options of [locked, unlocked]) {
+        const result = done(correctFiguresAt(history, id, history === toToday ? 'livret-a-line' : 'etf', history === toToday ? fixed : { kind: 'units', units: 1, unitPrice: 2, averagePrice: 3 }, options))
+        expect(result.others).toBe(result.writes.length - 1)
+        expect(ids(result.writes).at(-1)).toBe(id)
+      }
+    }
+  })
+
+  it('counts differently once a neighbour was retyped in between: the save can tell', () => {
+    const announced = done(correctFiguresAt(toToday, 'b', 'livret-a-line', fixed, unlocked)).others
+    const retyped = toToday.map((x) => (x.id === 'c' ? s('c', '2026-11-01', [livret(350_000, '2026-11-01')]) : x))
+    expect(done(correctFiguresAt(retyped, 'b', 'livret-a-line', fixed, unlocked)).others).not.toBe(announced)
+  })
+
+  it('a redo after a cut part-way through the writes ends where the whole correction would have', () => {
+    const figures = { kind: 'units', units: 120, unitPrice: 245, averagePrice: 200 } as const
+    for (const options of [locked, unlocked]) {
+      const whole = done(correctFiguresAt(funds, 'c', 'etf', figures, options)).writes
+      const finished = afterWrites(funds, whole)
+      expect(whole.length).toBeGreaterThan(2)
+      for (let cut = 1; cut < whole.length; cut++) {
+        const afterCut = afterWrites(funds, whole.slice(0, cut))
+        expect(afterWrites(afterCut, done(correctFiguresAt(afterCut, 'c', 'etf', figures, options)).writes)).toEqual(finished)
+      }
+      expect(done(correctFiguresAt(finished, 'c', 'etf', figures, options))).toEqual({ writes: [], others: 0, latestToo: false })
+    }
+  })
+
+  it('stops at a relevé that does not hold the line, and leaves the other lines alone', () => {
+    const gap = [
+      s('a', '2026-08-01', [livret(340_000, '2026-08-01'), etf]),
+      s('b', '2026-09-01', [etf]),
+      s('c', '2026-10-01', [livret(340_000, '2026-08-01'), etf]),
+      s('d', '2026-11-01', [etf]),
+    ]
+    const result = done(correctFiguresAt(gap, 'c', 'livret-a-line', fixed, unlocked))
+    expect(ids(result.writes)).toEqual(['c'])
+    expect(snapshotWrites(result.writes)[0].value.entries).toEqual([livret(3_400_000, '2026-08-01'), etf])
+  })
+
+  it('throws on an unknown relevé, a relevé without the line, or another kind', () => {
+    expect(() => correctFiguresAt(snaps, 'zz', 'livret-a-line', fixed, unlocked)).toThrow(/No snapshot/)
+    const without = [s('a', '2026-09-01', [etf]), ...snaps.slice(1)]
+    expect(() => correctFiguresAt(without, 'a', 'livret-a-line', fixed, unlocked)).toThrow(/does not hold/)
+    expect(() => correctFiguresAt(snaps, 'a', 'etf', fixed, unlocked)).toThrow(/is not a amount line/)
   })
 })
 

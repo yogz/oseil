@@ -9,6 +9,7 @@ import {
   line,
   profileOf,
   snapshotOf,
+  unitsEntry,
 } from '@/lib/model/__tests__/fixtures'
 import type { Profile, Snapshot, UpdateDraft } from '@/lib/model/types'
 import { startDraft } from '@/lib/update/draft'
@@ -213,7 +214,12 @@ describe('the fiche of a line', () => {
     const m = modelOf(profile, [snapshotOf([amountEntry('es-l', 1), amountEntry('es2-l', 1), amountEntry('cur-l', 1)])])
     // An account's year: under « Son compte ».
     expect(lineSheetView(m, 'es-l', TODAY, null)!.accountRows).toContainEqual({ kind: 'unlock', year: 2029 })
-    expect(lineSheetView(m, 'es2-l', TODAY, null)!.accountRows).toContainEqual({ kind: 'unlock', year: null })
+    // No year and something in it: « À compléter » offers « Je ne sais pas » under the row.
+    expect(lineSheetView(m, 'es2-l', TODAY, null)!.accountRows).toContainEqual({
+      kind: 'unlock',
+      year: null,
+      answer: { kind: 'unlock', answered: false },
+    })
     expect(lineSheetView(m, 'cur-l', TODAY, null)!.accountRows.some((r) => r.kind === 'unlock')).toBe(false)
   })
 
@@ -295,6 +301,21 @@ describe('the fiche of a line', () => {
     expect(lineSheetView({ ...model, snapshots: [] }, 'etf', TODAY, null)).toBeNull()
   })
 
+  // docs/superpowers/specs/2026-11-12-corriger-un-releve-design.md: « Depuis la fiche d’une ligne ».
+  test('leads to « Tes relevés » of Évolution when the line is in more than one relevé, even locked', () => {
+    expect(lineSheetView(model, 'etf', TODAY, null)!.history).toBeNull()
+    const older: Snapshot = { ...exampleSnapshot, takenOn: '2026-08-31' }
+    const two = modelOf(followed, [older, exampleSnapshot])
+    expect(lineSheetView(two, 'etf', TODAY, null)!.history).toEqual({ href: '/evolution#releves', label: 'Ses relevés précédents' })
+    const running = modelOf(followed, [older, exampleSnapshot], { draft: startDraft('s1') })
+    const locked = lineSheetView(running, 'etf', TODAY, null)!
+    expect(locked.locked).toBe('update-running')
+    expect(locked.history?.href).toBe('/evolution#releves')
+    // A line added in the latest relevé only has no previous one.
+    const without: Snapshot = { ...older, entries: older.entries.filter((e) => e.lineId !== 'etf') }
+    expect(lineSheetView(modelOf(followed, [without, exampleSnapshot]), 'etf', TODAY, null)!.history).toBeNull()
+  })
+
   test('has the controller’s copy for a line changed meanwhile', () => {
     expect(CHANGED_MEANWHILE).toBe('Cette ligne a changé entre-temps\u00A0: rien n’a été modifié.')
   })
@@ -339,4 +360,75 @@ test('a current account listed under its bank opens on its bank', () => {
   expect(view.name).toBe('BoursoBank')
   expect(view.rows).toContainEqual({ kind: 'name', value: 'Compte courant' })
   expect(lineSheetView(modelOf(exampleProfile, [exampleSnapshot]), 'livret-a-line', TODAY, null)!.name).toBe('Livret A')
+})
+
+// « À compléter », task 4: the rows a gap concerns carry its answer, open or answered « je ne sais pas ».
+describe('the « je ne sais pas » answers', () => {
+  const accounts = [
+    account('pea', 'pea', { name: 'PEA' }),
+    account('pee', 'employee-savings', { name: 'PEE' }),
+    account('house', 'home', { name: 'Maison' }),
+    account('mortgage', 'loan', { name: 'Crédit immo' }),
+  ]
+  const lines = [
+    line('etf', 'pea', { kind: 'units', group: 'world' }),
+    line('pee-line', 'pee', { group: 'world' }),
+    line('house-line', 'house'),
+    line('mortgage-line', 'mortgage'),
+  ]
+  const entries = [
+    unitsEntry('etf', 100, 250, null),
+    amountEntry('pee-line', 5_000),
+    amountEntry('house-line', 300_000),
+    amountEntry('mortgage-line', 180_000),
+  ]
+  const of = (lineId: string, ls = lines, as = accounts, es = entries) =>
+    lineSheetView(modelOf(profileOf(as, ls), [snapshotOf(es)]), lineId, TODAY, null)!
+  const row = (view: ReturnType<typeof of>, kind: string) => [...view.rows, ...view.accountRows].find((r) => r.kind === kind)
+  const withLine = (id: string, extra: object) => lines.map((l) => (l.id === id ? { ...l, ...extra } : l))
+  const withAccount = (id: string, extra: object) => accounts.map((a) => (a.id === id ? { ...a, ...extra } : a))
+
+  test('purchase: open, then answered, on the figures row', () => {
+    expect(row(of('etf'), 'figures')).toMatchObject({ answer: { kind: 'purchase', answered: false } })
+    expect(row(of('etf', withLine('etf', { purchaseUnknown: true })), 'figures')).toMatchObject({
+      answer: { kind: 'purchase', answered: true },
+    })
+  })
+
+  test('purchase: a price typed wins over the flag, and nothing is said', () => {
+    const priced = entries.map((e) => (e.lineId === 'etf' ? unitsEntry('etf', 100, 250, 200) : e))
+    expect(row(of('etf', withLine('etf', { purchaseUnknown: true }), accounts, priced), 'figures')).not.toHaveProperty('answer')
+    expect(row(of('etf', lines, accounts, priced), 'figures')).not.toHaveProperty('answer')
+  })
+
+  test('quote: open, then « Pas coté », on the price row; a symbol says nothing', () => {
+    expect(row(of('etf'), 'price')).toMatchObject({ answer: { kind: 'quote', answered: false } })
+    expect(row(of('etf', withLine('etf', { unquoted: true })), 'price')).toMatchObject({ answer: { kind: 'quote', answered: true } })
+    expect(row(of('etf', withLine('etf', { quoteSymbol: 'CW8.PA' })), 'price')).not.toHaveProperty('answer')
+  })
+
+  test('unlock: open, then answered, on the unlock row; a year says nothing', () => {
+    expect(row(of('pee-line'), 'unlock')).toMatchObject({ answer: { kind: 'unlock', answered: false } })
+    expect(row(of('pee-line', lines, withAccount('pee', { unlockUnknown: true })), 'unlock')).toMatchObject({
+      answer: { kind: 'unlock', answered: true },
+    })
+    expect(row(of('pee-line', lines, withAccount('pee', { unlockOn: '2029-01-01' })), 'unlock')).not.toHaveProperty('answer')
+  })
+
+  test('loan: open, then answered, on the financed row, only with a home', () => {
+    expect(row(of('mortgage-line'), 'financed')).toMatchObject({ answer: { kind: 'loan', answered: false } })
+    expect(row(of('mortgage-line', lines, withAccount('mortgage', { noHome: true })), 'financed')).toMatchObject({
+      answer: { kind: 'loan', answered: true },
+    })
+    expect(row(of('mortgage-line', lines, withAccount('mortgage', { financedLineId: 'house-line' })), 'financed')).not.toHaveProperty(
+      'answer',
+    )
+    const noHouse = lines.filter((l) => l.id !== 'house-line')
+    const noHouseEntries = entries.filter((e) => e.lineId !== 'house-line')
+    const flagged = withAccount('mortgage', { noHome: true }).filter((a) => a.id !== 'house')
+    expect(row(of('mortgage-line', noHouse, accounts.filter((a) => a.id !== 'house'), noHouseEntries), 'financed')).not.toHaveProperty(
+      'answer',
+    )
+    expect(row(of('mortgage-line', noHouse, flagged, noHouseEntries), 'financed')).not.toHaveProperty('answer')
+  })
 })

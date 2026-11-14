@@ -160,7 +160,7 @@ test('the whole first launch, then Mon argent in euros and in percent', async ({
   await expect(page.getByText(/hors chez toi \(37\s000\s€ aujourd’hui\)/)).toBeVisible()
   await page.getByRole('button', { name: 'Équilibré', exact: true }).click()
   await expect(page.getByTestId('cushion')).toHaveText(/^Argent disponible\s:\sgarder 4\smois de dépenses, soit 10\s000\s€$/)
-  await expect(page.getByText(/^100\s%\srépartis$/)).toBeVisible()
+  await expect(page.getByText(/^100\s%\srépartis\s: baisse une part pour en monter une autre\.$/)).toBeVisible()
   await shot(page, '6-objectifs')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
 

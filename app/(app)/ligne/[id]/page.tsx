@@ -22,12 +22,13 @@ import { PurchaseEdit } from '@/components/line/PurchaseEdit'
 import { UnlockYearEdit } from '@/components/line/UnlockYearEdit'
 import { Button } from '@/components/ui/Button'
 import { PageColumns } from '@/components/ui/PageColumns'
+import { FindCorner } from '@/components/ui/FindLink'
 import { TabBar } from '@/components/ui/TabBar'
 import { useMenuFromModel } from '@/components/ui/use-menu-from-model'
 import { VaultWait } from '@/components/ui/VaultWait'
 import { useModel, type ModelState } from '@/lib/app/use-model'
 import { saveCorrection, type CorrectionState } from '@/lib/correct/save'
-import { fileLine, placeChoices, renameLine, setCategory, setFinanced, setGroups, setPurchase, setResidence, setUnlockYear } from '@/lib/correct/profile-changes'
+import { answerUnknown, fileLine, placeChoices, renameLine, setCategory, setFinanced, setGroups, setPurchase, setResidence, setUnlockYear } from '@/lib/correct/profile-changes'
 import {
   accountTypeChoices,
   bankChoices,
@@ -57,6 +58,8 @@ import { isRanged } from '@/lib/catalog'
 import { quotedSymbols } from '@/lib/market/live'
 import { useMarket } from '@/lib/market/use-market'
 import { lineSheetView } from '@/lib/screens/line-sheet'
+import { attachSymbol, detachSymbol, titleRows, titleToFind } from '@/lib/screens/titles'
+import { TitleFind } from '@/components/market/TitleFind'
 import { monArgentView } from '@/lib/screens/mon-argent'
 import { useIsDesktop } from '@/lib/app/use-desktop'
 import { outcomeSentence } from '@/lib/screens/line-words'
@@ -74,9 +77,11 @@ export default function LinePage() {
       {state.status === 'ready' ? (
         <ReadyBody state={state} lineId={id} />
       ) : (
-        <Link href="/" className={BACK}>
-          ‹ Mon argent
-        </Link>
+        <FindCorner>
+          <Link href="/" className={BACK}>
+            ‹ Mon argent
+          </Link>
+        </FindCorner>
       )}
       {state.status === 'loading' ? <VaultWait phase="open" /> : null}
 
@@ -141,6 +146,7 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
     if (asked) router.replace(`/ligne/${lineId}`)
   }, [asked, router, lineId])
   const [said, setSaid] = useState<string | null>(null)
+  const [attaching, setAttaching] = useState(false)
 
   // Re-read, plan, write, and say what happened. Resolves true once saved. `then`: what follows a
   // success; 'leave' when the line is no longer in the latest snapshot (deleted, or closed with its
@@ -187,6 +193,8 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
       void write((s) => finishClosing(s.profile.value, s.snapshots, lineId), 'leave')
     } else if (next === 'recount-finish') {
       void write((s) => finishRecount(s.profile.value, s.snapshots, lineId))
+    } else if (next === 'price-stop') {
+      void profileWrite((p) => detachSymbol(p, lineId))
     } else {
       setEditing(next)
     }
@@ -208,6 +216,10 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
   const purchase = view.rows.find((r) => r.kind === 'purchase')
 
   const bounds = closingBounds(model.snapshots, lineId, today)
+  // « Changer de titre »: the same search as « Le retrouver » on « Tes titres ».
+  const latestSnapshot = model.snapshots[model.snapshots.length - 1].value
+  const titleRow = titleRows(profile, latestSnapshot).find((r) => r.lineId === lineId)
+  const findable = titleRow ? titleToFind(profile, latestSnapshot, titleRow) : null
 
   let form = null
   if (view.locked === null) {
@@ -235,6 +247,19 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
           saveError={said}
           onDelete={() => write((s) => deleteLine(s.profile.value, s.snapshots, lineId), 'leave')}
           onCancel={leave}
+        />
+      )
+    } else if (editing === 'price' && findable) {
+      form = (
+        <TitleFind
+          title={findable}
+          busy={attaching}
+          saveError={said}
+          onAttach={(symbol) => {
+            setAttaching(true)
+            void profileWrite((p) => attachSymbol(p, lineId, symbol)).finally(() => setAttaching(false))
+          }}
+          onClose={leave}
         />
       )
     } else if (editing === 'name') {
@@ -384,9 +409,25 @@ function Sheet({ state, view }: { state: Ready; view: NonNullable<ReturnType<typ
     }
   }
 
-  return <LineSheet view={view} form={form} notice={
-        view.state.kind === 'open' || (view.state.kind === 'closing-unfinished' && said === SAVE_FAILED) ? null : said
-      } onEdit={open} />
+  // An open fiche with no form shows what a one-tap answer (« Je ne sais pas », « Changer ») could not do;
+  // a form says its own, and a lock is already said by the fiche.
+  const notice =
+    view.state.kind === 'open'
+      ? form === null && view.locked === null
+        ? said
+        : null
+      : view.state.kind === 'closing-unfinished' && said === SAVE_FAILED
+        ? null
+        : said
+  return (
+    <LineSheet
+      view={view}
+      form={form}
+      notice={notice}
+      onEdit={open}
+      onAnswer={(kind, on) => profileWrite((p) => answerUnknown(p, lineId, kind, on))}
+    />
+  )
 }
 
 // « Compté en » needs today's rate of a currency the snapshots may lack: asked only while it is open.

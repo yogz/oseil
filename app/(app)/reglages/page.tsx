@@ -10,23 +10,25 @@ import { BanksSection } from '@/components/settings/BanksSection'
 import { DataSection } from '@/components/settings/DataSection'
 import { DisplaySection } from '@/components/settings/DisplaySection'
 import { ReminderSection } from '@/components/settings/ReminderSection'
-import { ROW_LINK, SECTION, SECTION_TITLE, SENTENCE } from '@/components/settings/styles'
+import { SECTION, SECTION_TITLE, SENTENCE, TITLE_LINK } from '@/components/settings/styles'
 import { FOCUS } from '@/components/setup/styles'
 import { Button } from '@/components/ui/Button'
+import { FindCorner } from '@/components/ui/FindLink'
 import { PageColumns } from '@/components/ui/PageColumns'
 import { TabBar } from '@/components/ui/TabBar'
 import { useMenuFromModel } from '@/components/ui/use-menu-from-model'
 import { VaultWait } from '@/components/ui/VaultWait'
 import { useModel, type Model, type ModelState } from '@/lib/app/use-model'
+import { useScrollToAnchor } from '@/lib/app/use-scroll-to-anchor'
 import { GOAL_CATEGORIES, GOAL_COLOR, GOAL_LABELS } from '@/lib/catalog'
 import { todayIso } from '@/lib/dates'
 import { formatEurosShown, formatWholePercent } from '@/lib/format'
 import { cushionGoalText } from '@/lib/screens/words'
+import { SETTINGS_ANCHORS } from '@/lib/screens/find-words'
 import { goalInEffect } from '@/lib/model/goals'
 import { shownGoalCategories } from '@/lib/setup/goals-editor'
 import {
   BACK_TO_MONEY,
-  CHANGE,
   GOALS_HREF,
   GOALS_NONE,
   GOALS_TITLE,
@@ -46,18 +48,24 @@ const TITLE = 'pt-2 text-title font-semibold leading-tight tracking-[-0.01em]'
 
 type Ready = Extract<ModelState, { status: 'ready' }>
 
+const ANCHORS = Object.values(SETTINGS_ANCHORS)
+
 export default function SettingsPage() {
   const state = useModel()
   useMenuFromModel(state)
+  // « Trouver » leads to a section by its anchor; the sections come after the vault's wait.
+  useScrollToAnchor(state.status === 'ready', ANCHORS)
   return (
     // « Se déconnecter » lives here, under the settings; the tabs stay at the bottom, as everywhere.
     // The title stays in the aside whatever happens below it, a key that could not be erased included.
     <PageColumns
       aside={
         <>
-          <Link href="/" className={BACK}>
-            {BACK_TO_MONEY}
-          </Link>
+          <FindCorner>
+            <Link href="/" className={BACK}>
+              {BACK_TO_MONEY}
+            </Link>
+          </FindCorner>
           <h1 className={TITLE}>{SETTINGS}</h1>
         </>
       }
@@ -138,8 +146,8 @@ function GoalsRow({ model }: { model: Model }) {
       ].join(', ')
     : null
   return (
-    <section aria-label={GOALS_TITLE} className={SECTION}>
-      <h2 className={SECTION_TITLE}>{GOALS_TITLE}</h2>
+    <section id={SETTINGS_ANCHORS.goals} aria-label={GOALS_TITLE} className={`relative ${SECTION}`}>
+      <TitleLink title={GOALS_TITLE} href={GOALS_HREF} />
       {goal && label ? (
         <>
           <div role="img" aria-label={`${GOALS_TITLE}\u00A0: ${label}`} className="flex h-1.5 overflow-hidden rounded-square">
@@ -168,12 +176,6 @@ function GoalsRow({ model }: { model: Model }) {
       ) : (
         <p className={SENTENCE}>{GOALS_NONE}</p>
       )}
-      <Link href={GOALS_HREF} className={ROW_LINK}>
-        {CHANGE}
-        <span aria-hidden="true" className="text-ink-muted">
-          ›
-        </span>
-      </Link>
     </section>
   )
 }
@@ -182,8 +184,8 @@ function SpendingRow({ model }: { model: Model }) {
   const budget = model.settings?.value.budget ?? null
   const title = budget?.basis === 'salary' ? SALARY_TITLE : SPENDING_TITLE
   return (
-    <section aria-label={title} className={SECTION}>
-      <h2 className={SECTION_TITLE}>{title}</h2>
+    <section id={SETTINGS_ANCHORS.spending} aria-label={title} className={`relative ${SECTION}`}>
+      <TitleLink title={title} href={SPENDING_HREF} />
       {model.unreadable.settings > 0 ? (
         <p role="alert" className={SENTENCE}>
           {SETTINGS_UNREADABLE}
@@ -195,12 +197,22 @@ function SpendingRow({ model }: { model: Model }) {
       ) : (
         <p className={SENTENCE}>{SPENDING_NONE}</p>
       )}
-      <Link href={SPENDING_HREF} className={ROW_LINK}>
-        {CHANGE}
-        <span aria-hidden="true" className="text-ink-muted">
+    </section>
+  )
+}
+
+// Planche 3B (chosen by Nicolas on 12 November 2026): the title opens the screen, « Mes objectifs › », and no
+// « Modifier » row under it. The heading holds the link, so the link is named by the title alone; its
+// after-layer stretches over the whole section (`relative`), so the bar, the legend or the amount open it too.
+function TitleLink({ title, href }: { title: string; href: string }) {
+  return (
+    <h2 className={SECTION_TITLE}>
+      <Link href={href} className={TITLE_LINK}>
+        {title}
+        <span aria-hidden="true" className="font-normal text-ink-muted">
           ›
         </span>
       </Link>
-    </section>
+    </h2>
   )
 }

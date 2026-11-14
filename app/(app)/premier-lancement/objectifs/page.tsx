@@ -19,6 +19,7 @@ import { computeSituation, holdsRental } from '@/lib/model/situation'
 import type { Budget, GoalCategory } from '@/lib/model/types'
 import { buildGrid, type Grid } from '@/lib/model/squares'
 import { noGridSentence } from '@/lib/screens/mon-argent'
+import { BACK_TO_SETTINGS } from '@/lib/screens/settings-words'
 import {
   applyPreset,
   chezToiHomes,
@@ -27,6 +28,7 @@ import {
   nothingToSplit,
   othersOf,
   outsideHome,
+  placedSentence,
   remaining,
   startGoals,
   step,
@@ -59,7 +61,9 @@ export default function ObjectifsPage() {
   const state = useModel()
   // Opened from the Réglages: the first launch is not moved on, the person goes back there.
   const fromSettings = useSearchParams().get('depuis') === 'reglages'
-  const way = fromSettings ? { back: SETTINGS, next: SETTINGS } : { back: '/premier-lancement/depenses', next: NEXT }
+  const way: Way = fromSettings
+    ? { back: SETTINGS, next: SETTINGS, fromSettings }
+    : { back: '/premier-lancement/depenses', next: NEXT, fromSettings }
   if (state.status === 'loading') return <VaultWait phase="open" />
   if (state.status !== 'ready') return <LoadFailed retry={state.retry} />
   const { model } = state
@@ -121,16 +125,17 @@ export default function ObjectifsPage() {
   )
 }
 
-type Way = { back: string; next: string }
+type Way = { back: string; next: string; fromSettings: boolean }
 
-function Header({ later, back }: { later?: () => void; back: string }) {
+// From the Réglages: « ‹ Réglages » and nothing to skip (UX review, 12 November 2026).
+function Header({ later, way }: { later?: () => void; way: Way }) {
   return (
     <>
       <div className="flex items-center justify-between">
-        <Link href={back} className={BACK}>
-          ‹ Retour
+        <Link href={way.back} className={BACK}>
+          {way.fromSettings ? BACK_TO_SETTINGS : '‹ Retour'}
         </Link>
-        {later ? (
+        {later && !way.fromSettings ? (
           <button type="button" className={`${BACK} self-auto`} onClick={later}>
             Plus tard
           </button>
@@ -146,7 +151,7 @@ function NothingToSet({ sentence, way }: { sentence: string; way: Way }) {
   const router = useRouter()
   return (
     <div className="flex flex-col">
-      <Header back={way.back} />
+      <Header way={way} />
       <p className="mt-4 text-body leading-relaxed text-ink-soft">{sentence}</p>
       <div className="mt-8">
         <Button onClick={() => router.push(way.next)}>Continuer</Button>
@@ -231,7 +236,7 @@ function Editor({
 
   return (
     <div className="flex flex-col">
-      <Header back={way.back} later={() => router.push(way.next)} />
+      <Header way={way} later={() => router.push(way.next)} />
       <p className="mt-2 text-body leading-relaxed text-ink-soft">
         Comment veux-tu répartir ton argent{' '}
         <button
@@ -394,7 +399,7 @@ function Editor({
       </ul>
 
       <p className="mt-4 text-body text-ink" role="status">
-        {left === 0 ? `${formatWholePercent(100)} répartis` : `Il reste ${formatWholePercent(left)} à placer`}
+        {placedSentence(left)}
       </p>
       <p className="mt-2 text-caption leading-relaxed text-ink-muted">{NOT_ADVICE}</p>
 

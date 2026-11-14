@@ -89,6 +89,8 @@ function parseAccount(raw: unknown): Account | null {
   if (!isAccountType(raw.type)) return null
   if (!isOptional(raw.unlockOn, isDate) || !isOptional(raw.financedLineId, isId)) return null
   if (raw.slow !== undefined && raw.slow !== true) return null // only ever true; absent is quick
+  if (raw.unlockUnknown !== undefined && raw.unlockUnknown !== true) return null // only ever true
+  if (raw.noHome !== undefined && raw.noHome !== true) return null // only ever true
   // Only a home has a residence type; any other account carrying one is the wrong shape.
   if (raw.residence !== undefined && (raw.type !== 'home' || !isResidence(raw.residence))) return null
   return { ...raw } as Account
@@ -120,6 +122,8 @@ function parseLine(raw: unknown): Line | null {
   if (!isOptional(raw.quoteSymbol, isId) || !isOptional(raw.closedOn, isDate)) return null
   if (raw.purchase !== undefined && !isPurchase(raw.purchase, raw.currency)) return null
   if (raw.slow !== undefined && typeof raw.slow !== 'boolean') return null // its own answer; absent: its account's
+  if (raw.purchaseUnknown !== undefined && raw.purchaseUnknown !== true) return null // only ever true
+  if (raw.unquoted !== undefined && raw.unquoted !== true) return null // only ever true
   return { ...raw } as Line
 }
 

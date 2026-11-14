@@ -205,7 +205,8 @@ export function RecoveryKey({
           marche plus.
         </p>
       ) : null}
-      {/* The one warning of the site in the colour of a loss (chosen by Nicolas on 11 November 2026). */}
+      {/* One of the two warnings of the site in the colour of a loss (chosen by Nicolas on 11 November 2026;
+          the other is on the delete-account screen). */}
       <p className="mt-3 border-l-2 border-loss pl-3 text-body leading-relaxed text-ink-soft">
         Si tu oublies ton mot de passe,{' '}
         <strong className="font-semibold text-loss">c’est la seule façon de retrouver tes chiffres.</strong> Personne

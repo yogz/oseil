@@ -18,12 +18,14 @@ import {
   DISPLAY_EUROS,
   DISPLAY_PERCENT,
   DISPLAY_TITLE,
+  DISPLAY_UNIT,
   HIDE_AMOUNTS,
   HIDE_AMOUNTS_NOTE,
   SETTINGS_UNREADABLE,
 } from '@/lib/screens/settings-words'
 import { AppearanceChoice } from './AppearanceChoice'
 import { NOTE, SECTION, SECTION_TITLE, SENTENCE } from './styles'
+import { SETTINGS_ANCHORS } from '@/lib/screens/find-words'
 
 type Ready = Extract<ModelState, { status: 'ready' }>
 
@@ -65,7 +67,7 @@ export function DisplaySection({ state }: { state: Ready }) {
   }
 
   return (
-    <section aria-label={DISPLAY_TITLE} className={SECTION}>
+    <section id={SETTINGS_ANCHORS.display} aria-label={DISPLAY_TITLE} className={SECTION}>
       <h2 className={SECTION_TITLE}>{DISPLAY_TITLE}</h2>
       {/* Kept on this device, not in the vault: it works even when the settings cannot be read. */}
       <AppearanceChoice />
@@ -75,26 +77,31 @@ export function DisplaySection({ state }: { state: Ready }) {
         </p>
       ) : (
         <>
-          <ul className="flex flex-wrap gap-2">
-            {(
-              [
-                ['euros', DISPLAY_EUROS],
-                ['percent', DISPLAY_PERCENT],
-              ] as const
-            ).map(([display, label]) => (
-              <li key={display}>
-                <button
-                  type="button"
-                  aria-pressed={current.display === display}
-                  disabled={busy}
-                  className={CHIP}
-                  onClick={() => current.display !== display && void change({ display })}
-                >
-                  {label}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div role="group" aria-labelledby="display-unit-label" className="flex flex-col gap-2">
+            <span id="display-unit-label" className="text-body text-ink">
+              {DISPLAY_UNIT}
+            </span>
+            <ul className="flex flex-wrap gap-2">
+              {(
+                [
+                  ['euros', DISPLAY_EUROS],
+                  ['percent', DISPLAY_PERCENT],
+                ] as const
+              ).map(([display, label]) => (
+                <li key={display}>
+                  <button
+                    type="button"
+                    aria-pressed={current.display === display}
+                    disabled={busy}
+                    className={CHIP}
+                    onClick={() => current.display !== display && void change({ display })}
+                  >
+                    {label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
           <div className="flex min-h-11 items-center justify-between gap-3 text-body text-ink">
             <span id="hide-amounts-label">{HIDE_AMOUNTS}</span>
             <Switch

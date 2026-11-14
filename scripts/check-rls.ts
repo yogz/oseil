@@ -21,7 +21,7 @@ import {
 } from "./expected-access";
 import { localSupabaseEnv } from "./local-supabase";
 
-const TOTAL_CHECKS = 34;
+const TOTAL_CHECKS = 39;
 
 const { url, publishableKey, dbUrl } = localSupabaseEnv();
 
@@ -68,8 +68,9 @@ async function main(): Promise<void> {
   const users = [
     { email: `rls-a-${stamp}@example.com`, password: randomBytes(18).toString("base64url"), id: "" },
     { email: `rls-b-${stamp}@example.com`, password: randomBytes(18).toString("base64url"), id: "" },
+    { email: `rls-c-${stamp}@example.com`, password: randomBytes(18).toString("base64url"), id: "" },
   ];
-  const [a, b] = users;
+  const [a, b, c] = users;
 
   try {
     for (const u of users) {
@@ -85,6 +86,7 @@ async function main(): Promise<void> {
 
     const clientA = await signedIn(a.email, a.password);
     const clientB = await signedIn(b.email, b.password);
+    const clientC = await signedIn(c.email, c.password);
 
     // 1. A writes a vault and a document.
     const vaultWrite = await clientA.from("vaults").insert({
@@ -525,6 +527,67 @@ async function main(): Promise<void> {
         !html.includes("{{"),
       `${html.length} characters`,
     );
+
+    // 31-35. Deleting one's own account (spec 2026-11-12-supprimer-mon-compte-design.md).
+    // C owns a vault, a document, a Face ID key and a reminder row; then C deletes itself.
+    const cVault = await clientC.from("vaults").insert({
+      kdf: { v: 1 },
+      wrapped_by_password: packet,
+      wrapped_by_recovery: packet,
+    });
+    const cDoc = await clientC.from("documents").insert({ kind: "profile", ...packet });
+    const cPasskey = await clientC
+      .from("vault_passkeys")
+      .insert({ credential_id: "cred-c", passkey_id: crypto.randomUUID(), wrapped: packet });
+    const cReminder = await clientC.rpc("set_my_reminder_email", { enabled: false });
+    const countOf = (table: string, column: string, id: string): number =>
+      psqlRows<{ n: number }>(`select count(*)::int as n from ${table} where ${column} = '${id}'`)[0]?.n ?? -1;
+    const leftOf = (id: string): number[] => [
+      countOf("auth.users", "id", id),
+      countOf("public.vaults", "user_id", id),
+      countOf("public.documents", "user_id", id),
+      countOf("public.vault_passkeys", "user_id", id),
+      countOf("public.update_reminders", "user_id", id),
+    ];
+    const cBefore = leftOf(c.id).join();
+    // C's audit entries, counted before: none to begin with would make check 35 pass on nothing.
+    const auditOf = (id: string): number =>
+      psqlRows<{ n: number }>(
+        `select count(*)::int as n from auth.audit_log_entries where payload->>'actor_id' = '${id}'`,
+      )[0]?.n ?? -1;
+    const auditBefore = auditOf(c.id);
+
+    const anonDelete = await anon.rpc("delete_my_account");
+    check(
+      "31. anon cannot call delete_my_account",
+      !!anonDelete.error && countOf("auth.users", "id", c.id) === 1,
+      anonDelete.error?.message ?? "no error",
+    );
+
+    const deleted = await clientC.rpc("delete_my_account");
+    check(
+      "32. C deletes its account",
+      !cVault.error && !cDoc.error && !cPasskey.error && !cReminder.error && cBefore === "1,1,1,1,1" && !deleted.error,
+      cVault.error?.message ??
+        cDoc.error?.message ??
+        cPasskey.error?.message ??
+        cReminder.error?.message ??
+        deleted.error?.message ??
+        cBefore,
+    );
+
+    const cAfter = leftOf(c.id).join();
+    check("33. nothing of C is left", cAfter === "0,0,0,0,0", cAfter);
+
+    const othersLeft = [
+      countOf("auth.users", "id", a.id),
+      countOf("auth.users", "id", b.id),
+      countOf("public.vaults", "user_id", a.id),
+    ].join();
+    check("34. A and B are untouched", othersLeft === "1,1,1", othersLeft);
+
+    const auditLeft = auditOf(c.id);
+    check("35. C's audit entries are gone", auditBefore > 0 && auditLeft === 0, `${auditBefore} -> ${auditLeft}`);
   } finally {
     // Always runs, even when a check threw. Deleting the user cascades to its rows.
     for (const u of users) {

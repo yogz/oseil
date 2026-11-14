@@ -272,7 +272,7 @@ test('Linxea, the last step: what was paid in, the account’s total checked aga
   publish()
   render(<BankPage />)
   expect(screen.getByText('3 sur 3')).toBeInTheDocument()
-  expect(screen.getByLabelText('Combien a été versé dessus ?')).toHaveValue('0')
+  expect(screen.getByLabelText('Combien a été versé dessus ?')).toHaveValue('')
   sees('Total du compte : 35 000 €')
   expect(
     screen.getByText(

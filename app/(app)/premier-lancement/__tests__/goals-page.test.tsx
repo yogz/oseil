@@ -79,7 +79,9 @@ test('starts from today’s split of the money outside the home, in percent, wit
   expect(value('Or et crypto')).toBe('2 %')
   expect(within(row('Argent disponible')).getByText('aujourd’hui 24 %')).toBeInTheDocument()
   expect(screen.queryByText('Immobilier')).not.toBeInTheDocument()
-  expect(screen.getByText('100 % répartis')).toBeInTheDocument()
+  // At 100 %, the « + » are greyed and the line says why (UX review, 12 November 2026).
+  expect(screen.getByRole('status').textContent).toBe('100 % répartis : baisse une part pour en monter une autre.')
+  expect(screen.getByRole('button', { name: 'Plus de Argent disponible' })).toBeDisabled()
   // One sentence at the bottom, whole; the one about the home sits behind « hors chez toi ».
   expect(screen.getByText('Ce sont des exemples, pas un conseil fait pour toi.')).toBeInTheDocument()
   expect(screen.queryByText(/Chez toi n’a pas d’objectif/)).not.toBeInTheDocument()
@@ -205,7 +207,7 @@ test('a goal with a rental share, the last rental closed: the fifth row stays an
   expect(labels()).toHaveLength(5)
   expect(value('Immobilier locatif')).toBe('15 %')
   expect(within(row('Immobilier locatif')).getByText('aujourd’hui 0 %')).toBeInTheDocument()
-  expect(screen.getByText('100 % répartis')).toBeInTheDocument()
+  expect(screen.getByText('100 % répartis : baisse une part pour en monter une autre.')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
   expect(mocks.addGoal.mock.calls[0][2].shares).toEqual(saved.shares)
 })
@@ -285,7 +287,7 @@ test('two minus leave 2 % to place, drawn as an outline, and « Enregistrer » i
   await userEvent.click(within(row('Or et crypto')).getByRole('button', { name: /Plus/ }))
   await userEvent.click(within(row('Or et crypto')).getByRole('button', { name: /Plus/ }))
   expect(value('Or et crypto')).toBe('7 %')
-  expect(screen.getByText('100 % répartis')).toBeInTheDocument()
+  expect(screen.getByText('100 % répartis : baisse une part pour en monter une autre.')).toBeInTheDocument()
   expect(within(row('Or et crypto')).getByRole('button', { name: /Plus/ })).toBeDisabled()
 })
 
@@ -342,12 +344,13 @@ test('everything in two homes of Chez toi: « dans tes logements »', () => {
   expect(screen.getByText('Tout ton argent est dans tes logements : il n’y a rien à répartir pour l’instant.')).toBeInTheDocument()
 })
 
-test('opened from the settings: back, « Plus tard » and the save return there, never to the expenses', async () => {
+// UX review, 12 November 2026: from the Réglages, « ‹ Réglages » on the left and nothing on the right.
+test('opened from the settings: « ‹ Réglages » leads back, no « Plus tard », the save returns there, never to the expenses', async () => {
   mocks.params.current = new URLSearchParams('depuis=reglages')
   render(<ObjectifsPage />)
-  expect(screen.getByRole('link', { name: '‹ Retour' })).toHaveAttribute('href', '/reglages')
-  await userEvent.click(screen.getByRole('button', { name: 'Plus tard' }))
-  expect(mocks.push).toHaveBeenLastCalledWith('/reglages')
+  expect(screen.getByRole('link', { name: '‹ Réglages' })).toHaveAttribute('href', '/reglages')
+  expect(screen.queryByRole('link', { name: '‹ Retour' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Plus tard' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Équilibré' }))
   await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
   expect(mocks.addGoal).toHaveBeenCalledTimes(1)

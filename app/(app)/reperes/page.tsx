@@ -9,8 +9,10 @@ import { cushionArrival, recoverArrival } from '@/lib/app/arrival'
 import { useInViewOnce } from '@/lib/app/use-in-view-once'
 import { FirstLaunchState, isFirstLaunchView } from '@/components/money/FirstLaunchState'
 import { DIM_FILL, FILL } from '@/components/money/HundredSquares'
+import { ToComplete } from '@/components/reperes/ToComplete'
 import { Button } from '@/components/ui/Button'
 import { PageColumns } from '@/components/ui/PageColumns'
+import { FindCorner } from '@/components/ui/FindLink'
 import { TabBar } from '@/components/ui/TabBar'
 import { useMenuFromModel } from '@/components/ui/use-menu-from-model'
 import { VaultWait } from '@/components/ui/VaultWait'
@@ -38,6 +40,8 @@ import {
   REPERES_UNREADABLE,
   WHERE_TITLE,
 } from '@/lib/screens/reperes-words'
+import { WHERE_ANCHOR } from '@/lib/screens/find-words'
+import { useScrollToAnchor } from '@/lib/app/use-scroll-to-anchor'
 
 const TITLE = 'pt-2 text-title font-semibold leading-tight tracking-[-0.01em]'
 const SENTENCE = 'text-body leading-relaxed text-ink-soft'
@@ -52,6 +56,8 @@ const DIM_STEP_MS = 18
 const DIM_SPREAD_MS = 1200 - 350
 
 type Board = Extract<ReperesView, { kind: 'ready' }>
+
+const ANCHORS = [WHERE_ANCHOR]
 
 export default function ReperesPage() {
   const state = useModel()
@@ -73,10 +79,19 @@ export default function ReperesPage() {
   // Until the first round is done, the same words as Mon argent and Évolution: where one is, « Continuer ».
   const launch = state.status === 'ready' ? monArgentView(state.model, today) : null
   useMenuFromModel(state)
+  // « Trouver » leads a bank to « Où est ton argent »; the section comes after the waits.
+  const drawn = state.status === 'ready' && view?.kind === 'ready' && !waiting && !(launch && isFirstLaunchView(launch))
+  useScrollToAnchor(drawn, ANCHORS)
 
   return (
     <>
-      <PageColumns aside={<h1 className={TITLE}>{REPERES_TITLE}</h1>}>
+      <PageColumns
+        aside={
+          <FindCorner>
+            <h1 className={TITLE}>{REPERES_TITLE}</h1>
+          </FindCorner>
+        }
+      >
       {/* One wait at one place: the vault opening, then the prices, without starting again. */}
       {state.status === 'loading' || waiting ? <VaultWait phase={waiting ? 'prices' : 'open'} /> : null}
       {state.status === 'ready' && launch && isFirstLaunchView(launch) ? <FirstLaunchState view={launch} /> : null}
@@ -115,9 +130,11 @@ function ReadyBody({ view }: { view: ReperesView }) {
   return <Sections view={view} />
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+// `id`: an anchor « Trouver » leads to; `scroll-mt-*` keeps its title clear of the menu fixed at the top
+// of a computer.
+function Section({ id, title, children }: { id?: string; title: string; children: ReactNode }) {
   return (
-    <section aria-label={title} className="mt-5 flex flex-col gap-2.5 border-t border-hairline pt-4">
+    <section id={id} aria-label={title} className="mt-5 flex scroll-mt-4 flex-col gap-2.5 border-t border-hairline pt-4 lg:scroll-mt-24">
       <h2 className="text-subtitle font-semibold">{title}</h2>
       {children}
     </section>
@@ -155,7 +172,7 @@ function Sections({ view }: { view: Board }) {
           <p className={SENTENCE}>{NO_FACTS}</p>
         )}
       </Section>
-      <Section title={WHERE_TITLE}>
+      <Section id={WHERE_ANCHOR} title={WHERE_TITLE}>
         <Places places={view.places} />
         {view.notes.map((note) => (
           <p key={note} className="text-caption leading-relaxed text-ink-soft">
@@ -163,6 +180,11 @@ function Sections({ view }: { view: Board }) {
           </p>
         ))}
       </Section>
+      {view.toComplete ? (
+        <Section title={view.toComplete.title}>
+          <ToComplete block={view.toComplete} />
+        </Section>
+      ) : null}
     </div>
   )
 }

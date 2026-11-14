@@ -69,6 +69,70 @@ export function correctFigures(snapshots: StoredSnapshot[], lineId: string, figu
   })
 }
 
+export type PastCorrection = { writes: Write[]; others: number; latestToo: boolean } | { refused: 'erase' }
+
+// The figures of a chosen relevé, and of its neighbours on both sides that held the same
+// figure without a break, field by field, as correctFigures does for the latest. While an
+// update is running (`latestLocked`), the latest relevé is the update's base: it is never
+// written, the carrying forward stops before it. An unknown old field (null) is corrected
+// in the chosen relevé only. On a past relevé, a known figure is never erased.
+// `others`: the relevés written besides the chosen one. `latestToo`: the latest is one of them.
+// The writes come farthest first, the chosen relevé last: a cut in between leaves the
+// unwritten ones still next to the chosen one, so a redo finishes the same correction.
+// On the latest relevé itself, this is correctFigures.
+export function correctFiguresAt(
+  snapshots: StoredSnapshot[],
+  snapshotId: string,
+  lineId: string,
+  figures: Figures,
+  options: { latestLocked: boolean },
+): PastCorrection {
+  const chosen = snapshots.findIndex((x) => x.id === snapshotId)
+  if (chosen === -1) throw new Error(`No snapshot ${snapshotId}`)
+  const latest = snapshots.length - 1
+  if (chosen === latest) {
+    if (options.latestLocked) throw new Error('The latest snapshot is locked by the update in progress')
+    const writes = correctFigures(snapshots, lineId, figures)
+    return { writes, others: Math.max(writes.length - 1, 0), latestToo: false }
+  }
+
+  const at = entryOf(snapshots[chosen].value, lineId)
+  if (!at) throw new Error(`Snapshot ${snapshotId} does not hold ${lineId}`)
+  if (at.kind !== figures.kind) throw new Error(`Line ${lineId} is not a ${figures.kind} line`)
+  const fields = FIELDS[figures.kind]
+  if (fields.some((field) => fieldOf(figures, field) === null && fieldOf(at, field) !== null)) return { refused: 'erase' }
+
+  const last = options.latestLocked ? latest - 1 : latest
+  const corrected = new Map<number, SnapshotEntry>() // by snapshot index
+  const correct = (i: number, field: Field, value: number | null | undefined) => {
+    const entry = corrected.get(i) ?? entryOf(snapshots[i].value, lineId)!
+    corrected.set(i, { ...entry, [field]: value } as SnapshotEntry)
+  }
+  for (const field of fields) {
+    const value = fieldOf(figures, field)
+    const old = fieldOf(at, field)
+    if (value === old) continue
+    correct(chosen, field, value)
+    if (old === null) continue
+    for (const step of [-1, 1]) {
+      for (let i = chosen + step; i >= 0 && i <= last; i += step) {
+        const entry = entryOf(snapshots[i].value, lineId)
+        if (!entry || fieldOf(entry, field) !== old) break
+        correct(i, field, value)
+      }
+    }
+  }
+
+  const order = [...corrected.keys()].sort((a, b) => Math.abs(b - chosen) - Math.abs(a - chosen) || a - b)
+  const writes = order.map((i): Write => {
+    const x = snapshots[i]
+    const entry = corrected.get(i)!
+    const entries = x.value.entries.map((e) => (e.lineId === lineId ? entry : e))
+    return { kind: 'snapshot', id: x.id, value: { ...x.value, entries } }
+  })
+  return { writes, others: Math.max(writes.length - 1, 0), latestToo: corrected.has(latest) }
+}
+
 // The days a line can be closed on: from the day after the first snapshot that holds
 // it, to today. Null when there is none: the line never had a value, only a deletion fits.
 export function closingBounds(

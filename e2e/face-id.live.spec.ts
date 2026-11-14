@@ -193,8 +193,16 @@ test('Face ID after a password, then the vault opened with one gesture', async (
   await signOut(page)
   expect(await keysOnDevice(page)).toBe(0)
 
-  // 5. One gesture opens the session and the vault: the empty vault's first launch.
-  const faceId = page.getByRole('button', { name: /^Utiliser / })
+  // 5. Face ID has served here (planche 4B): the screen says « Te reconnecter », Face ID is the
+  //    first pill, the password comes second, and « Créer mon compte » is gone. The address of the
+  //    sign-in was forgotten with « Se déconnecter ».
+  await expect(page.getByRole('heading', { name: 'Te reconnecter' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Me reconnecter', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Créer mon compte' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Utiliser / })).toHaveCount(0)
+  await expect(page.getByLabel('Ton adresse e-mail')).toHaveValue('')
+  // One gesture opens the session and the vault: the empty vault's first launch.
+  const faceId = page.getByRole('button', { name: /^Me reconnecter avec / })
   await expect(faceId).toBeEnabled({ timeout: 15_000 })
   await faceId.click()
   await expect(page).toHaveURL(/\/premier-lancement$/, { timeout: 30_000 })
@@ -217,7 +225,7 @@ test('Face ID after a password, then the vault opened with one gesture', async (
   })
   expect(deleteError).toBeNull()
   await expect(faceId).toBeEnabled({ timeout: 15_000 })
-  const label = (await faceId.textContent())!.replace(/^Utiliser /, '') as FaceIdLabel
+  const label = (await faceId.textContent())!.replace(/^Me reconnecter avec /, '') as FaceIdLabel
   const refusal = page.waitForResponse((response) => response.url().includes('passkeys/authentication/verify'))
   await faceId.click()
   const refused = await refusal

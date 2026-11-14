@@ -232,7 +232,7 @@ const HELP: Record<'accounts' | 'snapshots' | 'contributions' | 'settings', Reco
     number: `comme dans ${q(SHEETS.snapshots)}.`,
     bank: `comme dans l’onglet ${q(SHEETS.accounts)}, qui doit avoir ce compte.`,
     account: `comme dans l’onglet ${q(SHEETS.accounts)}, qui doit avoir ce compte.`,
-    paid: `l’argent versé sur le compte depuis le relevé précédent, en euros${NB}; négatif pour un retrait. Seulement pour les comptes ${contributionTypes.map(typeLabel).join(', ')}.`,
+    paid: `l’argent versé sur le compte depuis le relevé précédent, en euros${NB}; négatif pour un retrait${NB}; 0 si rien n’a été versé${NB}; pas de ligne si tu ne sais pas. Seulement pour les comptes ${contributionTypes.map(typeLabel).join(', ')}.`,
     accountReference: 'écrit par le site. Laisser vide.',
   },
   settings: {
@@ -386,6 +386,7 @@ function assistantLines(): string[] {
     `- Crowdfunding immobilier (obligations ou prêts à un promoteur, par une plateforme)${NB}: un prêt, pas un bien. Catégorie ${categoryLabel('markets')}, ${title('accounts', 'group')} ${q(GROUP_LABELS.unlisted)}, dans le compte où il est (${typeLabel('pea-pme')}, ${typeLabel('securities')}), sinon un ${typeLabel('other')}${NB}; ${title('accounts', 'slow')} à ${q(SETTING_VALUES.yes)}, l’argent étant bloqué jusqu’à l’échéance. Sa valeur est le capital qui reste à rembourser, sans les intérêts à venir${NB}; pour un projet en retard ou en défaut, demande à la personne une valeur prudente, ne garde pas le montant de départ.`,
     `- SCPI, SCI, OPCI, club deal où l’on détient des parts, groupement forestier${NB}: de l’immobilier qu’on possède sans y vivre. Écris-le comme un compte ${typeLabel('home')} de type ${q(RESIDENCE_LABELS.rental)}, à son nom (même logé dans une assurance-vie), pour qu’il compte dans l’immobilier en location${NB}; ${title('accounts', 'slow')} à ${q(SETTING_VALUES.yes)}.`,
     `- Private equity, FCPR, FCPI, FIP, obligations, produits structurés${NB}: ${categoryLabel('markets')}${NB}; ${title('accounts', 'slow')} à ${q(SETTING_VALUES.yes)} pour ce qui n’est pas coté.`,
+    `- ETC ou ETF de métaux, de terres rares, de matières premières ou de sociétés minières${NB}: ${categoryLabel('markets')}, ${title('accounts', 'group')} ${q(GROUP_LABELS.commodities)}. L’or physique (pièces, lingots) reste dans ${categoryLabel('gold')}.`,
     `- Girardin${NB}: ne l’inscris pas, l’argent ne revient pas (c’est une réduction d’impôt achetée)${NB}; l’inscrire gonflerait le patrimoine.`,
     '## Les règles',
     `- Un compte se reconnaît à Banque + Compte, un placement à Banque + Compte + Ligne. ${title('accounts', 'type')}, ${title('accounts', 'residence')}, ${title('accounts', 'unlockOn')} et ${title('accounts', 'financedLine')} se répètent sur chaque ligne d’un compte, sans changer (une case vide sur une ligne et remplie sur une autre est un changement, sauf dans ${title('accounts', 'residence')}, où une case vide et ${MAIN_RESIDENCE} disent la même chose). ${title('accounts', 'slow')} se dit ligne par ligne.`,

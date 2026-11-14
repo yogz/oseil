@@ -1,14 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import { FindCorner } from '@/components/ui/FindLink'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FILL } from '@/components/money/HundredSquares'
-import { TEXT_LINK } from '@/components/setup/styles'
+import { SMALL_LINK, TEXT_LINK } from '@/components/setup/styles'
 import { RESIDENCE_LABELS } from '@/lib/catalog'
 import type { CategoryId } from '@/lib/model/types'
-import type { LineSheetView, SheetRow } from '@/lib/screens/line-sheet'
+import type { AnswerKind, LineSheetView, SheetRow } from '@/lib/screens/line-sheet'
 import {
   ACCOUNT_SECTION,
+  ANSWER_UNKNOWN,
+  ANSWERED_UNKNOWN,
+  CHANGE_ANSWER,
+  CHANGE_ANSWER_LABEL,
   ACCOUNT_TYPE_LABEL,
   BANK_LABEL,
   CATEGORY_LABEL,
@@ -40,13 +45,17 @@ import {
   UNLOCK_UNKNOWN,
 } from '@/lib/screens/line-words'
 import { titlesFromLine } from '@/lib/screens/titles'
-import { TYPED } from '@/lib/screens/words'
+import { CHANGE_TITLE } from '@/lib/screens/titles-words'
+import { STOP, TYPED } from '@/lib/screens/words'
 
-export type Editing = SheetRow['kind'] | 'close' | 'delete' | 'recount-finish' | null
+// 'price' opens the search of another title; 'price-stop' is one tap, « Ne plus le suivre ».
+export type Editing = SheetRow['kind'] | 'close' | 'delete' | 'recount-finish' | 'price-stop' | null
 
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
 export const BACK = `inline-flex min-h-11 items-center self-start text-body text-ink-soft ${FOCUS}`
 const ROW = 'flex min-h-13 w-full items-center justify-between gap-3 border-t border-hairline text-left'
+// The « je ne sais pas » answer under a row: a small underlined button, secondary to the row.
+const ANSWER_LINK = SMALL_LINK
 
 function rowLabel(row: SheetRow): string {
   switch (row.kind) {
@@ -112,19 +121,57 @@ export function LineSheet({
   form,
   notice = null,
   onEdit,
+  onAnswer,
 }: {
   view: LineSheetView
   form: ReactNode
   // What a one-tap action (reopen, finish) could not do.
   notice?: string | null
   onEdit: (editing: Editing) => void
+  // « Je ne sais pas » (on) or « Changer » (off), saved at once, in place.
+  // Resolves once saved or refused: until then the answer buttons are disabled, so a double tap saves once.
+  onAnswer: (kind: AnswerKind, on: boolean) => Promise<unknown>
 }) {
   const locked = view.locked !== null
+  const [saving, setSaving] = useState(false)
+  const busy = useRef(false) // two taps in the same tick both see `saving` false
+  async function answerOnce(kind: AnswerKind, on: boolean) {
+    if (busy.current) return
+    busy.current = true
+    setSaving(true)
+    try {
+      await onAnswer(kind, on)
+    } finally {
+      busy.current = false
+      setSaving(false)
+    }
+  }
+  // « Ne plus le suivre » takes its two buttons away: once the fiche says the price is typed, the focus
+  // goes to the row that replaces them. A save refused (a notice) leaves the buttons, and the focus, alone.
+  const root = useRef<HTMLDivElement>(null)
+  const stopped = useRef(false)
+  const following = view.rows.some((r) => r.kind === 'price' && r.following)
+  useEffect(() => {
+    if (!stopped.current) return
+    if (notice) {
+      stopped.current = false
+      return
+    }
+    if (following) return
+    root.current?.querySelector<HTMLElement>('[data-focus="price"]')?.focus()
+    stopped.current = false
+  })
+  function edit(next: Editing) {
+    if (next === 'price-stop') stopped.current = true
+    onEdit(next)
+  }
   return (
-    <div className="flex flex-col">
-      <Link href={view.back.href} className={BACK}>
-        ‹ {view.back.label}
-      </Link>
+    <div ref={root} className="flex flex-col">
+      <FindCorner>
+        <Link href={view.back.href} className={BACK}>
+          ‹ {view.back.label}
+        </Link>
+      </FindCorner>
       {/* B8: the square of its category beside its name, as in the lists; a loan has none. */}
       <h1 className="flex items-center gap-2.5 pt-2 text-title font-semibold leading-tight tracking-[-0.01em]">
         {view.category ? (
@@ -203,6 +250,13 @@ export function LineSheet({
         </div>
       ) : null}
 
+      {/* A line not open has no rows: its older relevés are still corrected from Évolution. */}
+      {view.state.kind !== 'open' && view.history ? (
+        <div className="mt-6 flex flex-col border-b border-hairline">
+          <HistoryRow view={view} />
+        </div>
+      ) : null}
+
       {view.state.kind === 'open' ? (
         form ?? (
           <>
@@ -215,13 +269,20 @@ export function LineSheet({
               </div>
             ) : null}
 
+            {/* What a one-tap answer could not save. */}
+            {notice ? (
+              <p role="alert" className="mt-4 text-body leading-relaxed text-ink">
+                {notice}
+              </p>
+            ) : null}
             <h2 className="mt-6 text-caption font-normal text-ink-muted">{CORRECT_TITLE}</h2>
             {/* Two parts: what belongs to this line, then what belongs to its whole account. */}
             <h3 className="mt-3 text-body font-medium text-ink">{LINE_SECTION}</h3>
             <div className="mt-1 flex flex-col border-b border-hairline">
               {view.rows.map((row) => (
-                <Row key={row.kind} row={row} lineId={view.lineId} locked={locked} onEdit={onEdit} />
+                <Row key={row.kind} row={row} lineId={view.lineId} locked={locked} onEdit={edit} onAnswer={(kind, on) => void answerOnce(kind, on)} saving={saving} />
               ))}
+              <HistoryRow view={view} />
             </div>
             {view.accountTitle !== null ? (
               <>
@@ -231,7 +292,7 @@ export function LineSheet({
                 </h3>
                 <div className="mt-1 flex flex-col border-b border-hairline">
                   {view.accountRows.map((row) => (
-                    <Row key={row.kind} row={row} lineId={view.lineId} locked={locked} onEdit={onEdit} />
+                    <Row key={row.kind} row={row} lineId={view.lineId} locked={locked} onEdit={edit} onAnswer={(kind, on) => void answerOnce(kind, on)} saving={saving} />
                   ))}
                 </div>
               </>
@@ -263,7 +324,63 @@ export function LineSheet({
   )
 }
 
-function Row({
+function Row(props: {
+  row: SheetRow
+  lineId: string
+  locked: boolean
+  onEdit: (editing: Editing) => void
+  onAnswer: (kind: AnswerKind, on: boolean) => void
+  saving: boolean
+}) {
+  const { row, locked, onAnswer, saving } = props
+  // A followed title is changed or stopped here: « Tes titres » only lists it.
+  if (row.kind === 'price' && row.following) {
+    return (
+      <>
+        <RowLine {...props} />
+        {locked ? null : (
+          <p className="flex flex-wrap items-center gap-x-5">
+            <button type="button" className={ANSWER_LINK} onClick={() => props.onEdit('price')}>
+              {CHANGE_TITLE}
+            </button>
+            <button type="button" className={ANSWER_LINK} disabled={saving} onClick={() => props.onEdit('price-stop')}>
+              {STOP}
+            </button>
+          </p>
+        )}
+      </>
+    )
+  }
+  const answer = 'answer' in row ? row.answer : undefined
+  if (!answer) return <RowLine {...props} />
+  return (
+    <>
+      <RowLine {...props} />
+      {answer.answered ? (
+        <p className="flex flex-wrap items-center gap-x-3 text-caption text-ink-muted">
+          <span>{ANSWERED_UNKNOWN[answer.kind]}</span>
+          {locked ? null : (
+            <button
+              type="button"
+              className={ANSWER_LINK}
+              aria-label={CHANGE_ANSWER_LABEL[answer.kind]}
+              disabled={saving}
+              onClick={() => onAnswer(answer.kind, false)}
+            >
+              {CHANGE_ANSWER}
+            </button>
+          )}
+        </p>
+      ) : locked ? null : (
+        <button type="button" className={ANSWER_LINK} disabled={saving} onClick={() => onAnswer(answer.kind, true)}>
+          {ANSWER_UNKNOWN[answer.kind]}
+        </button>
+      )}
+    </>
+  )
+}
+
+function RowLine({
   row,
   lineId,
   locked,
@@ -291,17 +408,22 @@ function Row({
       {locked ? null : <span aria-hidden="true"> ›</span>}
     </span>
   )
-  if (locked) {
+  // A followed title's row only says so: its two actions sit under it.
+  if (locked || (row.kind === 'price' && row.following)) {
     return (
       <div className={ROW}>
         {label}
-        {value}
+        {row.kind === 'price' && row.following && !locked ? (
+          <span className="min-w-0 truncate text-right text-body text-ink-muted">{rowValue(row)}</span>
+        ) : (
+          value
+        )}
       </div>
     )
   }
   if (row.kind === 'price') {
     return (
-      <Link href={titlesFromLine(lineId)} className={`${ROW} ${FOCUS}`}>
+      <Link href={titlesFromLine(lineId)} data-focus="price" className={`${ROW} ${FOCUS}`}>
         {label}
         {value}
       </Link>
@@ -312,6 +434,20 @@ function Row({
       {label}
       {value}
     </button>
+  )
+}
+
+// « Ses relevés précédents › »: another screen, so a link; kept when the fiche is locked, since a past
+// relevé can be corrected during an update.
+function HistoryRow({ view }: { view: LineSheetView }) {
+  if (!view.history) return null
+  return (
+    <Link href={view.history.href} className={`${ROW} ${FOCUS}`}>
+      <span className="text-body text-ink">{view.history.label}</span>
+      <span aria-hidden="true" className="text-body text-ink-muted">
+        ›
+      </span>
+    </Link>
   )
 }
 

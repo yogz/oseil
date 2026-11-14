@@ -23,6 +23,7 @@ import { failedPriceHint, todaysPriceHint } from '@/lib/market/words'
 import type { Account, Establishment, Line, SnapshotEntry, UpdateDraft } from '@/lib/model/types'
 import { steps, type EntryInput } from '@/lib/setup/first-launch'
 import {
+  asksPurchasePrice,
   confirmLine,
   currentEntry,
   touchedHere,
@@ -182,6 +183,7 @@ export function BankStep({
       before: base.value.entries.find((e) => e.lineId === line.id) ?? null,
       confirmed: draft.confirmed.includes(line.id),
       priceHint: priceHintOf(line, entry),
+      asksPurchase: asksPurchasePrice(profile, base.value, line.id),
       // Today's price typed back is a confirmation; the base price typed over it is a value.
       // The house's « Changer » records its value even when it is the same, so its estimate is dated anew.
       onValue: (typed: EntryInput) =>
@@ -310,7 +312,7 @@ export function BankStep({
                   <ContributionField
                     account={account}
                     since={base.value.takenOn}
-                    cents={draft.contributions[account.id] ?? 0}
+                    cents={draft.contributions[account.id] ?? null}
                     onValue={(cents) => void change((d) => setContribution(d, account.id, cents))}
                   />
                 </div>

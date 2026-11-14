@@ -6,6 +6,7 @@ import { computeSituation } from '@/lib/model/situation'
 import { buildGrid } from '@/lib/model/squares'
 import type { Account, Budget, Establishment, Line, Profile, Settings, Snapshot } from '@/lib/model/types'
 import { reperesView, type ReperesView } from '@/lib/screens/reperes'
+import { toComplete } from '@/lib/screens/to-complete'
 import { directShareFact, homeBuyingSentence, monthsWords } from '@/lib/screens/reperes-words'
 
 const TODAY = '2026-11-06'
@@ -265,6 +266,62 @@ describe('bon à savoir', () => {
   test('two different funds with similar names are not the same holding', () => {
     expect(ready(airLiquide('Air Liquide Europe')).facts).toEqual([])
     expect(ready(airLiquide('Air Liquid')).facts).toEqual([])
+  })
+
+  const held2 = (lines: Line[], entries: ReturnType<typeof unitsEntry>[], accts = ['pea', 'ct', 'pee']) =>
+    ready(
+      modelOf({
+        establishments: [A, B, EMPLOYER],
+        accounts: [at('a', account('pea', 'pea')), at('b', account('ct', 'securities')), at('emp', account('pee', 'employee-savings'))].filter((a) =>
+          accts.includes(a.id),
+        ),
+        lines,
+        snapshot: snapshotOf(entries),
+      }),
+    )
+
+  test('the same quote symbol under different names is one holding, named by its biggest line', () => {
+    const view = held2(
+      [
+        line('o1', 'pea', { kind: 'units', name: 'OVHCLOUD', quoteSymbol: 'OVH.PA' }),
+        line('o2', 'pee', { kind: 'units', name: 'Actions OVHcloud' }),
+        line('o3', 'ct', { kind: 'units', name: 'Actions OVHcloud', quoteSymbol: 'OVH.PA' }),
+      ],
+      [unitsEntry('o1', 10, 100, null), unitsEntry('o2', 5, 100, null), unitsEntry('o3', 20, 100, null)],
+    )
+    expect(view.facts.map(plain).slice(0, 1)).toEqual(['Tu détiens « Actions OVHcloud » sur trois comptes différents, 3 500 € en tout.'])
+  })
+
+  test('a line without symbol joins the symbol group of the same plain name, and not a similar one', () => {
+    const view = held2(
+      [
+        line('a1', 'pea', { kind: 'units', name: 'Air Liquide', quoteSymbol: 'AI.PA' }),
+        line('a2', 'ct', { kind: 'units', name: 'air liquide' }),
+        line('a3', 'pee', { kind: 'units', name: 'Air Liquide Europe' }),
+      ],
+      [unitsEntry('a1', 10, 100, null), unitsEntry('a2', 10, 100, null), unitsEntry('a3', 10, 100, null)],
+    )
+    expect(view.facts.map(plain).slice(0, 1)).toEqual(['Tu détiens « Air Liquide » sur deux comptes différents, 2 000 € en tout.'])
+  })
+
+  test('every holding on several accounts is said in one sentence, biggest first, with the sum', () => {
+    const view = held2(
+      [
+        line('a1', 'pea', { kind: 'units', name: 'Air Liquide', quoteSymbol: 'AI.PA' }),
+        line('a2', 'ct', { kind: 'units', name: 'Air Liquide', quoteSymbol: 'AI.PA' }),
+        line('o1', 'pea', { kind: 'units', name: 'OVHCLOUD', quoteSymbol: 'OVH.PA' }),
+        line('o2', 'pee', { kind: 'units', name: 'Actions OVHcloud', quoteSymbol: 'OVH.PA' }),
+        line('s1', 'pea', { kind: 'units', name: 'Seul', quoteSymbol: 'SEUL.PA' }),
+      ],
+      [
+        unitsEntry('a1', 10, 100, null),
+        unitsEntry('a2', 10, 100, null),
+        unitsEntry('o1', 30, 100, null),
+        unitsEntry('o2', 20, 100, null),
+        unitsEntry('s1', 99, 100, null),
+      ],
+    )
+    expect(view.facts.map(plain).slice(0, 1)).toEqual(['Tu détiens « OVHCLOUD » et « Air Liquide » chacun sur plusieurs comptes, 7 000 € en tout.'])
   })
 
   test('the same name twice on one account is not several accounts', () => {
@@ -805,5 +862,68 @@ describe('a line marked quick or slow of its own', () => {
   })
   test('a quick line in a slow account counts, its neighbour does not', () => {
     expect(ready(twoLines(true, false)).quick!.lit).toBe(75)
+  })
+})
+
+describe('the « À compléter » block', () => {
+  // One gap per name asked for: a title with no purchase price, then two employee savings with no
+  // unlock date, then two loans linked to no home. Everything else is answered.
+  const GAPS = ['purchase', 'unlock1', 'unlock2', 'loan1', 'loan2'] as const
+  function gapsModel(count: number): Model {
+    const on = new Set<string>(GAPS.slice(0, count))
+    const accounts: Account[] = [at('a', account('cur', 'current')), at('h', account('house', 'home'))]
+    const lines: Line[] = [line('cur-line', 'cur'), line('house-line', 'house')]
+    const entries = [amountEntry('cur-line', 1_000), amountEntry('house-line', 100_000)]
+    if (on.has('purchase')) {
+      accounts.push(at('a', account('pea', 'pea')))
+      lines.push(line('etf', 'pea', { kind: 'units', quoteSymbol: 'CW8.PA', group: 'world' }))
+      entries.push(unitsEntry('etf', 10, 100, null))
+    }
+    for (const id of ['unlock1', 'unlock2']) {
+      if (!on.has(id)) continue
+      accounts.push(at('emp', account(id, 'employee-savings')))
+      lines.push(line(`${id}-line`, id, { group: 'world' }))
+      entries.push(amountEntry(`${id}-line`, 5_000))
+    }
+    for (const id of ['loan1', 'loan2']) {
+      if (!on.has(id)) continue
+      accounts.push(at('a', account(id, 'loan')))
+      lines.push(line(`${id}-line`, id))
+      entries.push(amountEntry(`${id}-line`, 2_000))
+    }
+    return modelOf({ establishments: [A, HOME, EMPLOYER], accounts, lines, snapshot: snapshotOf(entries) })
+  }
+
+  test('no gap: no block at all', () => {
+    expect(ready(gapsModel(0)).toComplete).toBeNull()
+  })
+
+  test('up to three gaps: all shown, nothing folded, no « Voir… »', () => {
+    const block = ready(gapsModel(3)).toComplete!
+    expect(block.shown).toHaveLength(3)
+    expect(block.more).toEqual([])
+    expect(block.moreLabel).toBeNull()
+  })
+
+  test('four gaps: three shown, « Voir l’autre » for the fourth', () => {
+    const block = ready(gapsModel(4)).toComplete!
+    expect(block.shown).toHaveLength(3)
+    expect(block.more).toHaveLength(1)
+    expect(block.moreLabel).toBe('Voir l’autre')
+  })
+
+  test('five gaps: « Voir les 2 autres », the ranked list cut after the third', () => {
+    const block = ready(gapsModel(5)).toComplete!
+    expect(block.moreLabel).toBe('Voir les 2 autres')
+    expect(block.shown).toHaveLength(3)
+    expect([...block.shown, ...block.more].map((i) => i.what)).toEqual(
+      toComplete(gapsModel(5), TODAY).map((i) => i.what),
+    )
+  })
+
+  test('the block carries its own title and lead', () => {
+    const block = ready(gapsModel(1)).toComplete!
+    expect(block.title).toBe('À compléter')
+    expect(block.lead).toBe('Quelques réponses, et tes repères deviennent plus justes.')
   })
 })

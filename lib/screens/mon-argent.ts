@@ -316,6 +316,15 @@ function progressOf(
   }
 }
 
+// The latest snapshot as Mon argent reads it: its quoted lines at today's prices, the rates its own, a
+// line no rate converts left out (`unconverted`, said, never an error). `inGrid`: the same without Chez
+// toi when « Ta grille : sans chez toi » applies; the big figure is its net. « Trouver » reads the same.
+export function boardSnapshot(model: Model, profile: Profile, latest: Snapshot, today: IsoDate, market: Market | null) {
+  const { prices, failed } = market ? usablePrices(profile, latest, market, today) : { prices: {}, failed: [] }
+  const { snapshot: shown, names: unconverted } = convertible(profile, withPrices(latest, prices))
+  return { prices, failed, shown, unconverted, inGrid: homeFilter(model, profile)(shown) }
+}
+
 function buildBoard(
   model: Model,
   profile: Profile,
@@ -325,15 +334,11 @@ function buildBoard(
 ): Board {
   const latest = snapshots[snapshots.length - 1]
   const first = snapshots[0]
-  // The last saved snapshot, its quoted lines at today's prices; the rates stay its own.
-  // A line no rate converts is left out and said, never an error.
-  const { prices, failed } = market ? usablePrices(profile, latest, market, today) : { prices: {}, failed: [] }
-  const { snapshot: shown, names: unconverted } = convertible(profile, withPrices(latest, prices))
+  const { prices, failed, shown, unconverted, inGrid: withoutHome } = boardSnapshot(model, profile, latest, today, market)
   // A price taken by a line that was then left out does not make « Cours du jour ».
   const tookPrice = shown.entries.some((e) => Object.hasOwn(prices, e.lineId))
   const nothingCounted = shown.entries.length === 0 && latest.entries.length > 0
   const whole = situationOf(profile, shown)
-  const withoutHome = homeFilter(model, profile)(shown)
   const situation = withoutHome === shown ? whole : situationOf(profile, withoutHome)
   const homeAside = withoutHome === shown ? null : `${formatEurosShown(whole.net)} en comptant chez toi`
   const grid = buildGrid(situation)

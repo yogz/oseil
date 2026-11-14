@@ -138,7 +138,8 @@ test('with a history: the date of the figures comes right under the title, as on
   render(<EvolutionPage />)
   // In reading order, the first thing after the title (B6 puts the title in its own column on a computer).
   const title = screen.getByRole('heading', { level: 1, name: 'Évolution' })
-  const after = title.parentElement!.nextElementSibling!
+  // The column of the title (the title sits in the row it shares with the magnifier of « Trouver »).
+  const after = title.closest('[data-columns] > *')!.nextElementSibling!
   expect(after.querySelector('p')).toHaveTextContent('Chiffres du 30 septembre')
 })
 
@@ -167,6 +168,20 @@ test('lists the snapshots newest first', () => {
   expect(plain(rows[0].textContent)).toContain('30 septembre 2026')
   expect(plain(rows[0].textContent)).toContain('34 000 €')
   expect(plain(rows[1].textContent)).toContain('30 juin 2025')
+})
+
+// Corriger un relevé passé (planche 8B): each row opens its relevé; the square value left the list.
+test('each relevé is a link to its page, the latest says so, and no square value is listed', () => {
+  mocks.state.current = ready([snapshot('2025-06-30', 10_000, 20_000), snapshot('2026-09-30', 12_000, 22_000)])
+  render(<EvolutionPage />)
+  const section = screen.getByRole('region', { name: 'Tes relevés' })
+  // Évolution's « Tes relevés » is reached from a line's fiche (/evolution#releves).
+  expect(section).toHaveAttribute('id', 'releves')
+  const links = within(section).getAllByRole('link')
+  expect(links.map((l) => l.getAttribute('href'))).toEqual(['/releve/s1', '/releve/s0'])
+  expect(plain(links[0].textContent)).toMatch(/^30 septembre 2026\s*le dernier\s*34 000 €\s*›$/)
+  expect(plain(links[1].textContent)).toMatch(/^30 juin 2025\s*30 000 €\s*›$/)
+  expect(within(section).queryByText(/carré/)).toBeNull()
 })
 
 test('an unreadable snapshot is said, with no curve and no « pas encore de relevé »', () => {

@@ -45,6 +45,8 @@ test('an hour untouched, the vault is closed: the sign-in says why, and opens it
 
   await expect(page).toHaveURL(/\/connexion$/, { timeout: 30_000 })
   await expect(page.getByText(/Ton coffre s’est refermé après 15\s+minutes sans activité\./)).toBeVisible()
+  // Closed by the clock, not by the person: the address stays in the field (lib/auth/remembered-email.ts).
+  await expect(page.getByLabel('Ton adresse e-mail')).toHaveValue(user.email)
   // The key has left the device: nothing of the vault stays behind.
   const keys = await page.evaluate(
     () =>

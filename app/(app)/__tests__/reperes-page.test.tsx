@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
 import { act, cleanup, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { AnchorHTMLAttributes } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { cushionArrival, recoverArrival } from '@/lib/app/arrival'
@@ -8,6 +9,7 @@ import type { Model, ModelState } from '@/lib/app/use-model'
 import { account, amountEntry, line, snapshotOf, unitsEntry } from '@/lib/model/__tests__/fixtures'
 import type { Account, Establishment, Line, Profile, Settings, Snapshot } from '@/lib/model/types'
 import type { MarketState } from '@/lib/market/use-market'
+import { WHERE_ANCHOR } from '@/lib/screens/find-words'
 import ReperesPage from '../reperes/page'
 
 const mocks = vi.hoisted(() => ({
@@ -74,7 +76,7 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-test('the four sections come in the order of the spec', () => {
+test('the sections come in the order of the spec, « À compléter » last (this model has gaps)', () => {
   mocks.state.current = ready({ budget: true })
   render(<ReperesPage />)
   expect(screen.getByRole('heading', { level: 1, name: 'Repères' })).toBeInTheDocument()
@@ -83,7 +85,106 @@ test('the four sections come in the order of the spec', () => {
     'Ce que tu peux récupérer vite',
     'Bon à savoir',
     'Où est ton argent',
+    'À compléter',
   ])
+})
+
+// A profile with exactly `count` gaps to complete: a title with no purchase price, then two employee
+// savings with no unlock date, then two loans linked to no home. A home and a current account are
+// answered.
+function withGaps(count: number): ModelState {
+  const on = new Set(['purchase', 'unlock1', 'unlock2', 'loan1', 'loan2'].slice(0, count))
+  const gapAccounts: Account[] = [
+    { ...account('cur', 'current'), establishmentId: 'a' },
+    { ...account('house', 'home'), establishmentId: 'h' },
+  ]
+  const gapLines: Line[] = [line('cur-line', 'cur'), line('house-line', 'house')]
+  const entries = [amountEntry('cur-line', 1_000), amountEntry('house-line', 100_000)]
+  if (on.has('purchase')) {
+    gapAccounts.push({ ...account('pea', 'pea'), establishmentId: 'a' })
+    gapLines.push(line('etf', 'pea', { kind: 'units', name: 'Mon ETF', quoteSymbol: 'CW8.PA', group: 'world' }))
+    entries.push(unitsEntry('etf', 10, 100, null))
+  }
+  for (const id of ['unlock1', 'unlock2']) {
+    if (!on.has(id)) continue
+    gapAccounts.push({ ...account(id, 'employee-savings', { name: `PEE ${id.slice(-1)}` }), establishmentId: 'a' })
+    gapLines.push(line(`${id}-line`, id, { group: 'world' }))
+    entries.push(amountEntry(`${id}-line`, id === 'unlock1' ? 9_000 : 8_000))
+  }
+  for (const id of ['loan1', 'loan2']) {
+    if (!on.has(id)) continue
+    gapAccounts.push({ ...account(id, 'loan', { name: `Crédit ${id.slice(-1)}` }), establishmentId: 'a' })
+    gapLines.push(line(`${id}-line`, id))
+    entries.push(amountEntry(`${id}-line`, id === 'loan1' ? 2_000 : 1_000))
+  }
+  const model: Model = {
+    profile: loaded({ schema: 1, establishments, accounts: gapAccounts, lines: gapLines } as Profile),
+    snapshots: [loaded(snapshotOf(entries), 's0')],
+    goals: [],
+    settings: null,
+    draft: null,
+    unreadable: { profile: 0, snapshots: 0, goals: 0, settings: 0, draft: 0 },
+  }
+  return { status: 'ready', model, client: {} as never, dataKey: {} as CryptoKey, reload: vi.fn() }
+}
+
+describe('the « À compléter » block', () => {
+  test('last section, with its lead; each gap is a link with its reason under it', () => {
+    mocks.state.current = withGaps(3)
+    render(<ReperesPage />)
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    expect(headings[headings.length - 1]).toBe('À compléter')
+    const section = screen.getByRole('region', { name: 'À compléter' })
+    expect(within(section).getByText('Quelques réponses, et tes repères deviennent plus justes.')).toBeInTheDocument()
+    const links = within(section).getAllByRole('link')
+    expect(links).toHaveLength(3)
+    // The biggest amount first: PEE 1, PEE 2, then the title.
+    expect(plain(links[0].textContent)).toMatch(/^PEE 1, sans date de déblocage/)
+    expect(plain(links[0].textContent)).toContain('pour savoir quand cet argent se libère')
+    expect(plain(links[2].textContent)).toMatch(/^1 titre sans prix d’achat/)
+    expect(links[0].getAttribute('href')).toBe('/ligne/unlock1-line')
+    for (const link of links) expect(link.textContent).toContain('›')
+  })
+
+  test('exactly three gaps: no « Voir… » button', () => {
+    mocks.state.current = withGaps(3)
+    render(<ReperesPage />)
+    expect(screen.queryByRole('button', { name: /^Voir/ })).toBeNull()
+  })
+
+  test('four gaps: « Voir l’autre » opens the fourth in place, then disappears', async () => {
+    mocks.state.current = withGaps(4)
+    render(<ReperesPage />)
+    const section = screen.getByRole('region', { name: 'À compléter' })
+    expect(within(section).getAllByRole('link')).toHaveLength(3)
+    await userEvent.click(within(section).getByRole('button', { name: 'Voir l’autre' }))
+    expect(within(section).getAllByRole('link')).toHaveLength(4)
+    expect(within(section).queryByRole('button', { name: /^Voir/ })).toBeNull()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  test('the button goes, the focus lands on the first row it revealed', async () => {
+    mocks.state.current = withGaps(4)
+    render(<ReperesPage />)
+    const section = screen.getByRole('region', { name: 'À compléter' })
+    await userEvent.click(within(section).getByRole('button', { name: 'Voir l’autre' }))
+    expect(document.activeElement).toBe(within(section).getAllByRole('link')[3])
+  })
+
+  test('five gaps: « Voir les 2 autres »', async () => {
+    mocks.state.current = withGaps(5)
+    render(<ReperesPage />)
+    const section = screen.getByRole('region', { name: 'À compléter' })
+    await userEvent.click(within(section).getByRole('button', { name: 'Voir les 2 autres' }))
+    expect(within(section).getAllByRole('link')).toHaveLength(5)
+  })
+
+  test('nothing to complete: no section at all', () => {
+    mocks.state.current = withGaps(0)
+    render(<ReperesPage />)
+    expect(screen.queryByRole('region', { name: 'À compléter' })).toBeNull()
+    expect(screen.queryByText('À compléter')).toBeNull()
+  })
 })
 
 test('B7: the grid of what can be had back has medium squares, the same as the cushion and Évolution', () => {
@@ -212,6 +313,41 @@ test('nothing to read yet: Mon argent decides what to do', () => {
   mocks.state.current = ready({ snapshots: [] })
   render(<ReperesPage />)
   expect(mocks.replace).toHaveBeenCalledWith('/')
+})
+
+// jsdom has no scrollIntoView: the test lends one, and the page's address, both given back after it.
+const scrollKept = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
+const addressKept = window.location.href
+afterEach(() => {
+  if (scrollKept) Object.defineProperty(Element.prototype, 'scrollIntoView', scrollKept)
+  else delete (Element.prototype as Partial<Element>).scrollIntoView
+  window.history.replaceState(null, '', addressKept)
+})
+
+// « Trouver » leads a bank to « Où est ton argent »: the waits come first, so the page goes there once
+// its sections are drawn.
+test('opened at « Où est ton argent », the page goes there once its sections are drawn', () => {
+  const scroll = vi.fn()
+  Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, writable: true, value: scroll })
+  window.history.replaceState(null, '', `/reperes#${WHERE_ANCHOR}`)
+  mocks.state.current = ready({ budget: true })
+  mocks.market.current = { status: 'loading' }
+  const { container, rerender } = render(<ReperesPage />)
+  expect(scroll).not.toHaveBeenCalled()
+  mocks.market.current = { status: 'ready', market: { quotes: {}, rates: null }, retry: vi.fn() }
+  rerender(<ReperesPage />)
+  expect(scroll).toHaveBeenCalledTimes(1)
+  expect(scroll.mock.contexts[0]).toBe(container.querySelector(`#${WHERE_ANCHOR}`))
+})
+
+test('the magnifier « Trouver » is at the top of Repères, after the title for VoiceOver and the keyboard', () => {
+  mocks.state.current = ready({ budget: true })
+  render(<ReperesPage />)
+  const find = screen.getByRole('link', { name: 'Trouver' })
+  expect(find).toHaveAttribute('href', '/trouver')
+  const title = screen.getByRole('heading', { level: 1 })
+  expect(title.compareDocumentPosition(find) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(title.parentElement).toBe(find.parentElement)
 })
 
 test('nothing is drawn while the market is awaited', () => {
@@ -356,4 +492,12 @@ describe('the motions of Repères', () => {
     expect(fills[0].className).not.toContain('duration-')
     expect(dimSquares().every((s) => /\/20/.test(s.className) && s.style.transitionDelay === '' && !s.className.includes('duration-'))).toBe(true)
   })
+})
+
+test('« Où est ton argent » carries the anchor a bank found by « Trouver » leads to', () => {
+  mocks.state.current = ready({ budget: true })
+  render(<ReperesPage />)
+  const where = screen.getByRole('region', { name: 'Où est ton argent' })
+  expect(where).toHaveAttribute('id', WHERE_ANCHOR)
+  expect(where).toHaveClass('lg:scroll-mt-24')
 })

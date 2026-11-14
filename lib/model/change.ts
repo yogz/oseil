@@ -1,5 +1,6 @@
 import { ACCOUNT_TYPES } from '@/lib/catalog'
-import { entryValue, toEuroCents, UnknownLineError } from '@/lib/model/situation'
+import { costToEuroCents, fewer } from '@/lib/model/purchase-cost'
+import { entryMinorUnits, entryValue, toEuroCents, UnknownLineError } from '@/lib/model/situation'
 import type { Cents, Line, Profile, Snapshot, SnapshotEntry } from '@/lib/model/types'
 
 export type ChangeSplit = {
@@ -98,13 +99,24 @@ function walk(
       const unitsA = entryA.units
       const unitsB = entryB.units
       let spent: Cents
-      if (entryA.averagePrice !== null && entryB.averagePrice !== null) {
-        spent = toEuroCents((unitsA * entryA.averagePrice - unitsB * entryB.averagePrice) * 100, line, after.fx)
+      if (fewer(unitsA, unitsB)) {
+        // A sale: the parts sold leave at the day's price, so markets keep only what the price did
+        // and the gain made since the purchase is not turned into effort.
+        spent = toEuroCents((unitsA - unitsB) * entryA.unitPrice * 100, line, after.fx)
+      } else if (entryA.averagePrice !== null && entryB.averagePrice !== null) {
+        // The parts bought, at their cost: in euros by the person's word when given, as purchase-cost.ts.
+        spent = costToEuroCents((unitsA * entryA.averagePrice - unitsB * entryB.averagePrice) * 100, line, after.fx)
       } else {
         spent = toEuroCents((unitsA - unitsB) * entryA.unitPrice * 100, line, after.fx)
       }
       effort += spent
       markets += delta - spent
+    } else if (line.currency !== 'EUR' && entryB && (change === 'all' || change === 'cost-basis')) {
+      // An amount in another currency: what the rate did to the amount held before is markets
+      // (its value in the currency, at the new rate less the old one), the rest is effort.
+      const rateEffect = toEuroCents(entryMinorUnits(entryB), line, after.fx) - nB
+      markets += rateEffect
+      effort += delta - rateEffect
     } else {
       // all, repayment, and amount lines of a cost-basis account
       effort += delta

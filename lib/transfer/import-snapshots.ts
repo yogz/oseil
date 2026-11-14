@@ -414,7 +414,7 @@ function readArrival(table: TableRow, fail: Fail): Arrival | null | undefined {
 }
 
 // A row of « Versements »: its relevé (by number, else by date when that date has only one),
-// an account that takes contributions, once per relevé. A zero is not kept: the site never stores one.
+// an account that takes contributions, once per relevé. A zero is kept: nothing paid in is a known answer.
 function readContribution(table: TableRow, place: Place | undefined, relevés: Relevé[], fail: Fail, index: AccountIndex): void {
   const row = table.row
   const header = (key: string) => titleOf('contributions', key)
@@ -458,5 +458,6 @@ function readContribution(table: TableRow, place: Place | undefined, relevés: R
     return
   }
   relevé.paidRow.set(account.id, row)
-  if (cents !== null && cents !== 0) relevé.contributions[account.id] = cents
+  // A 0 is a known answer, nothing paid in: kept, as the site keeps a typed 0.
+  if (cents !== null) relevé.contributions[account.id] = cents
 }

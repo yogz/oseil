@@ -104,3 +104,13 @@ test('a touch after the limit does not open the vault again', async () => {
   await wait(0)
   expect(mocks.signOut).toHaveBeenCalledTimes(1)
 })
+
+// Closed by the clock, not by the person: the sign-in page shows their address again.
+test('closing by itself keeps the remembered address', async () => {
+  localStorage.setItem('oseil-adresse', 'me@example.com')
+  idleClock.touch(START - 60 * 60 * 1000)
+  render(<IdleLock />)
+  await wait(0)
+  expect(mocks.signOut).toHaveBeenCalledTimes(1)
+  expect(localStorage.getItem('oseil-adresse')).toBe('me@example.com')
+})

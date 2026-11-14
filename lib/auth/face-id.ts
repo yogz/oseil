@@ -51,6 +51,17 @@ export class FaceIdNoLongerOpensError extends Error {
   }
 }
 
+/**
+ * Asked to confirm who is signed in, the passkey opened a session for another
+ * account. That session is closed; nothing of that account was opened.
+ */
+export class FaceIdOtherAccountError extends Error {
+  constructor(options?: ErrorOptions) {
+    super('The passkey belongs to another account than the one signed in', options)
+    this.name = 'FaceIdOtherAccountError'
+  }
+}
+
 /** A moment on both of the device's clocks, in milliseconds. */
 export type Clocks = {
   /** `performance.now()`: cannot be set, but may stop while an Apple device sleeps. */
@@ -300,12 +311,14 @@ function refusedForGood(error: unknown): boolean {
   )
 }
 
-async function openSessionAndVault(
+// The passkey opens, and Supabase opens a session for it: who it is for, which
+// passkey answered, and its secret, which never leaves the device. Shared by
+// the sign-in and by the confirmation before deleting the account.
+async function openSession(
   client: SupabaseClient,
-  keys: KeyStore,
   webauthn: WebAuthn,
   prepared: PreparedSignIn,
-): Promise<void> {
+): Promise<{ userId: string; id: string; secret: BufferSource }> {
   const credential = await openPasskey(webauthn, prepared.options)
 
   // Without the secret the session would open no vault: stop before anything is sent.
@@ -320,9 +333,18 @@ async function openSessionAndVault(
   if (error) throw refusedForGood(error) ? new FaceIdNoLongerOpensError({ cause: error }) : error
   const userId = data.session?.user.id
   if (!userId) throw new Error('The passkey opened no session')
+  return { userId, id: credentialId(credential), secret }
+}
 
+async function openSessionAndVault(
+  client: SupabaseClient,
+  keys: KeyStore,
+  webauthn: WebAuthn,
+  prepared: PreparedSignIn,
+): Promise<void> {
+  const { userId, id, secret } = await openSession(client, webauthn, prepared)
   try {
-    const dataKey = await openPacket(client, userId, credentialId(credential), secret)
+    const dataKey = await openPacket(client, userId, id, secret)
     // One key per device: whatever another account left here goes first.
     await keys.clear()
     await keys.set(userId, dataKey)
@@ -332,7 +354,35 @@ async function openSessionAndVault(
     await signOut(client, keys).catch(() => {})
     throw error
   }
-  faceIdMarker.set(credentialId(credential))
+  faceIdMarker.set(id)
+}
+
+// Before deleting the account: a fresh tap, by the person signed in. A key
+// already on the device is not enough, so the passkey must open its packet,
+// as at sign-in; the key it opens is not kept, the device already has it.
+// Who is signed in is read by the screen before the tap (`expectedUserId`):
+// nothing is asked of the network between the tap and the prompt, which Safari
+// can refuse. A passkey of another account opens that account's session,
+// which is closed at once.
+export async function confirmWithFaceId(
+  client: SupabaseClient,
+  webauthn: WebAuthn,
+  prepared: PreparedSignIn,
+  expectedUserId: string,
+): Promise<void> {
+  try {
+    const { userId, id, secret } = await openSession(client, webauthn, prepared)
+    if (userId !== expectedUserId) {
+      // A failure to close that session must not hide which error this is: the screen signs out again.
+      await client.auth.signOut({ scope: 'local' }).catch(() => {})
+      throw new FaceIdOtherAccountError()
+    }
+    await openPacket(client, userId, id, secret)
+  } catch (error) {
+    // As at sign-in: the marker goes, so that the offer can come back.
+    if (error instanceof FaceIdNoLongerOpensError) faceIdMarker.clear()
+    throw error
+  }
 }
 
 async function openPasskey(webauthn: WebAuthn, options: PublicKeyCredentialRequestOptions): Promise<PublicKeyCredential> {

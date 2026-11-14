@@ -91,6 +91,11 @@ describe('readTable', () => {
 })
 
 describe('readAccounts', () => {
+  it('reads the zone « Matières premières », accents and case aside', () => {
+    const { profile } = success(run({ bank: 'BoursoBank', account: 'PEA', line: 'Terres rares', type: 'pea', group: 'MATIERES PREMIERES' }))
+    expect(profile.lines[0]).toMatchObject({ name: 'Terres rares', group: 'commodities' })
+  })
+
   it('builds banks, accounts and lines, with the type’s defaults', () => {
     const { profile } = success(
       run(

@@ -123,6 +123,7 @@ const FUNCTIONS: Record<string, string[]> = {
   my_reminder_email: ["authenticated"],
   set_my_reminder_email: ["authenticated"],
   stop_reminder: ["anon", "authenticated"],
+  delete_my_account: ["authenticated"],
   // The e-mail reminder runs inside the database (pg_cron): nobody outside calls these.
   due_reminders: [],
   mark_reminder_sent: [],

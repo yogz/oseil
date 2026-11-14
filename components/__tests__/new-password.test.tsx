@@ -52,6 +52,7 @@ const CONFIRM = 'Tape « repartir de zéro » pour confirmer'
 const EXPIRED = 'Ce lien a expiré ou a déjà servi.'
 const FACE_ID_MARKER = 'stefin-face-id'
 const ACCOUNT_MARKER = 'oseil-compte-ici'
+const ADDRESS = 'oseil-adresse'
 
 beforeEach(() => {
   // Node's own localStorage, which does not work without a file, hides jsdom's.
@@ -120,11 +121,14 @@ describe('NewPasswordForm', () => {
     await user.click(screen.getByRole('button', { name: 'Retrouver mes chiffres' }))
     expect(await screen.findByText(/ne correspond pas à ton compte/)).toBeInTheDocument()
     expect(localStorage.getItem(ACCOUNT_MARKER)).toBeNull()
+    expect(localStorage.getItem(ADDRESS)).toBeNull()
 
     mocks.resetWithRecoveryKey.mockResolvedValue(KEY)
     await user.click(screen.getByRole('button', { name: 'Retrouver mes chiffres' }))
     await vi.waitFor(() => expect(mocks.loadPage).toHaveBeenCalledWith('/'))
     expect(localStorage.getItem(ACCOUNT_MARKER)).toBe('1')
+    // The address of the session, remembered for the next sign-in (lib/auth/remembered-email.ts).
+    expect(localStorage.getItem(ADDRESS)).toBe('me@example.com')
   })
 
   test('starting over marks that an account was used here, but not when it fails', async () => {
@@ -138,11 +142,13 @@ describe('NewPasswordForm', () => {
     await user.click(screen.getByRole('button', { name: 'Repartir de zéro' }))
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(localStorage.getItem(ACCOUNT_MARKER)).toBeNull()
+    expect(localStorage.getItem(ADDRESS)).toBeNull()
 
     mocks.startOver.mockResolvedValue({ dataKey: KEY, recoveryDisplay: NEW_RECOVERY })
     await user.click(screen.getByRole('button', { name: 'Repartir de zéro' }))
     expect(await screen.findByText(NEW_RECOVERY)).toBeInTheDocument()
     expect(localStorage.getItem(ACCOUNT_MARKER)).toBe('1')
+    expect(localStorage.getItem(ADDRESS)).toBe('me@example.com')
   })
 
   test('says which account the new password is for', () => {

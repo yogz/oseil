@@ -145,8 +145,7 @@ test('the example, from the landing to the way out, without asking the server an
 // hides it, since the site's passkeys cannot work there: the browser is given a virtual
 // authenticator, and Supabase's answer is replaced by one naming this address, so that it shows.
 // Nothing is signed in: the test only reads where the link is.
-test('on the sign-in screen, « Utiliser Face ID » comes after the form', async ({ page, browserName }) => {
-  test.skip(browserName !== 'chromium', 'The virtual authenticator is Chromium’s')
+async function faceIdAtLocalhost(page: Page) {
   const cdp = await page.context().newCDPSession(page)
   await cdp.send('WebAuthn.enable', { enableUI: false })
   await cdp.send('WebAuthn.addVirtualAuthenticator', {
@@ -171,6 +170,11 @@ test('on the sign-in screen, « Utiliser Face ID » comes after the form', async
           json: { challenge_id: 'e2e', options: { challenge: 'AAAAAAAAAAAAAAAAAAAAAA', rpId: 'localhost' } },
         }),
   )
+}
+
+test('on the sign-in screen, « Utiliser Face ID » comes after the form', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'The virtual authenticator is Chromium’s')
+  await faceIdAtLocalhost(page)
 
   await page.setViewportSize(PHONE)
   await page.goto('/connexion')
@@ -199,6 +203,34 @@ test('on the sign-in screen, « Utiliser Face ID » comes after the form', async
   expect(link.y).toBeGreaterThan(forgot.y)
   expect(link.y).toBeLessThan(create.y)
   await shot(page, 'connexion-face-id')
+})
+
+// Planche 4B (Nicolas, 12 November 2026): once Face ID has served on this device, it comes first,
+// as the full pill, and the password second, with the outlined one. The marker is set by hand.
+test('on the sign-in screen, Face ID comes first once it has served here', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'The virtual authenticator is Chromium’s')
+  await faceIdAtLocalhost(page)
+  await page.addInitScript(() => localStorage.setItem('stefin-face-id', '1'))
+
+  await page.setViewportSize(PHONE)
+  await page.goto('/connexion')
+  const pill = page.getByRole('button', { name: /^Me reconnecter avec / })
+  await expect(pill).toBeEnabled()
+  await expect(page.getByRole('heading', { name: 'Te reconnecter' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Créer mon compte' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Utiliser / })).toHaveCount(0)
+
+  const caption = await page.getByText('Ou avec ton mot de passe').boundingBox()
+  const field = await page.getByLabel('Ton adresse e-mail').boundingBox()
+  const submit = await page.getByRole('button', { name: 'Me reconnecter', exact: true }).boundingBox()
+  const forgot = await page.getByRole('link', { name: /^Mot de passe oublié/ }).boundingBox()
+  const top = await pill.boundingBox()
+  if (!caption || !field || !submit || !forgot || !top) throw new Error('No box')
+  expect(caption.y).toBeGreaterThan(top.y + top.height)
+  expect(field.y).toBeGreaterThan(caption.y)
+  expect(submit.y).toBeGreaterThan(field.y)
+  expect(forgot.y).toBeGreaterThan(submit.y)
+  await shot(page, 'connexion-face-id-d-abord')
 })
 
 const PHONE = { width: 375, height: 667 }

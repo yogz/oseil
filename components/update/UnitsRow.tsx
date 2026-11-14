@@ -10,6 +10,7 @@ import { readNumber } from '@/lib/update/fields'
 import { decimalText, priceText as priceBoxText, tidyCount, tidyPrice, unitsValue } from '@/lib/setup/step-changes'
 import { hintOf, TO_FILL, type RowProps } from './AmountRow'
 import { categoryOf } from '@/lib/model/situation'
+import { PURCHASE_ASK } from '@/lib/screens/to-complete-words'
 import { RowFrame, UnchangedButton } from './RowFrame'
 import { useCommit } from './useCommit'
 
@@ -30,7 +31,7 @@ function textsOf(entry: RowProps['entry']): Texts {
 // A line with no value yet opens all three, empty, to be filled. Its prices and its value are
 // in the line's own currency, as its bank shows them. A line attached to its price opens at
 // today's price (decision 7): the box is then lit, and recalls the last one.
-export function UnitsRow({ line, account, entry, before, confirmed, onValue, onConfirm, footer, priceHint, inAccount }: RowProps) {
+export function UnitsRow({ line, account, entry, before, confirmed, onValue, onConfirm, footer, priceHint, inAccount, asksPurchase }: RowProps) {
   const bullion = account.type === 'gold' || account.type === 'crypto'
   const unitWord = bullion ? 'unités' : 'parts'
   // Every box asks its question (A9), in the words of the form that created the line.
@@ -158,7 +159,8 @@ export function UnitsRow({ line, account, entry, before, confirmed, onValue, onC
         </>
       ) : (
         <button type="button" className={TEXT_LINK} onClick={() => setOpen(true)}>
-          Les parts ou le prix moyen ont changé&nbsp;?
+          {/* « À compléter »: the purchase price missing from the base snapshot is asked for here. */}
+          {asksPurchase ? PURCHASE_ASK : 'Les parts ou le prix moyen ont changé ?'}
         </button>
       )}
       {/* Nothing to confirm on a line with no base value: « Inchangé » would drop what was typed. */}

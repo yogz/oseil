@@ -10,6 +10,7 @@ import { Brand } from '@/components/ui/Brand'
 import type { CategoryId } from '@/lib/model/types'
 import { FILL } from '@/components/money/HundredSquares'
 import { SITE_STRUCTURED_DATA } from '@/lib/app/site-metadata'
+import { ACCOUNT_DELETED, ACCOUNT_DELETED_PARAM } from '@/lib/screens/settings-words'
 
 // Served at `/`: its canonical address is `/`, never `/accueil`.
 export const metadata: Metadata = { alternates: { canonical: '/' } }
@@ -54,8 +55,14 @@ const PROMISES: Array<{ category: CategoryId; title: string; caption: string }> 
   },
 ]
 
-export default async function LandingPage() {
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
+
+// `searchParams` survives the rewrite of `/` (proxy.ts keeps the query on a rewrite). Optional, so that
+// the tests can render the page as a visitor arriving with nothing in the address.
+export default async function LandingPage({ searchParams }: { searchParams?: SearchParams } = {}) {
   await connection()
+  // After « Supprimer mon compte » (components/settings/DeleteAccount.tsx), the site comes here by a full load.
+  const deleted = (await searchParams)?.[ACCOUNT_DELETED_PARAM.name] === ACCOUNT_DELETED_PARAM.value
   return (
     <main className="mx-auto flex w-full max-w-md flex-col px-5 pb-10 lg:grid lg:max-w-5xl lg:grid-cols-2 lg:grid-rows-[auto_auto_1fr_auto] lg:items-start lg:gap-x-14 lg:pt-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: STRUCTURED_DATA }} />
@@ -68,6 +75,11 @@ export default async function LandingPage() {
           <LandingGrid />
         </div>
         <div className="lg:col-start-2 lg:row-start-2 lg:pt-6">
+          {deleted ? (
+            <p role="status" className="mt-5 border-l-2 border-ink pl-3 text-body leading-relaxed text-ink lg:mt-0 lg:mb-5">
+              {ACCOUNT_DELETED}
+            </p>
+          ) : null}
           <h1 className="mt-5 text-title font-semibold leading-tight tracking-[-0.01em] lg:mt-0">Ton argent, en 100 carrés</h1>
           <p className="mt-2 text-body leading-normal text-ink-soft">
             Fais l’état des lieux de ton patrimoine, vois comment il est réparti, ajuste-le à tes objectifs et

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from 'react'
 import { FaceIdOffer } from '@/components/account/FaceIdOffer'
 import { ResendConfirmation } from '@/components/account/ResendConfirmation'
-import { FaceIdSignIn } from '@/components/account/FaceIdSignIn'
+import { useFaceIdSignIn } from '@/components/account/use-face-id-sign-in'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { WaitCover } from '@/components/ui/VaultWait'
@@ -14,11 +14,13 @@ import { EmailNotConfirmedError, signIn, type FaceIdMaterial } from '@/lib/auth/
 import { accountHere } from '@/lib/auth/account-here'
 import { IDLE_CLOSED_SENTENCE, idleClock } from '@/lib/app/idle-lock'
 import { faceIdMarker } from '@/lib/auth/face-id-marker'
+import { rememberedEmail } from '@/lib/auth/remembered-email'
 import { faceIdLabel, signInErrorMessage, type FaceIdLabel } from '@/lib/auth/messages'
 import { setPendingRecovery } from '@/lib/auth/pending-recovery'
 import { browserWebAuthn } from '@/lib/auth/webauthn'
 import { createBrowserSupabase } from '@/lib/supabase/browser'
 import { indexedDbKeyStore } from '@/lib/vault/device'
+import { normalizeEmail } from '@/lib/vault/kdf'
 
 const LINK =
   'inline-flex min-h-11 items-center text-body text-ink-soft underline decoration-rule-strong underline-offset-4 ' +
@@ -42,12 +44,19 @@ const noChange = () => () => {}
 
 export default function SignInPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  // What the person typed, or `null` while they have not touched the field: it then shows the
+  // address of the last sign-in here (lib/auth/remembered-email.ts), read from this device only.
+  // The server's render, and the first one here, show an empty field.
+  const [typed, setTyped] = useState<string | null>(null)
+  const remembered = useSyncExternalStore(noChange, () => rememberedEmail.read() ?? '', () => '')
+  const email = typed ?? remembered
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   // What checks the person on this device, when it can create a passkey.
   const [label, setLabel] = useState<FaceIdLabel | null>(null)
+  // Whether the device has answered, either way: until then, `label` says nothing yet.
+  const [labelSettled, setLabelSettled] = useState(false)
   // After a password sign-in, the question awaiting an answer, and what
   // answering « Activer » needs. Held here alone, forgotten with the page.
   const [offer, setOffer] = useState<{ label: FaceIdLabel; material: FaceIdMaterial } | null>(null)
@@ -58,6 +67,34 @@ export default function SignInPage() {
   const closedByClock = useSyncExternalStore(noChange, () => idleClock.wasClosed(), () => false)
   // A sign-in refused because the address is not confirmed yet: its link can be sent again.
   const [unconfirmed, setUnconfirmed] = useState(false)
+
+  // Face ID names no address: the session it opened does, read here, on the device.
+  async function enteredWithFaceId() {
+    accountHere.set()
+    idleClock.start(Date.now())
+    try {
+      const { data } = await createBrowserSupabase().auth.getSession()
+      const address = data.session?.user.email
+      if (address) rememberedEmail.set(address)
+    } catch {
+      // Only a comfort lost: the field will be empty next time.
+    }
+    router.replace('/')
+  }
+
+  // Face ID, prepared before any tap (components/account/use-face-id-sign-in.ts), on a device that can.
+  const faceId = useFaceIdSignIn(label, () => void enteredWithFaceId())
+  const faceIdShown = faceId.state === 'preparing' || faceId.state === 'ready'
+  // Face ID has served on this device (planche 4B, Nicolas, 12 November 2026): it comes first, as a
+  // pill, and the password second. Read here only: the server's render shows the plain sign-in.
+  const faceIdHere = useSyncExternalStore(noChange, () => faceIdMarker.isSet(), () => false)
+  // Chosen from the marker as the page opens, so that the form does not jump down a moment later: the
+  // pill is there, waiting, until the device and Supabase have answered. Only a device that turns out
+  // unable, or a sign-in that cannot be prepared before any attempt, brings the plain screen. Once an
+  // attempt has said something, the screen stays as it is, its message under the pill; a Face ID that
+  // no longer opens the vault takes the marker off, and the plain screen comes back with the message.
+  const faceIdFirst =
+    faceIdHere && !(labelSettled && label === null) && (faceId.state !== 'unavailable' || faceId.error !== null)
 
   // Arriving here signed out: a key left on the device belongs to nobody who
   // can use it, so it goes (an expired session, another account's leftovers).
@@ -79,9 +116,16 @@ export default function SignInPage() {
   // A device that cannot is offered nothing, and nothing is asked of Supabase.
   useEffect(() => {
     let live = true
-    void browserWebAuthn.supported().then((supported) => {
-      if (live && supported) setLabel(faceIdLabel(navigator))
-    })
+    browserWebAuthn.supported().then(
+      (supported) => {
+        if (!live) return
+        if (supported) setLabel(faceIdLabel(navigator))
+        setLabelSettled(true)
+      },
+      () => {
+        if (live) setLabelSettled(true)
+      },
+    )
     return () => {
       live = false
     }
@@ -122,7 +166,8 @@ export default function SignInPage() {
       await Promise.resolve()
       if (!live) return
       setArrival(next)
-      if (address) setEmail((typed) => typed || address)
+      // The address just confirmed outranks the one remembered here, never one the person typed.
+      if (address) setTyped((current) => current ?? address)
     })()
     return () => {
       live = false
@@ -140,6 +185,7 @@ export default function SignInPage() {
       // signs in, the other opens the vault. Neither is the password.
       const result = await signIn(createBrowserSupabase(), indexedDbKeyStore(), { email, password })
       accountHere.set()
+      rememberedEmail.set(normalizeEmail(email))
       idleClock.start(Date.now())
       if (result.status !== 'unlocked') {
         // Kept in memory only, for the next screen to show once.
@@ -161,19 +207,44 @@ export default function SignInPage() {
     return <FaceIdOffer label={offer.label} material={offer.material} onLeave={() => router.replace('/')} />
   }
 
+  const faceIdError = faceId.error ? (
+    <p role="alert" className="mt-3 text-body font-medium leading-normal text-ink">
+      {faceId.error}
+    </p>
+  ) : null
+
   return (
     <>
-      <h1 className="text-title font-semibold leading-tight tracking-[-0.01em]">Te connecter</h1>
+      <h1 className="text-title font-semibold leading-tight tracking-[-0.01em]">
+        {faceIdFirst ? 'Te reconnecter' : 'Te connecter'}
+      </h1>
       {arrival || closedByClock ? (
         <p role="status" className="mt-4 border-l-2 border-ink pl-3 text-body leading-relaxed text-ink">
           {arrival || IDLE_CLOSED_SENTENCE}
         </p>
       ) : null}
 
+      {/* Face ID has served here (planche 4B): it is the way back, the password comes second. */}
+      {faceIdFirst ? (
+        <>
+          <Button
+            disabled={faceId.state !== 'ready' || faceId.busy}
+            aria-busy={faceId.busy}
+            onClick={faceId.signIn}
+            className="mt-8"
+          >
+            {/* Before the device has answered, its word is read from it here: this only renders in the browser. */}
+            {`Me reconnecter avec ${label ?? faceIdLabel(navigator)}`}
+          </Button>
+          {faceIdError}
+          <p className="mt-8 text-caption text-ink-muted">Ou avec ton mot de passe</p>
+        </>
+      ) : null}
+
       {/* After a third of a second the form gives its place to the wait, but stays mounted: a refusal
           brings it back as it was. */}
       <WaitCover active={busy} phase="open">
-        <form onSubmit={submit} className="mt-8 flex flex-col gap-5">
+        <form onSubmit={submit} className={`${faceIdFirst ? 'mt-3' : 'mt-8'} flex flex-col gap-5`}>
           <TextField
             label="Ton adresse e-mail"
             type="email"
@@ -183,7 +254,7 @@ export default function SignInPage() {
             spellCheck={false}
             required
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => setTyped(event.target.value)}
           />
           <TextField
             label="Ton mot de passe"
@@ -199,9 +270,16 @@ export default function SignInPage() {
               {error}
             </p>
           ) : null}
-          {/* The keys are derived here, on the device, in a second or more: the pill stays full and says so. */}
-          <Button type="submit" aria-busy={busy} aria-disabled={busy} className="mt-2">
-            {busy ? 'Ouverture de ton coffre…' : 'Me connecter'}
+          {/* The keys are derived here, on the device, in a second or more: the pill says so. Second
+              to Face ID, it is the outlined one. */}
+          <Button
+            type="submit"
+            variant={faceIdFirst ? 'secondary' : 'primary'}
+            aria-busy={busy}
+            aria-disabled={busy}
+            className="mt-2"
+          >
+            {busy ? 'Ouverture de ton coffre…' : faceIdFirst ? 'Me reconnecter' : 'Me connecter'}
           </Button>
         </form>
       </WaitCover>
@@ -215,20 +293,27 @@ export default function SignInPage() {
         <Link href="/mot-de-passe-oublie" className={LINK}>
           Mot de passe oublié&nbsp;?
         </Link>
-        {label ? (
-          <FaceIdSignIn
-            label={label}
-            className={LINK}
-            onSignedIn={() => {
-              accountHere.set()
-              idleClock.start(Date.now())
-              router.replace('/')
-            }}
-          />
-        ) : null}
-        <Link href="/inscription" className={LINK}>
-          Créer mon compte
-        </Link>
+        {faceIdFirst ? null : (
+          <>
+            {/* « Utiliser Face ID », a quiet link: a button dressed as one, since it acts in place. */}
+            {faceIdShown ? (
+              <button
+                type="button"
+                disabled={faceId.state !== 'ready' || faceId.busy}
+                aria-busy={faceId.busy}
+                onClick={faceId.signIn}
+                className={`${LINK} disabled:opacity-60`}
+              >
+                {`Utiliser ${label}`}
+              </button>
+            ) : null}
+            {faceIdError}
+            {/* The person has an account here when Face ID comes first: no « Créer mon compte » then. */}
+            <Link href="/inscription" className={LINK}>
+              Créer mon compte
+            </Link>
+          </>
+        )}
       </div>
     </>
   )

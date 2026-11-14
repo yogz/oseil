@@ -160,8 +160,8 @@ export default function PrivacyPage() {
             en Excel.
           </Said>
           <Said>
-            Pour tout le reste, écris à <Mail />. Pour effacer, nous supprimons ton compte et tout ce qu’il
-            contient.
+            Pour effacer, «&nbsp;Supprimer mon compte&nbsp;», dans les Réglages, efface ton compte et tout ce qu’il
+            contient. Pour tout le reste, écris à <Mail />.
           </Said>
           <Said>
             Tu peux aussi saisir la CNIL (

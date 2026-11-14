@@ -43,6 +43,9 @@ const mocks = vi.hoisted(() => ({
   search: { current: '' },
   replace: vi.fn(),
   saveCorrection: vi.fn(),
+  requestSearch: vi.fn(),
+  requestQuotes: vi.fn(),
+  requestRates: vi.fn(),
   market: { current: { status: 'ready', market: { quotes: {}, rates: null }, retry: vi.fn() } as MarketState },
 }))
 
@@ -54,6 +57,11 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('@/lib/market/use-market', () => ({ useMarket: () => mocks.market.current }))
 vi.mock('@/lib/correct/save', () => ({ saveCorrection: mocks.saveCorrection }))
+vi.mock('@/lib/market/client', () => ({
+  requestSearch: mocks.requestSearch,
+  requestQuotes: mocks.requestQuotes,
+  requestRates: mocks.requestRates,
+}))
 vi.mock('next/link', () => ({
   default: ({ href, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => <a href={href} {...props} />,
 }))
@@ -99,6 +107,94 @@ test('shows the fiche of a fund as on the board', () => {
   expect(screen.getByRole('link', { name: /Son prix du jour/ })).toHaveAttribute('href', '/titres?depuis=ligne/etf')
   expect(screen.getByText('Il passe à zéro à la date que tu choisis. Il reste dans tes anciens relevés.')).toBeInTheDocument()
   expect(screen.getByText('Il disparaît partout, même de tes anciens relevés.')).toBeInTheDocument()
+})
+
+// « Tes titres » only lists a followed title; changing it or stopping it lives on its sheet.
+const followedEtf = (): Profile => ({
+  ...exampleProfile,
+  lines: exampleProfile.lines.map((l) => (l.id === 'etf' ? { ...l, quoteSymbol: 'CW8.PA' } : l)),
+})
+
+test('a followed title’s sheet offers « Changer de titre » and « Ne plus le suivre », and no way back to « Tes titres »', () => {
+  ready(followedEtf())
+  render(<LinePage />)
+  expect(screen.queryByRole('link', { name: /Son prix du jour/ })).toBeNull()
+  expect(screen.getByText('Son prix du jour')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Changer de titre' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Ne plus le suivre' })).toBeInTheDocument()
+})
+
+test('« Ne plus le suivre » takes the symbol off in one profile write, on the re-read profile', async () => {
+  const reload = ready(followedEtf())
+  render(<LinePage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Ne plus le suivre' }))
+  expect(mocks.saveCorrection).toHaveBeenCalledTimes(1)
+  const [write] = planned(followedEtf())
+  const etf = write.value.lines.find((l) => l.id === 'etf')!
+  expect('quoteSymbol' in etf).toBe(false)
+  expect(etf.currency).toBe('EUR')
+  expect(reload).toHaveBeenCalled()
+})
+
+test('after « Ne plus le suivre », the focus goes to the row that replaces the two buttons', async () => {
+  const reload = ready(followedEtf())
+  reload.mockImplementation(() => {
+    ready()
+  })
+  const { rerender } = render(<LinePage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Ne plus le suivre' }))
+  expect(reload).toHaveBeenCalled()
+  rerender(<LinePage />)
+  const row = screen.getByRole('link', { name: /Son prix du jour/ })
+  expect(screen.queryByRole('button', { name: 'Ne plus le suivre' })).toBeNull()
+  expect(row).toHaveFocus()
+})
+
+test('a « Ne plus le suivre » refused leaves the buttons and says why', async () => {
+  ready(followedEtf())
+  mocks.saveCorrection.mockResolvedValue('failed')
+  render(<LinePage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Ne plus le suivre' }))
+  expect(await screen.findByRole('alert')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Ne plus le suivre' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /Son prix du jour/ })).toBeNull()
+})
+
+test('« Changer de titre » opens the same search as « Le retrouver », and « C’est bien lui » attaches the new symbol', async () => {
+  ready(followedEtf())
+  mocks.requestSearch.mockResolvedValue([{ symbol: 'ESE.PA', name: 'BNP S&P 500', exchange: 'Paris', kind: 'ETF' }])
+  mocks.requestQuotes.mockResolvedValue({ 'ESE.PA': { price: 25, currency: 'EUR', asOf: todayIso() } })
+  render(<LinePage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Changer de titre' }))
+  const box = screen.getByLabelText('Son nom ou son code ISIN')
+  expect(box).toHaveValue('ETF')
+  expect(mocks.requestSearch).not.toHaveBeenCalled()
+  await userEvent.click(screen.getByRole('button', { name: 'Chercher' }))
+  await userEvent.click(await screen.findByRole('button', { name: /BNP S&P 500/ }))
+  await userEvent.click(await screen.findByRole('button', { name: 'C’est bien lui' }))
+  expect(mocks.saveCorrection).toHaveBeenCalledTimes(1)
+  const [write] = planned(followedEtf())
+  expect(write.value.lines.find((l) => l.id === 'etf')!.quoteSymbol).toBe('ESE.PA')
+})
+
+test('« Ce n’est pas lui » goes back to the sheet and saves nothing', async () => {
+  ready(followedEtf())
+  mocks.requestSearch.mockResolvedValue([{ symbol: 'ESE.PA', name: 'BNP S&P 500', exchange: 'Paris', kind: 'ETF' }])
+  mocks.requestQuotes.mockResolvedValue({ 'ESE.PA': { price: 25, currency: 'EUR', asOf: todayIso() } })
+  render(<LinePage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Changer de titre' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Chercher' }))
+  await userEvent.click(await screen.findByRole('button', { name: /BNP S&P 500/ }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Ce n’est pas lui' }))
+  expect(mocks.saveCorrection).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: 'Changer de titre' })).toBeInTheDocument()
+})
+
+test('during an update, a followed title’s sheet offers neither', () => {
+  ready(followedEtf(), exampleSnapshot, startDraft('s0'))
+  render(<LinePage />)
+  expect(screen.queryByRole('button', { name: 'Changer de titre' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Ne plus le suivre' })).toBeNull()
 })
 
 test('an unknown line goes back to Mon argent', () => {
@@ -372,6 +468,7 @@ test('shows the zone of a markets line, and changes it in one profile write', as
     'Japon',
     'Pays émergents',
     'Fonds monde',
+    'Matières premières',
     'Hors bourse (non coté, prêts)',
     'Je ne sais pas',
   ])

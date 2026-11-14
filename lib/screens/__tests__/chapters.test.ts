@@ -28,6 +28,7 @@ describe('chapterOf', () => {
     const pea = account('a', 'pea')
     expect(chapterOf(line('l', 'a', { group: 'us' }), pea, 'markets')).toBe('us')
     expect(chapterOf(line('l', 'a'), pea, 'markets')).toBe('unknown')
+    expect(chapterOf(line('l', 'a', { group: 'commodities' }), pea, 'markets')).toBe('commodities')
     expect(chapterOf(line('l', 'a', { group: 'euro-fund' }), account('a', 'life-insurance'), 'secured')).toBe('euro-fund')
   })
 
@@ -47,5 +48,6 @@ describe('chapterOf', () => {
     expect(CHAPTER_LABELS.crypto).toBe('Crypto')
     expect(CHAPTER_LABELS.other).toBe('Autres')
     expect(CHAPTER_LABELS.us).toBe('États-Unis')
+    expect(CHAPTER_LABELS.commodities).toBe('Matières premières')
   })
 })

@@ -99,7 +99,8 @@ export async function signedInUserId(client: SupabaseClient): Promise<string> {
   return (await signedInUser(client)).id
 }
 
-async function signedInUserWithEmail(client: SupabaseClient, email: string): Promise<string> {
+// The signed-in user's id, once the address typed is known to be theirs.
+export async function signedInUserWithEmail(client: SupabaseClient, email: string): Promise<string> {
   const user = await signedInUser(client)
   if (normalizeEmail(email) !== user.email) throw new EmailMismatchError()
   return user.id

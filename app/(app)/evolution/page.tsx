@@ -16,6 +16,7 @@ import { GoalsHistory } from '@/components/evolution/Goals'
 import { SnapshotSteps } from '@/components/evolution/SnapshotSteps'
 import { Button } from '@/components/ui/Button'
 import { PageColumns } from '@/components/ui/PageColumns'
+import { FindCorner } from '@/components/ui/FindLink'
 import { TabBar } from '@/components/ui/TabBar'
 import { useMenuFromModel } from '@/components/ui/use-menu-from-model'
 import { VaultWait } from '@/components/ui/VaultWait'
@@ -41,7 +42,6 @@ import {
   EVOLUTION_UNREADABLE,
   GOALS_TITLE,
   NONE_TEXT,
-  NO_SQUARE_VALUE,
   SINGLE_ACTION,
   SINGLE_TEXT,
   SINGLE_TITLE,
@@ -49,6 +49,7 @@ import {
   STEPS_TITLE,
   sinceSquare,
 } from '@/lib/screens/evolution-words'
+import { LAST_STATEMENT } from '@/lib/screens/statement-words'
 
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
 const TITLE = 'pt-2 text-title font-semibold leading-tight tracking-[-0.01em]'
@@ -69,7 +70,9 @@ export default function EvolutionPage() {
       <PageColumns
         aside={
           <>
-            <h1 className={TITLE}>{EVOLUTION_TITLE}</h1>
+            <FindCorner>
+              <h1 className={TITLE}>{EVOLUTION_TITLE}</h1>
+            </FindCorner>
             {steps ? (
               <section aria-label={STEPS_TITLE} className="mt-6 flex flex-col gap-3">
                 <h2 className="text-subtitle font-semibold">{STEPS_TITLE}</h2>
@@ -153,9 +156,9 @@ function Notes({ notes }: { notes: string[] }) {
   ))
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
   return (
-    <section aria-label={title} className="mt-6 flex flex-col gap-3 border-t border-hairline pt-5">
+    <section id={id} aria-label={title} className="mt-6 flex flex-col gap-3 border-t border-hairline pt-5">
       <h2 className="text-subtitle font-semibold">{title}</h2>
       {children}
     </section>
@@ -224,13 +227,22 @@ function History({ view, stepsAside }: { view: Extract<EvolutionView, { kind: 'h
         ))}
       </Section>
 
-      <Section title={STATEMENTS_TITLE}>
+      {/* Each relevé opens its page (planche 8B); its square value lives there now. `releves`: the
+          anchor a line's fiche leads to (« Ses relevés précédents »). */}
+      <Section title={STATEMENTS_TITLE} id="releves">
         <ul className="flex flex-col">
           {view.snapshots.map((s) => (
-            <li key={s.id} className="grid grid-cols-[1fr_auto_auto] gap-4 border-t border-hairline py-3 text-body first:border-t-0">
-              <span>{s.date}</span>
-              <span className="tabular-nums">{s.net}</span>
-              <span className="min-w-24 text-right text-ink-muted">{s.squareValue ?? NO_SQUARE_VALUE}</span>
+            <li key={s.id} className="border-t border-hairline first:border-t-0">
+              <Link href={s.href} className={`flex min-h-13 items-center justify-between gap-4 py-3 text-body ${FOCUS}`}>
+                <span className="flex flex-col">
+                  <span>{s.date}</span>
+                  {s.last ? <span className="text-caption text-ink-soft">{LAST_STATEMENT}</span> : null}
+                </span>
+                <span className="flex items-center gap-3">
+                  <span className="tabular-nums">{s.net}</span>
+                  <span aria-hidden="true">›</span>
+                </span>
+              </Link>
             </li>
           ))}
         </ul>

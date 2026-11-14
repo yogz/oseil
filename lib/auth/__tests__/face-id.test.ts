@@ -18,8 +18,10 @@ import { confirmRecoveryKeySeen, loadDocuments, saveDocument } from '@/lib/vault
 import { signIn, signUp } from '../account'
 import {
   activateFaceId,
+  confirmWithFaceId,
   FaceIdCancelledError,
   FaceIdNoLongerOpensError,
+  FaceIdOtherAccountError,
   FaceIdUnavailableError,
   hasExpired,
   listFaceIdKeys,
@@ -1227,5 +1229,69 @@ describe('removeFaceIdKey', () => {
 
     await expect(removeFaceIdKey(setup.client, setup.here.passkey_id)).rejects.toThrow(/Face ID/)
     expect(setup.storage.getItem(MARKER)).toBe(`1:${setup.here.credential_id}`)
+  })
+})
+
+// Before deleting the account: a fresh Face ID tap, by the person signed in.
+// The passkey must open their packet, as at sign-in; the key already on the
+// device is not touched.
+describe('confirmWithFaceId', () => {
+  async function confirming() {
+    const setup = await offered({ atCreation: 'secret' })
+    if ((await setup.activate()).status !== 'active') throw new Error('expected Face ID to be active')
+    const prepared = await prepareFaceIdSignIn(setup.client)
+    return {
+      ...setup,
+      prepared,
+      confirm: (expected: string = setup.faceId.userId) =>
+        confirmWithFaceId(setup.client, setup.device.webauthn, prepared, expected),
+    }
+  }
+
+  // Safari can refuse a WebAuthn request that does not follow the tap at once: the passkey opens first.
+  test('nothing is asked of the network before the passkey opens', async () => {
+    const ready = await confirming()
+    ready.timeline.length = 0
+    await ready.confirm()
+    expect(ready.timeline[0]).toBe('get')
+  })
+
+  test('the passkey of the person signed in confirms, and the key store is untouched', async () => {
+    const ready = await confirming()
+    const setting = vi.spyOn(ready.keys, 'set')
+    const clearing = vi.spyOn(ready.keys, 'clear')
+    const mark = ready.server.recorded.length
+
+    await ready.confirm()
+
+    expect(setting).not.toHaveBeenCalled()
+    expect(clearing).not.toHaveBeenCalled()
+    expect(await ready.keys.get(ready.faceId.userId)).toBeInstanceOf(CryptoKey)
+    expect((await ready.client.auth.getSession()).data.session?.user.id).toBe(ready.faceId.userId)
+    // The packet was opened, for this person and this passkey.
+    const read = ready.server.recorded
+      .slice(mark)
+      .find((r) => r.method === 'GET' && r.path.startsWith('/rest/v1/vault_passkeys'))!
+    expect(new URL(read.path, 'http://x').searchParams.get('user_id')).toBe(`eq.${ready.faceId.userId}`)
+    expectNoSecretSent(ready.server)
+  })
+
+  test('a passkey of another account is refused, and its session closed', async () => {
+    const ready = await confirming()
+    const signingOut = vi.spyOn(ready.client.auth, 'signOut')
+    const mark = ready.server.recorded.length
+
+    // Signed in as someone else than the person whose passkey answers.
+    await expect(ready.confirm('someone-else')).rejects.toBeInstanceOf(FaceIdOtherAccountError)
+    expect(signingOut).toHaveBeenCalledWith({ scope: 'local' })
+    // Nothing of that account was opened: its packet was never read.
+    expect(ready.server.recorded.slice(mark).filter((r) => r.path.startsWith('/rest/v1/vault_passkeys'))).toEqual([])
+    expect((await ready.client.auth.getSession()).data.session).toBeNull()
+  })
+
+  test('a closed prompt is a cancel, as at sign-in', async () => {
+    const ready = await confirming()
+    ready.device.behaviour.refuseOpening = new DOMException('The operation was cancelled', 'NotAllowedError')
+    await expect(ready.confirm()).rejects.toBeInstanceOf(FaceIdCancelledError)
   })
 })

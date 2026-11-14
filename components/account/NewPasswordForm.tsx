@@ -8,6 +8,7 @@ import { TextField } from '@/components/ui/TextField'
 import { accountHere } from '@/lib/auth/account-here'
 import { idleClock } from '@/lib/app/idle-lock'
 import { faceIdMarker } from '@/lib/auth/face-id-marker'
+import { rememberedEmail } from '@/lib/auth/remembered-email'
 import { WRONG_RECOVERY_KEY, recoveryErrorMessage, signUpFieldErrors } from '@/lib/auth/messages'
 import { isStartOverConfirmed } from '@/lib/auth/recovery'
 import { loadPage } from '@/lib/navigation'
@@ -85,6 +86,7 @@ export function NewPasswordForm({ client, user }: NewPasswordFormProps) {
         // A new data key: no passkey opens it, so Face ID is no longer on here.
         faceIdMarker.clear()
         accountHere.set()
+        rememberedEmail.set(user.email)
         idleClock.start(Date.now())
         await keepOnDevice(user.id, created.dataKey)
         // Shown whatever became of the data key: it is the only copy.
@@ -96,6 +98,8 @@ export function NewPasswordForm({ client, user }: NewPasswordFormProps) {
           email: user.email,
         })
         accountHere.set()
+        // An entry like a sign-in: its address fills the sign-in field next time (lib/auth/remembered-email.ts).
+        rememberedEmail.set(user.email)
         idleClock.start(Date.now())
         await keepOnDevice(user.id, dataKey)
         // A full page load: the key held in this page's memory goes with it.

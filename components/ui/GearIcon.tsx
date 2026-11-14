@@ -1,4 +1,5 @@
-// The gear of the settings, chosen by Nicolas on 9 November 2026: the only pictogram of the site.
+// The gear of the settings, chosen by Nicolas on 9 November 2026: one of the three pictograms of the
+// site, with the padlock of the landing (LockIcon.tsx) and the magnifier of « Trouver » (FindIcon.tsx).
 // Drawn here (eight teeth around a hole), in the colour of the text around it; whoever holds it
 // names it for VoiceOver.
 export function GearIcon({ className = '' }: { className?: string }) {

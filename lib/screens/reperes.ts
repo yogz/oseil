@@ -23,6 +23,7 @@ import { buildGrid } from '@/lib/model/squares'
 import type { Account, CategoryId, Cents, IsoDate, Line, Profile, Snapshot } from '@/lib/model/types'
 import { lineSlow } from '@/lib/correct/account-changes'
 import { debtsOf } from '@/lib/screens/debts'
+import { sameHoldings } from '@/lib/screens/holdings'
 import {
   CUSHION_MISSING,
   cushionSentence,
@@ -32,9 +33,11 @@ import {
   homeFact,
   NOTHING_QUICK,
   quickSentence,
-  sameHoldingFact,
+  sameHoldingFact, sameHoldingsFact,
   type Homes,
 } from '@/lib/screens/reperes-words'
+import { toComplete, type ToCompleteItem } from '@/lib/screens/to-complete'
+import { moreWords, TO_COMPLETE_LEAD, TO_COMPLETE_TITLE } from '@/lib/screens/to-complete-words'
 import { pricesDateLabel } from '@/lib/screens/words'
 
 export type ReperesView =
@@ -64,10 +67,19 @@ export type ReperesView =
         loans: Array<{ id: string; name: string; owed: string }>
       }>
       notes: string[] // lines left out for want of a rate
+      // The answers that would make the figures more exact: the first three, the rest folded behind
+      // `moreLabel`. Null when there is nothing to complete.
+      toComplete: {
+        title: string
+        lead: string
+        shown: ToCompleteItem[]
+        more: ToCompleteItem[]
+        moreLabel: string | null
+      } | null
     }
 
+const SHOWN_GAPS = 3
 const DEFAULT_EMPLOYER_PLACE = 'Épargne salariale'
-const plainName = (name: string) => name.toLowerCase().replace(/\s+/g, '')
 
 // Quick to get back: not the home, not a PER, employee savings only once their year has come, and
 // no line marked slow (unlisted shares, a locked placement), by its own answer or else its account's.
@@ -215,18 +227,14 @@ export function reperesView(model: Model, today: IsoDate, market: Market | null 
     .reduce((s, h) => s + h.value, 0)
   if (situation.net > 0 && homeNet > 0) facts.push(homeFact(homeNet / situation.net, homesHeld))
 
-  const held = new Map<string, { name: string; accounts: Set<string>; total: Cents }>()
-  for (const entry of shown.entries) {
-    const l = lines.get(entry.lineId)!
-    if (l.kind !== 'units' || accountOf(l.id).type === 'loan') continue
-    const key = plainName(l.name)
-    const found = held.get(key) ?? { name: l.name, accounts: new Set<string>(), total: 0 }
-    found.accounts.add(l.accountId)
-    found.total += entryValue(entry, l, shown.fx)
-    held.set(key, found)
+  // One holding on several accounts (lib/screens/holdings.ts).
+  const heldGroups = sameHoldings(profile, shown)
+  const several = heldGroups.filter((h) => h.accounts.size > 1).sort((a, b) => b.total - a.total)
+  if (several.length === 1) {
+    facts.push(sameHoldingFact(several[0].name, several[0].accounts.size, formatEurosShown(several[0].total)))
+  } else if (several.length > 1) {
+    facts.push(sameHoldingsFact(several.map((h) => h.name), formatEurosShown(several.reduce((s, h) => s + h.total, 0))))
   }
-  const several = [...held.values()].filter((h) => h.accounts.size > 1).sort((a, b) => b.total - a.total)[0]
-  if (several) facts.push(sameHoldingFact(several.name, several.accounts.size, formatEurosShown(several.total)))
 
   const employerHoldings = situation.holdings.filter((h) => accountOf(h.lineId).type === 'employee-savings')
   const employerValue = employerHoldings.reduce((s, h) => s + h.value, 0)
@@ -315,6 +323,10 @@ export function reperesView(model: Model, today: IsoDate, market: Market | null 
     loans: p.loans.map((loan) => ({ id: loan.id, name: loan.name, owed: formatEurosShown(loan.owed) })),
   }))
 
+  // 5. À compléter: the first three gaps, the others behind a button.
+  const gaps = toComplete(model, today)
+  const more = gaps.slice(SHOWN_GAPS)
+
   const note = nothingCounted ? null : unconvertedSentence(unconverted)
   return {
     kind: 'ready',
@@ -324,5 +336,15 @@ export function reperesView(model: Model, today: IsoDate, market: Market | null 
     facts: facts.slice(0, 4),
     places,
     notes: note ? [note] : [],
+    toComplete:
+      gaps.length === 0
+        ? null
+        : {
+            title: TO_COMPLETE_TITLE,
+            lead: TO_COMPLETE_LEAD,
+            shown: gaps.slice(0, SHOWN_GAPS),
+            more,
+            moreLabel: more.length === 0 ? null : moreWords(more.length),
+          },
   }
 }

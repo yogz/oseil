@@ -80,12 +80,14 @@ test('« 2 500 » is saved as expenses of 250 000 cents, on top of the default s
   expect(screen.getByRole('button', { name: 'Continuer' })).toBeDisabled()
 })
 
-test('opened from the settings: back, « Annuler » and the save return there', async () => {
+// UX review, 12 November 2026: from the Réglages, « ‹ Réglages » on the left and nothing on the right.
+test('opened from the settings: « ‹ Réglages » leads back, no « Annuler » nor « Plus tard », the save returns there', async () => {
   mocks.params.current = new URLSearchParams('depuis=reglages')
   render(<DepensesPage />)
-  expect(screen.getByRole('link', { name: '‹ Retour' })).toHaveAttribute('href', '/reglages')
-  await userEvent.click(screen.getByRole('button', { name: 'Annuler' }))
-  expect(mocks.push).toHaveBeenLastCalledWith('/reglages')
+  expect(screen.getByRole('link', { name: '‹ Réglages' })).toHaveAttribute('href', '/reglages')
+  expect(screen.queryByRole('link', { name: '‹ Retour' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Annuler' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Plus tard' })).not.toBeInTheDocument()
   await userEvent.type(screen.getByLabelText('Tes dépenses par mois'), '1800')
   await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
   expect(mocks.saveSettings).toHaveBeenCalledTimes(1)
@@ -105,6 +107,26 @@ test('a ready-made amount fills the field; existing settings are kept and their 
     { ...existing, budget: { basis: 'expenses', monthly: 300_000 } },
     'settings-1',
   )
+})
+
+// UX review, 12 November 2026: the title asked the spending while the field asked the income.
+test('the title follows the field: the income once asked, the spending again after « Je connais mes dépenses »', async () => {
+  render(<DepensesPage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Je ne connais pas mes dépenses' }))
+  expect(screen.getByRole('heading', { level: 1, name: 'Combien gagnes-tu par mois, à peu près ?' })).toBeInTheDocument()
+  expect(screen.getByLabelText('Tes revenus nets par mois')).toBeInTheDocument()
+  expect(
+    screen.getByText('Pour savoir combien de mois ton argent disponible te couvrirait si tes revenus s’arrêtaient.'),
+  ).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Je connais mes dépenses' }))
+  expect(screen.getByRole('heading', { level: 1, name: 'Combien dépenses-tu par mois, à peu près ?' })).toBeInTheDocument()
+})
+
+test('opened from the settings with a saved income, the title asks the income', () => {
+  mocks.params.current = new URLSearchParams('depuis=reglages')
+  mocks.state.current = ready({ ...DEFAULT_SETTINGS, budget: { basis: 'salary', monthly: 310_000 } })
+  render(<DepensesPage />)
+  expect(screen.getByRole('heading', { level: 1, name: 'Combien gagnes-tu par mois, à peu près ?' })).toBeInTheDocument()
 })
 
 test('« Je ne connais pas mes dépenses » switches to the net salary', async () => {
@@ -175,14 +197,11 @@ test('failed and loading states', async () => {
   expect(screen.queryByRole('button')).not.toBeInTheDocument()
 })
 
-test('opened from the settings, it starts from the saved budget and its way out reads « Annuler »', async () => {
+test('opened from the settings, it starts from the saved budget', () => {
   mocks.params.current = new URLSearchParams('depuis=reglages')
   mocks.state.current = ready({ ...DEFAULT_SETTINGS, budget: { basis: 'salary', monthly: 310_000 } })
   render(<DepensesPage />)
   expect(screen.getByLabelText('Tes revenus nets par mois')).toHaveValue('3\u202f100')
-  expect(screen.queryByRole('button', { name: 'Plus tard' })).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Annuler' }))
-  expect(mocks.push).toHaveBeenCalledWith('/reglages')
   expect(mocks.saveSettings).not.toHaveBeenCalled()
 })
 

@@ -53,6 +53,7 @@ test('each phase says its words', () => {
     lock: 'Mise sous clé…',
     create: 'Création de ton coffre…',
     prices: 'Derniers cours…',
+    delete: 'Suppression de ton compte…',
   }
   expect(WAIT_WORDS).toEqual(expected)
   for (const phase of Object.keys(expected) as WaitPhase[]) {
@@ -82,6 +83,14 @@ test('reduced motion: still, in colour', () => {
   } finally {
     undo()
   }
+})
+
+test('delete starts in colour and loses it, as lock does', () => {
+  render(<VaultWait phase="delete" />)
+  act(() => vi.advanceTimersByTime(WAIT_DELAY_MS))
+  expect(squares().some((square) => SCRAMBLED.test(square.className))).toBe(false)
+  act(() => vi.advanceTimersByTime(110 * 20))
+  expect(squares().some((square) => SCRAMBLED.test(square.className))).toBe(true)
 })
 
 test('lock starts in colour, open starts scrambled', () => {

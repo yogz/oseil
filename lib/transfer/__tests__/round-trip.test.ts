@@ -4,7 +4,8 @@
 //   - `firstLaunch` keeps only `complete` (the import writes `planned: []` and every bank as
 //     finished, which nothing reads once the first launch is complete);
 //   - a rate in `fx` that no line of its snapshot uses is not in the file;
-//   - a contribution of zero is not written (the site never stores one, and it counts for nothing);
+//   - a contribution of zero on an account that takes none is not written (it counts for nothing);
+//     on a life insurance, a PER or employee savings, a typed 0 is a known answer and comes back;
 //   - `settings: null` comes back as DEFAULT_SETTINGS;
 //   - accounts and lines come back in the order of the « Comptes » rows: bank, then account, then
 //     line (each in its order in the profile). An update appends what it adds (lib/update/build.ts),
@@ -14,6 +15,7 @@
 // The ids of accounts and lines, the snapshots and their order, the goals and their order are
 // compared as they are.
 import { describe, expect, it } from 'vitest'
+import { ACCOUNT_TYPES } from '@/lib/catalog'
 import { DEFAULT_SETTINGS } from '@/lib/model/documents'
 import { computeSituation } from '@/lib/model/situation'
 import type { Profile, Settings, Snapshot } from '@/lib/model/types'
@@ -29,6 +31,9 @@ function normalise(data: { profile: Profile; snapshots: Snapshot[]; goals: Expor
   const { profile } = data
   const position = new Map(profile.establishments.map((e, index) => [e.id, `establishment-${index}`]))
   const lines = new Map(profile.lines.map((l) => [l.id, l]))
+  const takesContributions = new Set(
+    profile.accounts.filter((a) => ACCOUNT_TYPES[a.type].change === 'contributions').map((a) => a.id),
+  )
   // The export's row order: bank, then account, then line; a stable sort keeps the rest as it is.
   const bankRank = (accountEstablishment: string) => {
     const index = profile.establishments.findIndex((e) => e.id === accountEstablishment)
@@ -50,7 +55,9 @@ function normalise(data: { profile: Profile; snapshots: Snapshot[]; goals: Expor
       return {
         ...s,
         fx: Object.fromEntries(Object.entries(s.fx).filter(([currency]) => used.has(currency as never))),
-        contributions: Object.fromEntries(Object.entries(s.contributions).filter(([, cents]) => cents !== 0)),
+        contributions: Object.fromEntries(
+          Object.entries(s.contributions).filter(([id, cents]) => cents !== 0 || takesContributions.has(id)),
+        ),
       }
     }),
     goals: data.goals,
@@ -98,6 +105,12 @@ function expectSame(input: ExportInput, result: ImportResult) {
 // Each variant adds to the fixture a case the file must carry back.
 const VARIANTS: Record<string, () => ExportInput> = {
   'the fixture': fixtureInput,
+  // 14 November 2026: the zone « Matières premières » goes out in the file and comes back.
+  'a line in « Matières premières »': () => {
+    const input = fixtureInput()
+    input.profile.lines = input.profile.lines.map((l) => (l.id === 'l-usd' ? { ...l, group: 'commodities' } : l))
+    return input
+  },
   'a loan financing a house that was sold': () => {
     const input = fixtureInput()
     input.profile.lines = input.profile.lines.map((l) => (l.id === 'l-home' ? { ...l, closedOn: '2026-10-15' } : l))
@@ -109,6 +122,12 @@ const VARIANTS: Record<string, () => ExportInput> = {
   'a closing left unfinished (the latest relevé still holds the closed line)': () => {
     const input = fixtureInput()
     input.profile.lines = input.profile.lines.map((l) => (l.id === 'l-livret1' ? { ...l, closedOn: '2026-10-31' } : l))
+    return input
+  },
+  // 14 November 2026: « Rien versé ? Écris 0. » A typed 0 is known, and must not come back unknown.
+  'a typed 0 paid in on the life insurance': () => {
+    const input = fixtureInput()
+    input.snapshots[2] = { ...input.snapshots[2], contributions: { 'a-av': 0 } }
     return input
   },
   'employee savings held and paid into': () => {

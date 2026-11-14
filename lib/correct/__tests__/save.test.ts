@@ -12,7 +12,7 @@ const repo = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/model/repository', () => repo)
 
-import { saveCorrection } from '@/lib/correct/save'
+import { readForCorrection, saveCorrection } from '@/lib/correct/save'
 
 const client = {} as SupabaseClient
 const key = {} as CryptoKey
@@ -111,5 +111,84 @@ describe('saveCorrection', () => {
   test('an empty plan is saved without writing', async () => {
     expect(await saveCorrection(client, key, () => ({ writes: [] }))).toBe('saved')
     expect(repo.saveProfile).not.toHaveBeenCalled()
+  })
+})
+
+describe('readForCorrection', () => {
+  const running = () =>
+    repo.loadDraft.mockResolvedValue({ draft: { id: 'd', value: { basedOn: 'b' }, updatedAt: stamp }, unreadable: 0 })
+  const state = {
+    profile: { id: 'p1', value: exampleProfile },
+    snapshots: [
+      { id: 'a', value: exampleSnapshot },
+      { id: 'b', value: exampleSnapshot },
+    ],
+  }
+
+  test('refuses while an update is running, by default', async () => {
+    running()
+    expect(await readForCorrection(client, key)).toBe('update-running')
+  })
+
+  test('for a past relevé, reads the state while an update is running, and says it runs', async () => {
+    running()
+    expect(await readForCorrection(client, key, { pastOnly: true })).toEqual({ ...state, updateRunning: true })
+  })
+
+  test('for a past relevé, without an update, reads the state as it does by default', async () => {
+    expect(await readForCorrection(client, key, { pastOnly: true })).toEqual(state)
+    expect(await readForCorrection(client, key)).toEqual(state)
+  })
+
+  test('for a past relevé, an unreadable draft still refuses', async () => {
+    repo.loadDraft.mockResolvedValue({ draft: null, unreadable: 1 })
+    expect(await readForCorrection(client, key, { pastOnly: true })).toBe('update-running')
+  })
+
+  test('for a past relevé, unreadable data still refuses', async () => {
+    running()
+    repo.loadSnapshots.mockResolvedValue({ snapshots: [snap('a')], unreadable: 1 })
+    expect(await readForCorrection(client, key, { pastOnly: true })).toBe('unreadable')
+  })
+})
+
+describe('saveCorrection on a past relevé', () => {
+  beforeEach(() =>
+    repo.loadDraft.mockResolvedValue({ draft: { id: 'd', value: { basedOn: 'b' }, updatedAt: stamp }, unreadable: 0 }),
+  )
+  const past: Planned = { writes: [{ kind: 'snapshot', id: 'a', value: exampleSnapshot }] }
+
+  test('saves while an update is running, the plan told it runs', async () => {
+    let seen: unknown
+    const outcome = await saveCorrection(
+      client,
+      key,
+      (s) => {
+        seen = s.updateRunning
+        return past
+      },
+      { pastOnly: true },
+    )
+    expect(outcome).toBe('saved')
+    expect(seen).toBe(true)
+    expect(calls).toEqual(['snapshot:a'])
+  })
+
+  test('writes nothing when the plan reaches the latest relevé while an update is running', async () => {
+    const reaching: Planned = { writes: [past.writes[0], { kind: 'snapshot', id: 'b', value: exampleSnapshot }] }
+    expect(await saveCorrection(client, key, () => reaching, { pastOnly: true })).toBe('update-running')
+    expect(repo.saveSnapshot).not.toHaveBeenCalled()
+  })
+
+  test('writes nothing when the plan rewrites the profile while an update is running', async () => {
+    const profiled: Planned = { writes: [past.writes[0], { kind: 'profile', value: exampleProfile }] }
+    expect(await saveCorrection(client, key, () => profiled, { pastOnly: true })).toBe('update-running')
+    expect(repo.saveSnapshot).not.toHaveBeenCalled()
+    expect(repo.saveProfile).not.toHaveBeenCalled()
+  })
+
+  test('by default still refuses the whole correction', async () => {
+    expect(await saveCorrection(client, key, () => past)).toBe('update-running')
+    expect(repo.saveSnapshot).not.toHaveBeenCalled()
   })
 })

@@ -268,8 +268,12 @@ test('A4: « Mettre à jour » and the gear of the settings share the title\'s l
   expect(screen.getByRole('link', { name: 'Mettre à jour' }).parentElement).toBe(title.parentElement)
   const label = screen.getByText('Ce qui est vraiment à toi')
   expect(label.parentElement).not.toBe(title.parentElement)
-  // On a 320 px screen the line would be 334 px wide for 280: the title is then only read aloud.
-  expect(title.className).toContain('max-[22.5rem]:sr-only')
+  // The magnifier of « Trouver » (14 November 2026) shares the line too.
+  expect(screen.getByRole('link', { name: 'Trouver' }).parentElement).toBe(title.parentElement)
+  // With the pill and the magnifier the line is 342 px wide (measured): under 384 px (24rem) of screen
+  // the title is only read aloud.
+  expect(title.className).toContain('max-[24rem]:sr-only')
+  expect(title.className).not.toContain('max-[22.5rem]:sr-only')
 })
 
 test('B (9 November 2026): above the grid only the label, the amount and the progress; the rest under it, in small print', () => {
@@ -531,7 +535,7 @@ const quotedProfile: Profile = {
   ...exampleProfile,
   lines: exampleProfile.lines.map((l) => (l.id === 'etf' ? { ...l, quoteSymbol: 'CW8.PA' } : l)),
 }
-const MARKET = { quotes: { 'CW8.PA': { price: 260, currency: 'EUR', asOf: '2026-11-06' } }, rates: null }
+const MARKET = { quotes: { 'CW8.PA': { price: 260, currency: 'EUR', asOf: todayIso() } }, rates: null }
 
 test('prices: the board waits for the market, then 260 moves the net, and nothing is written', () => {
   mocks.state.current = ready({ profile: quotedProfile })

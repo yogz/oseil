@@ -11,6 +11,7 @@ import {
   REMINDER_UNREADABLE,
 } from '@/lib/screens/settings-words'
 import { NOTE, SECTION, SECTION_TITLE, SENTENCE } from './styles'
+import { SETTINGS_ANCHORS } from '@/lib/screens/find-words'
 
 // What the base answered: on, off, not yet known, or not readable.
 type Known = boolean | 'reading' | 'unreadable'
@@ -60,7 +61,7 @@ export function ReminderSection({ client }: { client: SupabaseClient }) {
   }
 
   return (
-    <section aria-label={REMINDER_SECTION_TITLE} className={SECTION}>
+    <section id={SETTINGS_ANCHORS.reminder} aria-label={REMINDER_SECTION_TITLE} className={SECTION}>
       <h2 className={SECTION_TITLE}>{REMINDER_SECTION_TITLE}</h2>
       {enabled === 'unreadable' ? (
         <p role="alert" className={SENTENCE}>

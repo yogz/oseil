@@ -5,6 +5,7 @@
 // No React, no database here.
 
 import { NO_MARKET, type LinePrices } from '@/lib/market/live'
+import { purchaseGaps } from '@/lib/model/purchase-gaps'
 import { addBank, addHome } from '@/lib/settings/banks'
 import { steps, withoutFinanced, type EntryInput } from '@/lib/setup/first-launch'
 import type {
@@ -109,6 +110,12 @@ export function currentEntry(base: Snapshot, draft: UpdateDraft, lineId: string,
   return draft.values.find((e) => e.lineId === lineId) ?? prefilledEntry(base, lineId, prices)
 }
 
+// « À compléter » in the bank update: a line that is a purchase gap of the base snapshot (the latest saved
+// one), by the very rule of the gap (purchaseGaps). Its parts box then asks for that price.
+export function asksPurchasePrice(profile: Profile, base: Snapshot, lineId: string): boolean {
+  return purchaseGaps(profile, base).includes(lineId)
+}
+
 function sameEntry(a: EntryInput, b: SnapshotEntry): boolean {
   if (a.kind === 'amount') return b.kind === 'amount' && a.amount === b.amount
   return b.kind === 'units' && a.units === b.units && a.unitPrice === b.unitPrice && a.averagePrice === b.averagePrice
@@ -199,7 +206,8 @@ export function hasChangesHere(profile: Profile, draft: UpdateDraft, establishme
   const typed = new Set(draft.values.map((e) => e.lineId))
   if (linesOf(profile, draft, establishmentId).some((r) => r.added || r.closed || typed.has(r.line.id))) return true
   const accounts = accountIdsHere(profile, draft, establishmentId)
-  return Object.entries(draft.contributions).some(([accountId, cents]) => accounts.has(accountId) && cents !== 0)
+  // A typed 0 is an answer too: nothing paid in.
+  return Object.keys(draft.contributions).some((accountId) => accounts.has(accountId))
 }
 
 // Something was done here: a value typed, a line added or closed, a sum paid in, or a line confirmed.

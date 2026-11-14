@@ -97,6 +97,8 @@ const boardShape = (model: Model): unknown => {
 
 const DETAIL_KEYS = [
   'chapters',
+  // « À compléter » (12 November 2026): null outside « Placements en bourse », the same with or without a rental.
+  'complete',
   // « Surtout de la crypto » (12 November 2026): null unless the crypto is most of « Or et crypto ».
   'cryptoNote',
   'debtSentence',

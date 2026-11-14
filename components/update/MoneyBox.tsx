@@ -9,6 +9,7 @@ import { useCommit } from './useCommit'
 // A box of euros that keeps its typed text, and commits only what the person typed.
 // `value` is what the line holds now; when it changes, the text starts again from it.
 // `always`: a valid typed value is committed even when it equals `value` (the house's « Changer »).
+// `onClear`: a box made empty is an answer of its own (« not known »), not an unreadable amount.
 export function MoneyBox({
   label,
   hint,
@@ -18,6 +19,7 @@ export function MoneyBox({
   lit = false,
   always = false,
   autoFocus = false,
+  onClear,
 }: {
   label: string
   hint?: string
@@ -27,6 +29,7 @@ export function MoneyBox({
   lit?: boolean
   always?: boolean
   autoFocus?: boolean
+  onClear?: () => void
 }) {
   const initial = value === null ? '' : euroText(value)
   const [seen, setSeen] = useState(value)
@@ -43,6 +46,12 @@ export function MoneyBox({
   const commit = () => {
     // Never commit a box nobody typed in.
     if (!touched) return
+    if (onClear && text.trim() === '') {
+      setError(undefined)
+      setTouched(false)
+      if (value !== null) onClear()
+      return
+    }
     const result = read(text)
     if ('error' in result) {
       setError(result.error)

@@ -10,7 +10,7 @@ import type { CategoryId } from '@/lib/model/types'
 // while it locks, and a sentence under it. It stops as soon as what it waits for is there: the
 // screen unmounts it. Its colours are a fixed pattern, never the shares of the person.
 
-export type WaitPhase = 'open' | 'lock' | 'create' | 'prices'
+export type WaitPhase = 'open' | 'lock' | 'create' | 'prices' | 'delete'
 
 export const WAIT_WORDS: Record<WaitPhase, string> = {
   open: 'Ouverture de ton coffre…',
@@ -18,6 +18,9 @@ export const WAIT_WORDS: Record<WaitPhase, string> = {
   create: 'Création de ton coffre…',
   // Nothing is decrypted here: the site only waits for Yahoo, and says so.
   prices: 'Derniers cours…',
+  // The account goes: the colours go, as when the vault locks (ruled by the controller on 12 November
+  // 2026, to be shown to Nicolas).
+  delete: 'Suppression de ton compte…',
 }
 
 // Under a third of a second, nothing: a wait that short would only flash.
@@ -73,7 +76,7 @@ function Grid({ phase }: { phase: WaitPhase }) {
     return () => clearInterval(timer)
   }, [reduced])
 
-  const locking = phase === 'lock'
+  const locking = phase === 'lock' || phase === 'delete'
   return (
     <div role="status" className="flex flex-col items-center justify-center gap-5 py-16">
       <div aria-hidden="true" className="grid w-max grid-cols-[repeat(10,var(--spacing-square-s))] gap-px">

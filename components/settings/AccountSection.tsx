@@ -13,6 +13,8 @@ import {
   ACCOUNT_FAILED,
   ACCOUNT_TITLE,
   CANCEL,
+  DELETE_HREF,
+  DELETE_LINK,
   EMAIL_LABEL,
   FACE_ID_HERE,
   FACE_ID_NONE,
@@ -48,6 +50,7 @@ import {
   remakeRecoveryKey,
 } from '@/lib/vault/store'
 import { NOTE, ROW_LINK, SECTION, SECTION_TITLE, SENTENCE, SMALL_BUTTON } from './styles'
+import { SETTINGS_ANCHORS } from '@/lib/screens/find-words'
 
 type Props = {
   client: SupabaseClient
@@ -74,7 +77,7 @@ export function AccountSection({ client, onRecoveryKey, recoveryDone }: Props) {
   }, [client])
 
   return (
-    <section aria-label={ACCOUNT_TITLE} className={SECTION}>
+    <section id={SETTINGS_ANCHORS.account} aria-label={ACCOUNT_TITLE} className={SECTION}>
       <h2 className={SECTION_TITLE}>{ACCOUNT_TITLE}</h2>
       <div className="flex flex-col">
         <span className="text-caption text-ink-muted">{EMAIL_LABEL}</span>
@@ -85,6 +88,13 @@ export function AccountSection({ client, onRecoveryKey, recoveryDone }: Props) {
       <FaceIdKeys client={client} />
       <Link href={PRIVACY_HREF} className={ROW_LINK}>
         {PRIVACY}
+        <span aria-hidden="true" className="text-ink-muted">
+          ›
+        </span>
+      </Link>
+      {/* Another screen: nothing is deleted from the Réglages themselves. */}
+      <Link href={DELETE_HREF} className={ROW_LINK}>
+        {DELETE_LINK}
         <span aria-hidden="true" className="text-ink-muted">
           ›
         </span>

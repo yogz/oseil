@@ -191,9 +191,12 @@ function snapshotRows(profile: Profile, snapshots: Snapshot[]): Cell[][] {
 
 function contributionRows(profile: Profile, snapshots: Snapshot[]): Cell[][] {
   const find = lookup(profile)
+  // A typed 0 on an account paid into is a known answer, nothing paid in: it goes out. A 0 on
+  // another account counts for nothing, and the import would refuse it.
+  const paidInto = new Set(profile.accounts.filter((a) => ACCOUNT_TYPES[a.type].change === 'contributions').map((a) => a.id))
   return snapshots.flatMap((snapshot, index) =>
     Object.entries(snapshot.contributions)
-      .filter(([, cents]) => cents !== 0)
+      .filter(([accountId, cents]) => cents !== 0 || paidInto.has(accountId))
       .map(([accountId, cents]) => {
         const { account, bank } = find.accountOf(accountId)
         return row('contributions', {

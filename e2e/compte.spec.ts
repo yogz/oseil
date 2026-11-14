@@ -137,6 +137,9 @@ test('sign in, see the recovery key once, stay signed in, sign out', async ({ pa
   await page.getByRole('button', { name: 'Se déconnecter' }).click()
   await expect(page).toHaveURL(/\/connexion$/)
   expect(await keysOnDevice(page)).toBe(0)
+  // Leaving by choice forgets the address of the sign-in (lib/auth/remembered-email.ts).
+  await expect(page.getByLabel('Ton adresse e-mail')).toHaveValue('')
+  expect(await page.evaluate(() => localStorage.getItem('oseil-adresse'))).toBeNull()
 
   // The session is closed too: the home screen is out of reach again, and the
   // address of the site shows the landing.

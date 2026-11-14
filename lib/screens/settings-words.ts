@@ -13,7 +13,6 @@ export const SALARY_TITLE = 'Mes revenus par mois'
 export const SPENDING_NONE = 'Pas encore renseignées.'
 export const SPENDING_EXPENSES = 'tes dépenses'
 export const SPENDING_SALARY = 'tes revenus'
-export const CHANGE = 'Modifier'
 export const GOALS_HREF = '/premier-lancement/objectifs?depuis=reglages'
 export const SPENDING_HREF = '/premier-lancement/depenses?depuis=reglages'
 
@@ -33,12 +32,17 @@ export const BANK_UP = 'Monter'
 export const BANK_DOWN = 'Descendre'
 export const BANK_REMOVE = 'Retirer'
 export const BANKS_ORDER_NOTE = 'L’ordre est celui de ta mise à jour.'
+// The arrows are hidden at rest; this shows them, « Terminé » hides them (planche 2B, 12 November 2026).
+export const BANKS_ORDER_CHANGE = 'Changer l’ordre'
+export const BANKS_ORDER_DONE = 'Terminé'
 export const bankAccounts = (count: number) => (count === 0 ? 'aucun compte' : count === 1 ? '1 compte' : `${count} comptes`)
 export const BANK_ALREADY = 'Cette banque est déjà dans ta liste.'
 export const BANK_STILL_HOLDS = 'Cette banque a encore des comptes\u00A0: ils doivent partir d’abord.'
 export const BANK_NOT_POSSIBLE = 'Ce changement n’est plus possible. Recharge l’écran pour voir où tu en es.'
 
 export const DISPLAY_TITLE = 'Affichage'
+// The label of « En euros / En % », like « Apparence » and « Ta grille » (UX review, 12 November 2026).
+export const DISPLAY_UNIT = 'Tes catégories'
 export const DISPLAY_EUROS = 'En euros'
 export const DISPLAY_PERCENT = 'En %'
 export const HIDE_AMOUNTS = 'Masquer les montants'
@@ -98,6 +102,35 @@ export const DATA_NO_PROFILE =
   'Tes banques et tes comptes n’ont pas pu être lus : le fichier ne peut pas être préparé pour l’instant.'
 export const DATA_FAILED = 'Le fichier n’a pas pu être préparé. Réessaie.'
 export const DATA_DONE = 'C’est dans tes Téléchargements (app Fichiers sur iPhone).'
+
+// « Supprimer mon compte » (docs/superpowers/specs/2026-11-12-supprimer-mon-compte-design.md). The screen
+// never promises more than is true: what Oseil keeps goes, not « nothing left anywhere ».
+export const DELETE_LINK = 'Supprimer mon compte'
+export const DELETE_HREF = '/reglages/supprimer'
+export const DELETE_TITLE = 'Supprimer mon compte'
+export const BACK_TO_SETTINGS = '‹ Réglages'
+export const DELETE_WHAT_GOES =
+  'Tes chiffres, ton historique, tes objectifs, tes clés Face ID, ton rappel par e-mail et ton adresse : tout ce qu’Oseil garde de toi est effacé, tout de suite.'
+// Said in the colour of a loss, like the recovery key's warning (chosen by Nicolas on 12 November 2026).
+export const DELETE_FOR_GOOD =
+  'C’est définitif : personne, pas même nous, ne pourra rien récupérer.'
+export const DELETE_DOWNLOAD_FIRST = 'Télécharge d’abord tes chiffres : c’est la seule trace qui te restera.'
+export const DELETE_FACE_ID_NOTE =
+  'Ta clé Face ID reste rangée dans l’app Mots de passe de ton appareil : tu peux l’y retirer toi-même.'
+export const DELETE_PASSWORD = 'Ton mot de passe, pour confirmer'
+export const DELETE_SUBMIT = 'Supprimer mon compte et mes chiffres'
+export const deleteWithFaceId = (label: string) => `Confirmer avec ${label}`
+// Only before the deletion is asked for (the confirmation failed): nothing can have been erased then.
+export const DELETE_FAILED = 'La suppression n’a pas abouti. Rien n’a été effacé. Réessaie dans un moment.'
+// Once it has been asked for and the answer is lost: neither outcome is known, so neither is said.
+export const DELETE_UNKNOWN = 'On n’a pas pu savoir si la suppression a abouti. Réessaie dans un moment.'
+// The signed-in address, read as the screen opens, could not be: the form cannot confirm anything.
+export const DELETE_EMAIL_UNREADABLE = 'Ton adresse n’a pas pu être lue. Réessaie dans un moment.'
+// Said on the landing, after the full load that follows the deletion.
+export const ACCOUNT_DELETED = 'Ton compte a été supprimé.'
+export const ACCOUNT_DELETED_PARAM = { name: 'compte', value: 'supprime' } as const
+// Where a device goes once its account is known to be gone: the landing, which says so.
+export const ACCOUNT_GONE_URL = `/?${ACCOUNT_DELETED_PARAM.name}=${ACCOUNT_DELETED_PARAM.value}`
 
 export const LOAD_FAILED = 'Tes réglages n’ont pas pu être chargés.'
 export const RETRY = 'Réessayer'

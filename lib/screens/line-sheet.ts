@@ -14,7 +14,7 @@ import type { Market } from '@/lib/market/types'
 import { lastKnownPrice } from '@/lib/market/words'
 import { purchaseCost, type PurchaseCost } from '@/lib/model/purchase-cost'
 import { categoryOf, entryValue } from '@/lib/model/situation'
-import type { CategoryId, CurrencyCode, GroupId, IsoDate, Residence } from '@/lib/model/types'
+import type { Account, CategoryId, CurrencyCode, GroupId, IsoDate, Line, Residence } from '@/lib/model/types'
 import { chapterOf } from '@/lib/screens/chapters'
 import { isStale } from '@/lib/update/draft'
 import { loweredCategory } from '@/lib/screens/debts'
@@ -24,6 +24,8 @@ import {
   DEBT_SENTENCE,
   GROUP_TYPE,
   GROUP_ZONE,
+  HISTORY_HREF,
+  HISTORY_LABEL,
   NO_HOME,
   NO_RATE_AMOUNT,
   OWED_LABEL,
@@ -36,16 +38,23 @@ import {
   UNITS_LABEL,
 } from '@/lib/screens/line-words'
 import { titleRows } from '@/lib/screens/titles'
+import { lineGaps, type GapKind } from '@/lib/screens/to-complete'
 import { whereWords } from '@/lib/screens/words'
+
+// « À compléter » on the fiche: a gap this row could fill. `answered: false`, the gap is open and the
+// « je ne sais pas » answer is offered; `answered: true`, the person said so, and can change it.
+// Absent when there is no gap, answered or not (a real answer wins over the flag).
+export type AnswerKind = Exclude<GapKind, 'ranging'>
+export type SheetAnswer = { kind: AnswerKind; answered: boolean }
 
 export type SheetRow =
   | { kind: 'name'; value: string }
-  | { kind: 'figures'; label: string; value: string } // value: « au 8 nov. »
+  | { kind: 'figures'; label: string; value: string; answer?: SheetAnswer } // value: « au 8 nov. »
   | { kind: 'place'; value: string } // « PEA · BoursoBank », « Chez toi »
   | { kind: 'group'; label: string; value: string; group: GroupId } // « Zone » (markets) or « Type » (secured): only a ranged category
-  | { kind: 'price'; following: boolean } // only for a line « Tes titres » lists
-  | { kind: 'financed'; value: string } // the home line's name, or NO_HOME
-  | { kind: 'unlock'; year: number | null } // only for an employee-savings account
+  | { kind: 'price'; following: boolean; answer?: SheetAnswer } // only for a line « Tes titres » lists
+  | { kind: 'financed'; value: string; answer?: SheetAnswer } // the home line's name, or NO_HOME
+  | { kind: 'unlock'; year: number | null; answer?: SheetAnswer } // only for an employee-savings account
   // Not for a home, a PER, employee savings or a loan: their type decides. `wholeAccount`: the account
   // has other open lines, so « Pour tout le compte » is offered.
   | { kind: 'slow'; slow: boolean; wholeAccount: boolean }
@@ -89,6 +98,9 @@ export type LineSheetView = {
   close: { label: string; possible: boolean }
   canDelete: boolean // false: the only entry of a snapshot
   locked: 'update-running' | 'unreadable' | null
+  // « Ses relevés précédents › »: only when an older relevé holds this line; offered even locked,
+  // since a past relevé can be corrected during an update.
+  history: { href: string; label: string } | null
 }
 
 const backTo = (category: CategoryId) => ({ href: `/categorie/${category}`, label: CATEGORIES[category].label })
@@ -156,9 +168,11 @@ export function lineSheetView(model: Model, lineId: string, today: IsoDate, mark
   const accountRows: SheetRow[] = []
   const typeLabel = account.type === 'other' ? account.name : ACCOUNT_TYPES[account.type].label
   if (state.kind === 'open') {
+    const answers = answersOf(model, lineId, line, account)
+    const answer = (kind: AnswerKind) => (answers[kind] ? { answer: answers[kind] } : {})
     const label = isLoan ? OWED_LABEL : line.kind === 'units' ? UNITS_LABEL : AMOUNT_LABEL
     rows.push({ kind: 'name', value: line.name })
-    rows.push({ kind: 'figures', label, value: `au ${formatShortDayMonth(saved.takenOn)}` })
+    rows.push({ kind: 'figures', label, value: `au ${formatShortDayMonth(saved.takenOn)}`, ...answer('purchase') })
     const own = categoryOf(line, account)
     if (own !== null && placeChoices(profile, lineId).category) {
       rows.push({ kind: 'category', category: own, value: CATEGORIES[own].label })
@@ -180,11 +194,11 @@ export function lineSheetView(model: Model, lineId: string, today: IsoDate, mark
       rows.push({ kind: 'counted', value: `${KIND_WORDS[line.kind]} · ${currencySymbol(line.currency)}` })
     }
     const followable = titleRows(profile, undefined).find((row) => row.lineId === lineId)
-    if (followable) rows.push({ kind: 'price', following: followable.symbol !== null })
-    if (isLoan) rows.push({ kind: 'financed', value: financed?.name ?? NO_HOME })
+    if (followable) rows.push({ kind: 'price', following: followable.symbol !== null, ...answer('quote') })
+    if (isLoan) rows.push({ kind: 'financed', value: financed?.name ?? NO_HOME, ...answer('loan') })
     if (accountTypeChoices(profile, account.id).length > 0) accountRows.push({ kind: 'accountType', value: typeLabel })
     if (account.type === 'employee-savings') {
-      accountRows.push({ kind: 'unlock', year: account.unlockOn ? Number(account.unlockOn.slice(0, 4)) : null })
+      accountRows.push({ kind: 'unlock', year: account.unlockOn ? Number(account.unlockOn.slice(0, 4)) : null, ...answer('unlock') })
     }
     if (account.type !== 'home') accountRows.push({ kind: 'bank', value: establishment.name })
     const paid = purchaseCost(line, model.snapshots.map((s) => s.value))
@@ -233,7 +247,39 @@ export function lineSheetView(model: Model, lineId: string, today: IsoDate, mark
     },
     canDelete: !('refused' in deletion && deletion.refused === 'only-line'),
     locked: unreadable ? 'unreadable' : draftRunning ? 'update-running' : null,
+    history:
+      model.snapshots.filter((s) => s.value.entries.some((e) => e.lineId === lineId)).length > 1
+        ? { href: HISTORY_HREF, label: HISTORY_LABEL }
+        : null,
   }
+}
+
+// The answers this fiche offers. A flag only hides a gap (lineGaps leaves it out), so the gaps are
+// read twice: as they are, and with this line's and its account's flags taken off. A gap of the second
+// reading is the row's subject; it is answered when the first one no longer has it.
+function answersOf(model: Model, lineId: string, line: Line, account: Account): Partial<Record<AnswerKind, SheetAnswer>> {
+  const profile = model.profile!.value
+  const bareLine: Line = { ...line }
+  delete bareLine.purchaseUnknown
+  delete bareLine.unquoted
+  const bareAccount: Account = { ...account }
+  delete bareAccount.unlockUnknown
+  delete bareAccount.noHome
+  const bare: Model = {
+    ...model,
+    profile: {
+      ...model.profile!,
+      value: {
+        ...profile,
+        lines: profile.lines.map((l) => (l.id === lineId ? bareLine : l)),
+        accounts: profile.accounts.map((a) => (a.id === account.id ? bareAccount : a)),
+      },
+    },
+  }
+  const open = new Set(lineGaps(model, lineId))
+  const answers: Partial<Record<AnswerKind, SheetAnswer>> = {}
+  for (const kind of lineGaps(bare, lineId)) if (kind !== 'ranging') answers[kind] = { kind, answered: !open.has(kind) }
+  return answers
 }
 
 // The title its category's list gives it (« BoursoBank » for a current account there): the fiche opens on the

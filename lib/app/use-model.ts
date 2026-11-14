@@ -5,6 +5,10 @@
 // that opens but cannot be read is counted in `unreadable`, so the screen says
 // so instead of showing an empty answer.
 //
+// The vault opens from the session and the key this device keeps, without asking the server: an
+// account deleted from another device still opens it here, and reads nothing. A reading without a
+// profile is therefore checked once with the server, and an account gone leaves the device.
+//
 // A screen that comes after another one draws at once the model the tab read
 // last for the same person (lib/app/session-memory.ts), then reads it again in
 // the background, with a key the vault has checked again; that reading
@@ -12,12 +16,16 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { useCallback, useEffect, useState } from 'react'
+import { accountGone, finishDeletion } from '@/lib/auth/account'
 import { setAmountsHidden } from '@/lib/format'
 import { loadModelDocuments, type Loaded } from '@/lib/model/repository'
 import type { GoalAllocation, Profile, Settings, Snapshot, UpdateDraft } from '@/lib/model/types'
+import { loadPage } from '@/lib/navigation'
+import { ACCOUNT_GONE_URL } from '@/lib/screens/settings-words'
 import { createBrowserSupabase } from '@/lib/supabase/browser'
+import { indexedDbKeyStore } from '@/lib/vault/device'
 import { useVault } from '@/lib/vault/use-vault'
-import { modelMark, rememberModel, rememberedModel, type RememberedModel } from './session-memory'
+import { forgetEverything, modelMark, rememberModel, rememberedModel, type RememberedModel } from './session-memory'
 
 export type Model = {
   profile: Loaded<Profile> | null
@@ -70,8 +78,22 @@ export function useModel(): ModelState {
             },
           },
         }
-        rememberModel(read, mark)
-        setLoaded(read)
+        // No profile is what an account deleted from another device reads: its token still works for
+        // up to an hour, and the rules of the base give it nothing. Only then is the server asked
+        // whether the account still exists; a gone one leaves the device, to the landing that says so.
+        const empty = profile.profile === null && profile.unreadable === 0
+        void (empty ? accountGone(client) : Promise.resolve(false)).then((gone) => {
+          if (cancelled) return
+          if (!gone) {
+            rememberModel(read, mark)
+            setLoaded(read)
+            return
+          }
+          forgetEverything()
+          void finishDeletion(client, indexedDbKeyStore())
+            .catch(() => {})
+            .then(() => loadPage(ACCOUNT_GONE_URL))
+        })
       },
       () => {
         if (cancelled) return

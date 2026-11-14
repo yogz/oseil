@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AddBank } from '@/components/settings/AddBank'
+import { Button } from '@/components/ui/Button'
 import type { ModelState } from '@/lib/app/use-model'
 import { saveCorrection } from '@/lib/correct/save'
 import type { Planned } from '@/lib/correct/types'
 import type { Profile } from '@/lib/model/types'
 import {
   BANKS_NONE,
+  BANKS_ORDER_CHANGE,
+  BANKS_ORDER_DONE,
   BANKS_ORDER_NOTE,
   BANKS_TITLE,
   BANK_ALREADY,
@@ -23,6 +26,7 @@ import {
 import { SAVE_FAILED, UNREADABLE_PROFILE, UPDATE_RUNNING } from '@/lib/screens/words'
 import { addBank, addHome, bankRows, hasHome, homeRow, moveBank, removeBank, removeHome } from '@/lib/settings/banks'
 import { ARROW_BUTTON, NOTE, SECTION, SECTION_TITLE, SENTENCE, SMALL_BUTTON } from './styles'
+import { SETTINGS_ANCHORS } from '@/lib/screens/find-words'
 
 type Ready = Extract<ModelState, { status: 'ready' }>
 // `reloadOnRefusal`: a refusal means the screen is out of date (« Chez toi » is already there): it reloads.
@@ -35,6 +39,20 @@ export function BanksSection({ state }: { state: Ready }) {
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  // The arrows are not shown at rest (planche 2B, chosen by Nicolas on 12 November 2026): « Changer l’ordre »
+  // shows them on every bank, « Terminé » hides them again. Moving a bank works as before.
+  const [ordering, setOrdering] = useState(false)
+  // Where the keyboard goes once the mode changes: the first arrow that can be used, or back to « Changer l’ordre ».
+  const list = useRef<HTMLUListElement>(null)
+  const changeOrder = useRef<HTMLButtonElement>(null)
+  const modeFocus = useRef<'arrows' | 'change' | null>(null)
+  useEffect(() => {
+    const pending = modeFocus.current
+    if (pending === null) return
+    modeFocus.current = null
+    if (pending === 'change') changeOrder.current?.focus()
+    else list.current?.querySelector<HTMLButtonElement>('button[data-arrow]:not(:disabled)')?.focus()
+  }, [ordering])
   // The arrows are disabled while a move is saved, and one of them for good once a bank reaches an
   // end: the keyboard would fall back to the top of the page. After a move, the focus goes back to
   // the arrow touched, or to the other one of the same bank when it can no longer be used. `after`:
@@ -90,7 +108,7 @@ export function BanksSection({ state }: { state: Ready }) {
     // there but cannot be read is one.
     const unreadable = state.model.unreadable.profile > 0
     return (
-      <section aria-label={BANKS_TITLE} className={SECTION}>
+      <section id={SETTINGS_ANCHORS.banks} aria-label={BANKS_TITLE} className={SECTION}>
         <h2 className={SECTION_TITLE}>{BANKS_TITLE}</h2>
         {unreadable ? (
           <p role="alert" className={SENTENCE}>
@@ -105,15 +123,18 @@ export function BanksSection({ state }: { state: Ready }) {
 
   const rows = bankRows(profile)
   const home = homeRow(profile)
+  // With a single bank there is nothing to order: the mode ends by itself, and does not come back with a new bank.
+  if (ordering && rows.length <= 1) setOrdering(false)
+  const showArrows = ordering && rows.length > 1
   const arrow = (id: string, dir: 'up' | 'down') => (element: HTMLButtonElement | null) => {
     if (element) arrows.current.set(`${id}:${dir}`, element)
     else arrows.current.delete(`${id}:${dir}`)
   }
   return (
-    <section aria-label={BANKS_TITLE} className={SECTION}>
+    <section id={SETTINGS_ANCHORS.banks} aria-label={BANKS_TITLE} className={SECTION}>
       <h2 className={SECTION_TITLE}>{BANKS_TITLE}</h2>
       {rows.length === 0 && home === null ? <p className={SENTENCE}>{BANKS_NONE}</p> : null}
-      <ul className="flex flex-col divide-y divide-hairline">
+      <ul ref={list} className="flex flex-col divide-y divide-hairline">
         {/* « Chez toi » comes first in the update, always: its place is fixed, so no arrows. */}
         {home ? (
           <li className="flex flex-col py-1">
@@ -123,7 +144,8 @@ export function BanksSection({ state }: { state: Ready }) {
                 <span className="text-caption text-ink-muted">{bankAccounts(home.accounts)}</span>
               </span>
             </div>
-            {home.removable ? (
+            {/* While ordering, nothing but the arrows: no removal that would shift the rows (planche 2B). */}
+            {home.removable && !showArrows ? (
               <button
                 type="button"
                 className={`${SMALL_BUTTON} self-start`}
@@ -144,11 +166,12 @@ export function BanksSection({ state }: { state: Ready }) {
                 <span className="text-caption text-ink-muted">{bankAccounts(row.accounts)}</span>
               </span>
               {/* The arrows sit on the bank's own line; the first has no « up », the last no « down ». */}
-              {rows.length > 1 ? (
+              {showArrows ? (
                 <span className="flex shrink-0 gap-2">
                   <button
                     type="button"
                     className={ARROW_BUTTON}
+                    data-arrow
                     ref={arrow(row.id, 'up')}
                     disabled={busy || !row.canMoveUp}
                     aria-label={`${BANK_UP}\u00A0: ${row.name}`}
@@ -161,6 +184,7 @@ export function BanksSection({ state }: { state: Ready }) {
                   <button
                     type="button"
                     className={ARROW_BUTTON}
+                    data-arrow
                     ref={arrow(row.id, 'down')}
                     disabled={busy || !row.canMoveDown}
                     aria-label={`${BANK_DOWN}\u00A0: ${row.name}`}
@@ -173,7 +197,7 @@ export function BanksSection({ state }: { state: Ready }) {
                 </span>
               ) : null}
             </div>
-            {row.removable ? (
+            {row.removable && !showArrows ? (
               <button
                 type="button"
                 className={`${SMALL_BUTTON} self-start`}
@@ -187,24 +211,56 @@ export function BanksSection({ state }: { state: Ready }) {
           </li>
         ))}
       </ul>
-      {rows.length > 1 ? <p className={NOTE}>{BANKS_ORDER_NOTE}</p> : null}
-      <AddBank
-        open={adding}
-        setOpen={setAdding}
-        busy={busy}
-        onPick={async (bank) => {
-          const done = await write({ make: (p) => addBank(p, bank), refusal: BANK_ALREADY })
-          if (done) setAdding(false)
-        }}
-        onPickHome={
-          hasHome(profile)
-            ? undefined
-            : async () => {
-                const done = await write({ make: (p) => addHome(p), refusal: BANK_HOME_ALREADY, reloadOnRefusal: true })
-                if (done) setAdding(false)
-              }
-        }
-      />
+      {/* The note on the left, the control on the right, on one line. */}
+      {rows.length > 1 ? (
+        <div className="flex items-center justify-between gap-3">
+          <p className={NOTE}>{BANKS_ORDER_NOTE}</p>
+          {showArrows ? (
+            <Button
+              fit
+              onClick={() => {
+                modeFocus.current = 'change'
+                setOrdering(false)
+              }}
+            >
+              {BANKS_ORDER_DONE}
+            </Button>
+          ) : (
+            <button
+              type="button"
+              ref={changeOrder}
+              className={`${SMALL_BUTTON} shrink-0`}
+              onClick={() => {
+                modeFocus.current = 'arrows'
+                setAdding(false)
+                setOrdering(true)
+              }}
+            >
+              {BANKS_ORDER_CHANGE}
+            </button>
+          )}
+        </div>
+      ) : null}
+      {/* While the order changes, no bank is added. */}
+      {showArrows ? null : (
+        <AddBank
+          open={adding}
+          setOpen={setAdding}
+          busy={busy}
+          onPick={async (bank) => {
+            const done = await write({ make: (p) => addBank(p, bank), refusal: BANK_ALREADY })
+            if (done) setAdding(false)
+          }}
+          onPickHome={
+            hasHome(profile)
+              ? undefined
+              : async () => {
+                  const done = await write({ make: (p) => addHome(p), refusal: BANK_HOME_ALREADY, reloadOnRefusal: true })
+                  if (done) setAdding(false)
+                }
+          }
+        />
+      )}
       {said ? (
         <p role="alert" className={SENTENCE}>
           {said}

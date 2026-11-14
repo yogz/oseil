@@ -70,7 +70,7 @@ export function buildUpdate(
     accounts.filter((a) => ACCOUNT_TYPES[a.type].change === 'contributions').map((a) => a.id),
   )
   const contributions = Object.fromEntries(
-    Object.entries(draft.contributions).filter(([accountId, cents]) => cents !== 0 && takesContributions.has(accountId)),
+    Object.entries(draft.contributions).filter(([accountId]) => takesContributions.has(accountId)),
   )
 
   // Only the currencies of the lines this snapshot holds keep a rate (decision 10).

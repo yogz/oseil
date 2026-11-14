@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { AnchorHTMLAttributes } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { Model, ModelState } from '@/lib/app/use-model'
@@ -123,7 +123,8 @@ function amountsIn(text: string | null): string[] {
   return found
 }
 
-type Screen = { name: string; draw: () => void; page: () => React.ReactElement }
+// `open`: what to touch once drawn so its figures are on screen (a folded group).
+type Screen = { name: string; draw: () => void; page: () => React.ReactElement; open?: () => void }
 const SCREENS: Screen[] = [
   { name: 'Mon argent', draw: () => (mocks.state.current = ready()), page: () => <HomePage /> },
   ...CATEGORY_ORDER.map((id) => ({
@@ -142,7 +143,13 @@ const SCREENS: Screen[] = [
     },
     page: () => <LinePage />,
   })),
-  { name: 'Tes titres', draw: () => (mocks.state.current = ready()), page: () => <TitlesPage /> },
+  {
+    name: 'Tes titres',
+    draw: () => (mocks.state.current = ready()),
+    page: () => <TitlesPage />,
+    // The followed ETF, with today's price, is folded under « 1 titre suit son cours ».
+    open: () => fireEvent.click(screen.getByRole('button', { name: /^1 titre suit son cours/ })),
+  },
   { name: 'Repères', draw: () => (mocks.state.current = ready()), page: () => <ReperesPage /> },
   { name: 'Évolution', draw: () => (mocks.state.current = ready(followed, [older, exampleSnapshot])), page: () => <EvolutionPage /> },
   { name: 'Réglages', draw: () => (mocks.state.current = ready()), page: () => <SettingsPage /> },
@@ -157,16 +164,18 @@ afterEach(() => {
 })
 
 describe('Masquer les montants', () => {
-  test.each(SCREENS)('$name: figures shown, then not one amount left once hidden', ({ draw, page }) => {
+  test.each(SCREENS)('$name: figures shown, then not one amount left once hidden', ({ draw, page, open }) => {
     draw()
     setAmountsHidden(false)
     const shown = render(page())
+    open?.()
     expect(amountsIn(shown.container.textContent).length).toBeGreaterThan(0)
     cleanup()
 
     setAmountsHidden(true)
     draw()
     const hidden = render(page())
+    open?.()
     expect(amountsIn(hidden.container.textContent)).toEqual([])
     expect(hidden.container.textContent).toContain('•••')
   })

@@ -108,7 +108,7 @@ test('a home rented out: first launch, goals with its share, Mon argent in two p
   for (let i = 0; i < 20; i++) await page.getByRole('button', { name: 'Moins de Placements en bourse' }).click()
   for (let i = 0; i < 20; i++) await page.getByRole('button', { name: 'Plus de Immobilier locatif' }).click()
   await expect(page.getByRole('img', { name: /Immobilier locatif 20\s%/ })).toBeVisible()
-  await expect(page.getByText(/^100\s%\srépartis$/)).toBeVisible()
+  await expect(page.getByText(/^100\s%\srépartis\s: baisse une part pour en monter une autre\.$/)).toBeVisible()
   await shot(page, 'locatif-2-objectifs')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
 

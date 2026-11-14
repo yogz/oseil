@@ -3,7 +3,7 @@ export type IsoDate = string
 export type CurrencyCode = string // ISO 4217, 'EUR' by default
 export type CategoryId = 'available' | 'secured' | 'markets' | 'gold' | 'property'
 // The chapter of a line inside « Épargne sécurisée » or « Placements en bourse ».
-export type GroupId = 'euro-fund' | 'money-market' | 'bonds' | 'europe' | 'us' | 'japan' | 'emerging' | 'world' | 'unlisted' | 'unknown'
+export type GroupId = 'euro-fund' | 'money-market' | 'bonds' | 'europe' | 'us' | 'japan' | 'emerging' | 'world' | 'commodities' | 'unlisted' | 'unknown'
 // A goal key: the four categories that are not property, then the rental homes (shown in the
 // property colour). Not a subset of CategoryId: a rental is property in the grid.
 export type GoalCategory = Exclude<CategoryId, 'property'> | 'rental'
@@ -30,6 +30,9 @@ export type Account = {
   financedLineId?: string // loan: the property line it finances
   slow?: true // cannot be got back within a few weeks: unlisted shares, a locked placement
   residence?: Residence // home only; absent: main residence
+  // « Je ne sais pas » answers to the gaps listed by « À compléter »; each is only ever true, absent = not answered.
+  unlockUnknown?: true // employee savings: the person does not know when it unlocks
+  noHome?: true // loan: it finances no home of the profile
 }
 
 // A line is never removed from the profile: it is closed (closedOn), so older
@@ -52,6 +55,9 @@ export type Line = {
   // Quick or slow to get back, this line's own answer, which wins over its account's `slow`. Absent: the
   // account's (docs/superpowers/specs/2026-11-11-tout-corriger-depuis-la-fiche-design.md).
   slow?: boolean
+  // « Je ne sais pas » answers to the gaps listed by « À compléter »; each is only ever true, absent = not answered.
+  purchaseUnknown?: true // the person does not know the purchase cost
+  unquoted?: true // the line has no quote to follow (cleared by attachSymbol)
 }
 
 // Progress of the first launch, kept in the profile so it can be resumed.

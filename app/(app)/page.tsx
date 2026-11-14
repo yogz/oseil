@@ -11,6 +11,7 @@ import { GlanceCards } from '@/components/money/GlanceCards'
 import { GoalsHeadline, useGoalsSimulation } from '@/components/money/GoalsSimulation'
 import { reminderOf, UpdateReminder } from '@/components/money/UpdateReminder'
 import { Button } from '@/components/ui/Button'
+import { FindLink } from '@/components/ui/FindLink'
 import { GearIcon } from '@/components/ui/GearIcon'
 import { TabBar } from '@/components/ui/TabBar'
 import { useTopMenuInfo } from '@/components/ui/top-menu-info'
@@ -73,21 +74,30 @@ export default function HomePage() {
 
   return (
     <>
-      {/* The title, « Mettre à jour » and the gear of the settings share a line (A4), so the grid below
-          fits in the first screen. Known as soon as the model is: nothing pops in later. On a screen
-          narrower than 360 px the line would not fit: the title is then only read aloud, the lit tab
-          below says where one is. */}
-      <div className="flex items-center gap-3">
-        <h1 className={`${TITLE} whitespace-nowrap max-[22.5rem]:sr-only lg:sr-only`}>Mon argent</h1>
+      {/* The title, « Mettre à jour », the magnifier and the gear of the settings share a line (A4), so
+          the grid below fits in the first screen. Known as soon as the model is: nothing pops in later.
+          Measured in Chromium with the fonts of the site (14 November 2026): the title 124 px, the pill
+          124 px, the magnifier and the gear 44 px each, 8 px between the title and the pill and between
+          the pill and the magnifier, the gear 10 px into the margin: 342 px, the width of the line on a
+          screen of 382 px. Narrower than 384 px (24rem) with the pill, or 360 px without it (as
+          before), the title is only read aloud; the lit tab below says where one is. */}
+      <div className="flex items-center gap-2">
+        <h1
+          className={`${TITLE} whitespace-nowrap lg:sr-only ${update?.available ? 'max-[24rem]:sr-only' : 'max-[22.5rem]:sr-only'}`}
+        >
+          Mon argent
+        </h1>
         {update?.available ? (
           <Link href="/mise-a-jour" className={`${PILL} ml-auto shrink-0 whitespace-nowrap text-ink lg:hidden ${FOCUS}`}>
             Mettre à jour
           </Link>
         ) : null}
+        {/* The magnifier of « Trouver », just left of the gear (planche 9E, 14 November 2026). */}
+        <FindLink className={`-mr-2 lg:hidden ${update?.available ? '' : 'ml-auto'}`} />
         <Link
           href="/reglages"
           aria-label={SETTINGS_LINK}
-          className={`-mr-2.5 inline-flex size-11 shrink-0 items-center justify-center text-ink-muted lg:hidden ${update?.available ? '' : 'ml-auto'} ${FOCUS}`}
+          className={`-mr-2.5 inline-flex size-11 shrink-0 items-center justify-center text-ink-muted lg:hidden ${FOCUS}`}
         >
           <GearIcon className="size-5.5" />
         </Link>

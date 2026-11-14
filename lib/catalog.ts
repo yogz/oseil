@@ -10,13 +10,15 @@ export const GROUP_LABELS: Record<GroupId, string> = {
   japan: 'Japon',
   emerging: 'Pays émergents',
   world: 'Fonds monde',
+  // Metals, rare earths, commodity ETCs and miners' funds (Nicolas, 14 November 2026): not « Or et crypto ».
+  commodities: 'Matières premières',
   unlisted: 'Hors bourse (non coté, prêts)',
   unknown: 'Je ne sais pas',
 }
 
 export const RANGED_GROUPS = {
   secured: ['euro-fund', 'money-market', 'bonds', 'unknown'],
-  markets: ['europe', 'us', 'japan', 'emerging', 'world', 'unlisted', 'unknown'],
+  markets: ['europe', 'us', 'japan', 'emerging', 'world', 'commodities', 'unlisted', 'unknown'],
 } as const satisfies Record<string, readonly GroupId[]>
 
 export type RangedCategory = keyof typeof RANGED_GROUPS

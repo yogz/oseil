@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({ pathname: { current: '/' }, desktop: { current
 
 vi.mock('@/lib/app/use-desktop', () => ({ useIsDesktop: () => mocks.desktop.current }))
 
-vi.mock('next/navigation', () => ({ usePathname: () => mocks.pathname.current }))
+vi.mock('next/navigation', () => ({ usePathname: () => mocks.pathname.current, useRouter: () => ({ push: () => {} }) }))
 // The update's provider (above the fade in AppFrame) reads the vault: not what this file tests.
 vi.mock('@/components/update/UpdateProvider', () => ({
   UpdateProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -110,6 +110,13 @@ test('the full-screen flows show no menu', () => {
     expect(container.querySelector('main')).toHaveClass('lg:max-w-xl')
     cleanup()
   }
+})
+
+test('« Trouver » takes the whole screen too, on a computer as on a phone', () => {
+  mocks.pathname.current = '/trouver'
+  const { container } = render(<AppFrame>contenu</AppFrame>)
+  expect(screen.queryByRole('navigation', { name: 'Menu principal' })).not.toBeInTheDocument()
+  expect(container.querySelector('main')).toHaveClass('lg:max-w-xl')
 })
 
 function Page() {

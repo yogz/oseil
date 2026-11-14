@@ -6,6 +6,7 @@ import { categoryOf, computeSituation } from '@/lib/model/situation'
 import type { Profile } from '@/lib/model/types'
 import { linesOf, startDraft } from '@/lib/update/draft'
 import {
+  answerUnknown,
   fileLine,
   moveAccount,
   moveLine,
@@ -13,6 +14,10 @@ import {
   renameLine,
   setCategory,
   setFinanced,
+  setNoHome,
+  setPurchaseUnknown,
+  setUnlockUnknown,
+  setUnquoted,
   setGroups,
   setResidence,
   setSlow,
@@ -359,5 +364,50 @@ describe('setSlow', () => {
     expect(() => setSlow(perProfile, 'per', true)).toThrow()
     expect(() => setSlow(exampleProfile, 'mortgage', true)).toThrow()
     expect(() => setSlow(withOther, 'nope', true)).toThrow()
+  })
+})
+
+describe('the « I don’t know » flags', () => {
+  const lineOf = (p: Profile, id: string) => p.lines.find((l) => l.id === id)
+  const accountOf = (p: Profile, id: string) => p.accounts.find((a) => a.id === id)
+
+  it('setPurchaseUnknown and setUnquoted set the flag, and off removes it', () => {
+    for (const [set, key] of [
+      [setPurchaseUnknown, 'purchaseUnknown'],
+      [setUnquoted, 'unquoted'],
+    ] as const) {
+      const on = set(exampleProfile, 'etf', true)
+      expect(lineOf(on, 'etf')).toHaveProperty(key, true)
+      expect(lineOf(set(on, 'etf', false), 'etf')).not.toHaveProperty(key)
+      expect(() => set(exampleProfile, 'nowhere', true)).toThrow()
+    }
+  })
+
+  it('setUnlockUnknown only on employee savings; a year clears it', () => {
+    const on = setUnlockUnknown(peeProfile, 'pee', true)
+    expect(accountOf(on, 'pee')).toHaveProperty('unlockUnknown', true)
+    expect(accountOf(setUnlockUnknown(on, 'pee', false), 'pee')).not.toHaveProperty('unlockUnknown')
+    expect(() => setUnlockUnknown(exampleProfile, 'pea', true)).toThrow()
+    expect(accountOf(setUnlockYear(on, 'pee', 2030), 'pee')).not.toHaveProperty('unlockUnknown')
+    expect(accountOf(setUnlockYear(on, 'pee', null), 'pee')).toHaveProperty('unlockUnknown', true)
+  })
+
+  it('setNoHome only on a loan; naming a home clears it', () => {
+    const on = setNoHome(exampleProfile, 'mortgage', true)
+    expect(accountOf(on, 'mortgage')).toHaveProperty('noHome', true)
+    expect(accountOf(setNoHome(on, 'mortgage', false), 'mortgage')).not.toHaveProperty('noHome')
+    expect(() => setNoHome(exampleProfile, 'pea', true)).toThrow()
+    expect(accountOf(setFinanced(on, 'mortgage', 'house-line'), 'mortgage')).not.toHaveProperty('noHome')
+  })
+
+  it('answerUnknown: the fiche’s answer, by line, on the line or on its account', () => {
+    expect(lineOf(answerUnknown(exampleProfile, 'etf', 'purchase', true), 'etf')).toHaveProperty('purchaseUnknown', true)
+    expect(lineOf(answerUnknown(exampleProfile, 'etf', 'quote', true), 'etf')).toHaveProperty('unquoted', true)
+    const pee = peeProfile.lines.find((l) => l.accountId === 'pee')!.id
+    expect(accountOf(answerUnknown(peeProfile, pee, 'unlock', true), 'pee')).toHaveProperty('unlockUnknown', true)
+    const on = answerUnknown(exampleProfile, 'mortgage-line', 'loan', true)
+    expect(accountOf(on, 'mortgage')).toHaveProperty('noHome', true)
+    expect(accountOf(answerUnknown(on, 'mortgage-line', 'loan', false), 'mortgage')).not.toHaveProperty('noHome')
+    expect(() => answerUnknown(exampleProfile, 'nowhere', 'loan', true)).toThrow()
   })
 })

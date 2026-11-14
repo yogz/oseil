@@ -311,10 +311,14 @@ describe('contributions', () => {
     expect(setContribution(fresh(), 'life', -200_000).contributions).toEqual({ life: -200_000 })
   })
 
-  test('0 removes the contribution', () => {
+  test('a typed 0 is kept: nothing was paid in is a known answer', () => {
+    expect(setContribution(fresh(), 'life', 0).contributions).toEqual({ life: 0 })
+  })
+
+  test('null, a box emptied, makes the contribution unknown again', () => {
     const paid = setContribution(fresh(), 'life', 150_000)
     expect(paid.contributions).toEqual({ life: 150_000 })
-    expect(setContribution(paid, 'life', 0).contributions).toEqual({})
+    expect(setContribution(paid, 'life', null).contributions).toEqual({})
   })
 })
 

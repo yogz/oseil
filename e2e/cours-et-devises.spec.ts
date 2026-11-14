@@ -289,7 +289,10 @@ test('prices of the day: attaching, Mon argent, the update, a line in dollars', 
   await expect(page.getByText(/Son prix aujourd’hui\s:\s171,08\s€\. À ton dernier relevé\s:\s170,00\s€\./)).toBeVisible()
   await shot(page, 'cours-7-tes-titres')
   await page.getByRole('button', { name: 'C’est bien lui' }).click()
-  await expect(page.getByText(/prix automatique · AI\.PA/)).toBeVisible({ timeout: 15_000 })
+  // Followed now, it leaves « À retrouver » for the folded titles that follow their price.
+  await expect(page.getByRole('button', { name: 'Le retrouver : Air Liquide' })).toHaveCount(0, { timeout: 15_000 })
+  await page.getByRole('button', { name: /^\d+ titres? sui(t son|vent leur) cours/ }).click()
+  await expect(page.getByRole('link', { name: /^Air Liquide/ })).toBeVisible()
   await shot(page, 'cours-8-tes-titres-rattache')
 
   // Back on Mon argent, Air Liquide counts at 171,08 € (855,40 € for 850 €).

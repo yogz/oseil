@@ -1,7 +1,8 @@
 // An in-memory stand-in for a Supabase project with a single user, reached
 // through a real supabase-js client whose `fetch` is replaced. It implements
 // just enough of GoTrue (auth, including the passkey registration and sign-in ceremonies)
-// and PostgREST (the `vaults`, `documents` and `vault_passkeys` tables) for
+// and PostgREST (the `vaults`, `documents` and `vault_passkeys` tables, and the
+// `delete_my_account` function) for
 // the vault tests, and records every request it receives — method, path with
 // query, headers, body, and the status it answered — so a test can inspect
 // exactly what would have left the device.
@@ -79,6 +80,7 @@ export function fakeSupabase() {
   const refusedPasskeyDeletes = new Set<string>()
   let passkeyRowDeleteRefusal = false
   let passkeyRowReadRefusal = false
+  let accountDeletionRefusal = false
   // WebAuthn extensions the server asks for in its passkey options, as a hostile or careless one could.
   let offeredExtensions: Record<string, unknown> | null = null
   let beforeRequest: ((request: RecordedRequest) => void) | null = null
@@ -206,6 +208,10 @@ export function fakeSupabase() {
     }
 
     const current = signedInUser(headers)
+    // A token still valid whose user has been deleted, as GoTrue refuses it.
+    if (!current && tokens.has(bearer(headers) ?? '') && !user) {
+      return authError(403, 'user_not_found', 'User from sub claim in JWT does not exist')
+    }
     if (!current) return json(401, { code: 'bad_jwt', msg: 'invalid JWT' })
 
     if (method === 'GET' && route === '/user') return json(200, publicUser(current))
@@ -397,6 +403,23 @@ export function fakeSupabase() {
     return json(405, { message: `fake-supabase: ${method} not supported` })
   }
 
+  // `public.delete_my_account()`: the signed-in user goes, and with them, by
+  // cascade, every row that bears their id. Their tokens stay valid as JWTs.
+  function deleteMyAccount(method: string, headers: Headers): Response {
+    if (method !== 'POST') return json(405, { message: `fake-supabase: ${method} not supported` })
+    const current = signedInUser(headers)
+    if (!current) return json(400, { code: 'P0001', message: 'Not signed in' })
+    if (accountDeletionRefusal) return json(500, { code: 'XX000', message: 'delete_my_account refused' })
+    for (const rows of Object.values(tables)) {
+      const kept = rows.filter((row) => row.user_id !== current.id)
+      rows.splice(0, rows.length, ...kept)
+    }
+    authPasskeys.length = 0
+    passkeyCredentials.clear()
+    user = null
+    return empty(204)
+  }
+
   const fakeFetch: typeof fetch = async (input, init) => {
     // Going through Request reads any kind of body as text, so nothing sent
     // can escape the record.
@@ -417,9 +440,11 @@ export function fakeSupabase() {
     const table = url.pathname.match(/^\/rest\/v1\/(vaults|documents|vault_passkeys)$/)?.[1] as Table | undefined
     const response = url.pathname.startsWith('/auth/v1/')
       ? auth(request.method, url, request.headers, body)
-      : table
-        ? rest(request.method, table, url, request.headers, body)
-        : json(404, { message: `fake-supabase: no route for ${url.pathname}` })
+      : url.pathname === '/rest/v1/rpc/delete_my_account'
+        ? deleteMyAccount(request.method, request.headers)
+        : table
+          ? rest(request.method, table, url, request.headers, body)
+          : json(404, { message: `fake-supabase: no route for ${url.pathname}` })
     entry.status = response.status
     // The write above landed; the answer never reaches the caller.
     if (lostAnswer?.(entry)) {
@@ -455,6 +480,10 @@ export function fakeSupabase() {
      */
     failPasskeyRowRead() {
       passkeyRowReadRefusal = true
+    },
+    /** Deleting the account fails, with a server error, and nothing is deleted. */
+    failAccountDeletion() {
+      accountDeletionRefusal = true
     },
     /** From now on, the passkey options (registration and sign-in) ask for these WebAuthn extensions. */
     offerExtensions(extensions: Record<string, unknown>) {

@@ -1,4 +1,5 @@
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+import { AuthApiError } from '@supabase/supabase-js'
 import { idleClock } from '@/lib/app/idle-lock'
 import { memoryStorage } from './memory-storage'
 import type { Model } from '@/lib/app/use-model'
@@ -17,6 +18,7 @@ import type { Sealed } from '@/lib/vault/seal'
 import { generateDataKey, unwrapDataKey, wrapDataKey } from '@/lib/vault/keys'
 import { InvalidRecoveryKeyError } from '@/lib/vault/keys'
 import {
+  EmailMismatchError,
   WrongPasswordError,
   RecoveryKeyReplacedError,
   confirmRecoveryKeySeen,
@@ -30,10 +32,18 @@ import {
   EmailNotConfirmedError,
   PasswordTooShortError,
   WrongCredentialsError,
+  accountGone,
+  confirmWithPassword,
+  deleteAccount,
+  finishDeletion,
+  isUserNotFound,
   signIn,
   signOut,
   signUp,
 } from '../account'
+import { accountHere } from '../account-here'
+import { rememberedEmail } from '../remembered-email'
+import { faceIdMarker } from '../face-id-marker'
 
 const EMAIL = 'a@b.fr'
 const PASSWORD = 'correct horse battery'
@@ -553,4 +563,233 @@ describe('signIn, for Face ID', () => {
       'GET /rest/v1/vaults?select=recovery_confirmed_at&user_id=eq.<user>',
     ])
   })
+})
+
+// Before deleting the account: the password typed again. The vault decides
+// whether it is the right one, before anything is sent; then Supabase confirms
+// it too, with the derived secret.
+describe('confirmWithPassword', () => {
+  async function signedIn() {
+    const server = fakeSupabase()
+    const client = server.client()
+    await signUp(client, { email: EMAIL, password: PASSWORD, redirectTo: REDIRECT })
+    await signIn(client, memoryKeyStore(), { email: EMAIL, password: PASSWORD })
+    return { server, client, mark: server.recorded.length }
+  }
+  const signInsSince = (server: ReturnType<typeof fakeSupabase>, mark: number) =>
+    server.recorded.slice(mark).filter((r) => r.path.startsWith('/auth/v1/token'))
+
+  test('a wrong password is refused by the vault, and no sign-in is sent', async () => {
+    const { server, client, mark } = await signedIn()
+    await expect(confirmWithPassword(client, { email: EMAIL, password: 'not the right one' })).rejects.toBeInstanceOf(
+      WrongPasswordError,
+    )
+    expect(signInsSince(server, mark)).toEqual([])
+    expect(JSON.stringify(server.recorded.slice(mark))).not.toContain('not the right one')
+  })
+
+  test('the right password signs in again with the normalized address and the derived secret, never the password', async () => {
+    const { server, client, mark } = await signedIn()
+    await confirmWithPassword(client, { email: ' A@B.fr ', password: PASSWORD })
+
+    const sent = signInsSince(server, mark)
+    expect(sent).toHaveLength(1)
+    const body = JSON.parse(sent[0].body!)
+    expect(body.email).toBe(EMAIL)
+    expect(body.password).toBe((await deriveSecrets(PASSWORD, EMAIL)).authSecret)
+    expect(JSON.stringify(server.recorded)).not.toContain(PASSWORD)
+  })
+
+  test('an address that is not the signed-in account’s is refused, and no sign-in is sent', async () => {
+    const { server, client, mark } = await signedIn()
+    await expect(confirmWithPassword(client, { email: 'c@d.fr', password: PASSWORD })).rejects.toBeInstanceOf(
+      EmailMismatchError,
+    )
+    expect(signInsSince(server, mark)).toEqual([])
+  })
+
+  test('Supabase refusing the derived secret reads as a wrong password', async () => {
+    const { server, client } = await signedIn()
+    server.refuseNextSignIn('invalid_credentials')
+    await expect(confirmWithPassword(client, { email: EMAIL, password: PASSWORD })).rejects.toBeInstanceOf(
+      WrongPasswordError,
+    )
+  })
+})
+
+describe('deleteAccount', () => {
+  async function ready() {
+    vi.stubGlobal('localStorage', memoryStorage())
+    const server = fakeSupabase()
+    const client = server.client()
+    const keys = memoryKeyStore()
+    await signUp(client, { email: EMAIL, password: PASSWORD, redirectTo: REDIRECT })
+    await signIn(client, keys, { email: EMAIL, password: PASSWORD })
+    const userId = server.user!.id
+    faceIdMarker.set('a-credential')
+    accountHere.set()
+    return { server, client, keys, userId }
+  }
+  const rpcs = (server: ReturnType<typeof fakeSupabase>) =>
+    server.recorded.filter((r) => r.path.startsWith('/rest/v1/rpc/delete_my_account'))
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  test('forgets what the tabs keep before the account is deleted', async () => {
+    const { server, client, keys } = await ready()
+    rememberVault({ userId: 'someone', dataKey: {} as CryptoKey }, vaultMark())
+    const seen: unknown[] = []
+    server.beforeEachRequest((r) => {
+      if (r.path.startsWith('/rest/v1/rpc/delete_my_account')) seen.push(rememberedVault())
+    })
+
+    await deleteAccount(client, keys)
+    expect(seen).toEqual([null])
+  })
+
+  test('deletes the account, then forgets everything this device knew of it', async () => {
+    const { server, client, keys, userId } = await ready()
+    const signingOut = vi.spyOn(client.auth, 'signOut')
+
+    await deleteAccount(client, keys)
+
+    expect(rpcs(server)).toHaveLength(1)
+    expect(rpcs(server)[0].method).toBe('POST')
+    expect(server.user).toBeNull()
+    expect(server.tables.vaults).toEqual([])
+    expect(faceIdMarker.isSet()).toBe(false)
+    expect(accountHere.isSet()).toBe(false)
+    expect(await keys.get(userId)).toBeNull()
+    expect(signingOut).toHaveBeenCalledWith({ scope: 'local' })
+    expect((await client.auth.getSession()).data.session).toBeNull()
+  })
+
+  test('a refusal while the account still exists is passed on, and nothing is forgotten', async () => {
+    const { server, client, keys, userId } = await ready()
+    server.failAccountDeletion()
+    const signingOut = vi.spyOn(client.auth, 'signOut')
+
+    await expect(deleteAccount(client, keys)).rejects.toThrow(/delete_my_account refused/)
+
+    expect(server.user).not.toBeNull()
+    expect(faceIdMarker.isSet()).toBe(true)
+    expect(accountHere.isSet()).toBe(true)
+    expect(await keys.get(userId)).toBeInstanceOf(CryptoKey)
+    expect(signingOut).not.toHaveBeenCalled()
+    expect((await client.auth.getSession()).data.session).not.toBeNull()
+  })
+
+  // Only GoTrue saying the user no longer exists counts as the deletion having
+  // landed: a session refused for any other reason says nothing of the account.
+  test.each([
+    { status: 401, code: 'bad_jwt' },
+    { status: 403, code: 'session_not_found' },
+  ])('a refusal, then a session refused with $code, is passed on, and nothing is forgotten', async ({ status, code }) => {
+    const { server, client, keys, userId } = await ready()
+    server.failAccountDeletion()
+    vi.spyOn(client.auth, 'getUser').mockResolvedValue({
+      data: { user: null },
+      error: new AuthApiError(`Refused: ${code}`, status, code),
+    })
+    const signingOut = vi.spyOn(client.auth, 'signOut')
+
+    await expect(deleteAccount(client, keys)).rejects.toThrow(/delete_my_account refused/)
+
+    expect(server.user).not.toBeNull()
+    expect(faceIdMarker.isSet()).toBe(true)
+    expect(accountHere.isSet()).toBe(true)
+    expect(await keys.get(userId)).toBeInstanceOf(CryptoKey)
+    expect(signingOut).not.toHaveBeenCalled()
+  })
+
+  test('an answer lost after the deletion landed counts as a success', async () => {
+    const { server, client, keys, userId } = await ready()
+    server.loseNextAnswer((r) => r.path.startsWith('/rest/v1/rpc/delete_my_account'))
+
+    await deleteAccount(client, keys)
+
+    expect(server.user).toBeNull()
+    expect(faceIdMarker.isSet()).toBe(false)
+    expect(accountHere.isSet()).toBe(false)
+    expect(await keys.get(userId)).toBeNull()
+  })
+
+  test('a key the device cannot forget is still told, once the account is gone', async () => {
+    const { server, client, keys } = await ready()
+    const lost = new DOMException('Connection to Indexed Database server lost', 'UnknownError')
+    const broken: KeyStore = { ...keys, clear: () => Promise.reject(lost) }
+
+    await expect(deleteAccount(client, broken)).rejects.toBeInstanceOf(DeviceKeyNotClearedError)
+    expect(server.user).toBeNull()
+    expect(accountHere.isSet()).toBe(false)
+  })
+
+  // The network gone for both the answer and the check: nothing is known, so nothing is forgotten,
+  // and the screen must not claim either outcome (components/settings/DeleteAccount.tsx).
+  test('a lost answer, then a check that cannot reach the server, is passed on, and nothing is forgotten', async () => {
+    const { server, client, keys, userId } = await ready()
+    server.loseNextAnswer((r) => r.path.startsWith('/rest/v1/rpc/delete_my_account'))
+    vi.spyOn(client.auth, 'getUser').mockRejectedValue(new TypeError('Failed to fetch'))
+
+    await expect(deleteAccount(client, keys)).rejects.toThrow(/Could not delete the account/)
+    expect(faceIdMarker.isSet()).toBe(true)
+    expect(accountHere.isSet()).toBe(true)
+    expect(await keys.get(userId)).toBeInstanceOf(CryptoKey)
+  })
+})
+
+describe('isUserNotFound, accountGone and finishDeletion', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  test('only GoTrue’s user_not_found reads as an account gone', () => {
+    expect(isUserNotFound(new AuthApiError('User not found', 403, 'user_not_found'))).toBe(true)
+    expect(isUserNotFound(new AuthApiError('Session not found', 403, 'session_not_found'))).toBe(false)
+    expect(isUserNotFound(new TypeError('Failed to fetch'))).toBe(false)
+    expect(isUserNotFound(null)).toBe(false)
+  })
+
+  test('accountGone: yes only on user_not_found, no on a user or a failure', async () => {
+    const answering = (answer: unknown) => ({ auth: { getUser: () => answer } }) as never
+    const gone = { data: { user: null }, error: new AuthApiError('User not found', 403, 'user_not_found') }
+    expect(await accountGone(answering(Promise.resolve(gone)))).toBe(true)
+    expect(await accountGone(answering(Promise.resolve({ data: { user: { id: 'u' } }, error: null })))).toBe(false)
+    expect(await accountGone(answering(Promise.reject(new TypeError('Failed to fetch'))))).toBe(false)
+  })
+
+  test('finishDeletion forgets the Face ID mark, the account-here mark, the address, the keys and the session', async () => {
+    vi.stubGlobal('localStorage', memoryStorage())
+    const server = fakeSupabase()
+    const client = server.client()
+    const keys = memoryKeyStore()
+    await signUp(client, { email: EMAIL, password: PASSWORD, redirectTo: REDIRECT })
+    await signIn(client, keys, { email: EMAIL, password: PASSWORD })
+    const userId = server.user!.id
+    faceIdMarker.set('a-credential')
+    accountHere.set()
+    rememberedEmail.set(EMAIL)
+    // The session is dead on the server: failing to close it says nothing.
+    vi.spyOn(client.auth, 'signOut').mockRejectedValue(new Error('session gone'))
+
+    await finishDeletion(client, keys)
+    expect(faceIdMarker.isSet()).toBe(false)
+    expect(accountHere.isSet()).toBe(false)
+    expect(rememberedEmail.read()).toBeNull()
+    expect(await keys.get(userId)).toBeNull()
+  })
+})
+
+// signOut also closes a session for reasons the person did not choose (the vault closing by itself,
+// a key gone): the address stays for the next sign-in. Only « Se déconnecter » forgets it.
+test('signOut alone keeps the remembered address', async () => {
+  vi.stubGlobal('localStorage', memoryStorage())
+  rememberedEmail.set(EMAIL)
+  await signOut(fakeSupabase().client(), memoryKeyStore())
+  expect(rememberedEmail.read()).toBe(EMAIL)
+  vi.unstubAllGlobals()
 })

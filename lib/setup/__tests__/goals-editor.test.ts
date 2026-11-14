@@ -12,6 +12,7 @@ import {
   nothingToSplit,
   othersOf,
   outsideHome,
+  placedSentence,
   remaining,
   shownGoalCategories,
   startGoals,
@@ -19,6 +20,16 @@ import {
   stepMonths,
   toAllocation,
 } from '../goals-editor'
+
+// UX review, 12 November 2026: at 100 % the « + » are greyed, and the line under the rows says why.
+describe('placedSentence: the line under the rows', () => {
+  test('all placed: says how to move a share, no-break spaces in « 100 % » and before the colon', () => {
+    expect(placedSentence(0)).toBe('100 % répartis : baisse une part pour en monter une autre.')
+  })
+  test('something left: how much is still to place', () => {
+    expect(placedSentence(12)).toBe('Il reste 12 % à placer')
+  })
+})
 
 describe('nothingToSplit: all the money in Chez toi', () => {
   test('one home: « dans ton logement », a no-break space before the colon', () => {

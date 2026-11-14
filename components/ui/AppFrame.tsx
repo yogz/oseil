@@ -4,14 +4,14 @@ import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { IdleLock } from '@/components/app/IdleLock'
 import { UpdateProvider } from '@/components/update/UpdateProvider'
+import { useFindShortcut } from '@/lib/app/use-find-shortcut'
+import { isFullScreen, within } from '@/lib/app/full-screen'
 import { ScreenTransition } from './ScreenTransition'
 import type { TopMenuTab } from './TopMenu'
 import { TopMenuProvider } from './top-menu-info'
 
-// The update and the first launch take the whole screen, with no menu.
-const FULL_SCREEN = ['/mise-a-jour', '/premier-lancement']
-
-const within = (path: string, root: string) => path === root || path.startsWith(`${root}/`)
+// The update, the first launch and « Trouver » take the whole screen, with no menu (lib/app/full-screen.ts):
+// « Trouver » opens as on a phone, never as a floating window (docs/superpowers/specs/2026-11-14-trouver-design.md).
 
 // B6: one page template on a computer. Every screen of the application is drawn on the same width,
 // in the two columns of Mon argent (see PageColumns); only the full-screen flows keep their phone
@@ -28,7 +28,9 @@ function tabOf(path: string): TopMenuTab | undefined {
 // width of the page. On a phone nothing here changes the page.
 export function AppFrame({ children }: { children: ReactNode }) {
   const path = usePathname() ?? '/'
-  const menu = !FULL_SCREEN.some((root) => within(path, root))
+  const menu = !isFullScreen(path)
+  // ⌘K / Ctrl+K: « Trouver » from any screen, except the update, the first launch and « Trouver ».
+  useFindShortcut()
   return (
     <TopMenuProvider
       show={menu}

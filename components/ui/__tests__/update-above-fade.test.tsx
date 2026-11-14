@@ -13,7 +13,7 @@ import { AppFrame } from '../AppFrame'
 
 const mocks = vi.hoisted(() => ({ pathname: { current: '/mise-a-jour' }, mounts: { count: 0 } }))
 
-vi.mock('next/navigation', () => ({ usePathname: () => mocks.pathname.current }))
+vi.mock('next/navigation', () => ({ usePathname: () => mocks.pathname.current, useRouter: () => ({ push: () => {} }) }))
 vi.mock('@/lib/app/use-desktop', () => ({ useIsDesktop: () => false }))
 vi.mock('@/components/update/UpdateProvider', () => ({
   UpdateProvider: ({ children }: { children: React.ReactNode }) => {

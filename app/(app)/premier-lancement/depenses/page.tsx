@@ -16,6 +16,8 @@ import { saveSettings } from '@/lib/model/repository'
 import type { Loaded } from '@/lib/model/repository'
 import type { Budget, Settings } from '@/lib/model/types'
 import { parseEuros } from '@/lib/parse'
+import { BACK_TO_SETTINGS } from '@/lib/screens/settings-words'
+import { SPENDING_WHY, spendingQuestion } from '@/lib/screens/spending-words'
 import { euroText, tidyEuros } from '@/lib/setup/step-changes'
 
 const SAVE_FAILED = 'Ça n’a pas été enregistré. Vérifie ta connexion et réessaie.'
@@ -27,7 +29,7 @@ const LINK_BUTTON =
 export default function DepensesPage() {
   const state = useModel()
   const router = useRouter()
-  // Opened from the Réglages: back and « Plus tard » lead there, not to the goals or to Mon argent.
+  // Opened from the Réglages: back and the save lead there, not to the goals or to Mon argent.
   const fromSettings = useSearchParams().get('depuis') === 'reglages'
   if (state.status === 'loading') return <VaultWait phase="open" />
   if (state.status !== 'ready') return <LoadFailed retry={state.retry} />
@@ -39,24 +41,28 @@ export default function DepensesPage() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center justify-between">
-        <Link href={fromSettings ? '/reglages' : '/premier-lancement/revelation'} className={BACK}>
-          ‹ Retour
+      {/* From the Réglages: « ‹ Réglages » and nothing to skip (UX review, 12 November 2026). */}
+      {fromSettings ? (
+        <Link href="/reglages" className={BACK}>
+          {BACK_TO_SETTINGS}
         </Link>
-        <button type="button" className={`${BACK} self-auto`} onClick={later}>
-          {fromSettings ? 'Annuler' : 'Plus tard'}
-        </button>
-      </div>
-      <h1 className="pt-2 text-title font-semibold leading-tight tracking-[-0.01em]">
-        Combien dépenses-tu par mois, à peu près&nbsp;?
-      </h1>
-      <p className="mt-2 text-body leading-relaxed text-ink-soft">
-        Pour savoir combien de mois ton argent disponible te couvrirait si tes revenus s’arrêtaient.
-      </p>
-      {model.unreadable.settings > 0 ? (
-        <div className="mt-6">
-          <Blocked message={SETTINGS_UNREADABLE} retry={state.reload} />
+      ) : (
+        <div className="flex items-center justify-between">
+          <Link href="/premier-lancement/revelation" className={BACK}>
+            ‹ Retour
+          </Link>
+          <button type="button" className={`${BACK} self-auto`} onClick={later}>
+            Plus tard
+          </button>
         </div>
+      )}
+      {model.unreadable.settings > 0 ? (
+        <>
+          <Heading basis="expenses" />
+          <div className="mt-6">
+            <Blocked message={SETTINGS_UNREADABLE} retry={state.reload} />
+          </div>
+        </>
       ) : (
         <Form
           settings={model.settings}
@@ -68,6 +74,16 @@ export default function DepensesPage() {
         />
       )}
     </div>
+  )
+}
+
+// The title names what the field asks, and follows it when « Je (ne) connais (pas) mes dépenses » switches it.
+function Heading({ basis }: { basis: Budget['basis'] }) {
+  return (
+    <>
+      <h1 className="pt-2 text-title font-semibold leading-tight tracking-[-0.01em]">{spendingQuestion(basis)}</h1>
+      <p className="mt-2 text-body leading-relaxed text-ink-soft">{SPENDING_WHY}</p>
+    </>
   )
 }
 
@@ -117,52 +133,55 @@ function Form({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="mt-6 flex flex-col gap-4">
-      <TextField
-        label={expenses ? 'Tes dépenses par mois' : 'Tes revenus nets par mois'}
-        type="text"
-        inputMode="decimal"
-        value={text}
-        error={error}
-        hint={
-          expenses
-            ? 'Un ordre d’idée suffit. Les dépenses de ton foyer. Loyer ou crédit, courses, factures, transports. Pense aux grosses factures de l’année (impôts, assurances, voiture), divisées par 12.'
-            : 'Il est sur ta fiche de paie. Si tu dépenses moins que tu gagnes, le calcul sera un peu prudent, ce qui est mieux que l’inverse.'
-        }
-        onChange={(event) => {
-          setText(event.target.value)
-          setError(undefined)
-        }}
-        onBlur={() => setText(tidyEuros)}
-        autoComplete="off"
-      />
-      {expenses ? (
-        <ul className="flex flex-wrap gap-2">
-          {AMOUNTS.map((cents) => (
-            <li key={cents}>
-              <button
-                type="button"
-                className={CHIP}
-                onClick={() => {
-                  setText(euroText(cents))
-                  setError(undefined)
-                }}
-              >
-                {formatEuros(cents)}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      <button type="button" className={LINK_BUTTON} onClick={() => switchTo(expenses ? 'salary' : 'expenses')}>
-        {expenses ? 'Je ne connais pas mes dépenses' : 'Je connais mes dépenses'}
-      </button>
-      <div className="mt-2 flex flex-col gap-3">
-        <Button type="submit" disabled={busy}>
-          {submitLabel}
-        </Button>
-        {saveError ? <Alert>{saveError}</Alert> : null}
-      </div>
-    </form>
+    <>
+      <Heading basis={basis} />
+      <form onSubmit={submit} noValidate className="mt-6 flex flex-col gap-4">
+        <TextField
+          label={expenses ? 'Tes dépenses par mois' : 'Tes revenus nets par mois'}
+          type="text"
+          inputMode="decimal"
+          value={text}
+          error={error}
+          hint={
+            expenses
+              ? 'Un ordre d’idée suffit. Les dépenses de ton foyer. Loyer ou crédit, courses, factures, transports. Pense aux grosses factures de l’année (impôts, assurances, voiture), divisées par 12.'
+              : 'Il est sur ta fiche de paie. Si tu dépenses moins que tu gagnes, le calcul sera un peu prudent, ce qui est mieux que l’inverse.'
+          }
+          onChange={(event) => {
+            setText(event.target.value)
+            setError(undefined)
+          }}
+          onBlur={() => setText(tidyEuros)}
+          autoComplete="off"
+        />
+        {expenses ? (
+          <ul className="flex flex-wrap gap-2">
+            {AMOUNTS.map((cents) => (
+              <li key={cents}>
+                <button
+                  type="button"
+                  className={CHIP}
+                  onClick={() => {
+                    setText(euroText(cents))
+                    setError(undefined)
+                  }}
+                >
+                  {formatEuros(cents)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <button type="button" className={LINK_BUTTON} onClick={() => switchTo(expenses ? 'salary' : 'expenses')}>
+          {expenses ? 'Je ne connais pas mes dépenses' : 'Je connais mes dépenses'}
+        </button>
+        <div className="mt-2 flex flex-col gap-3">
+          <Button type="submit" disabled={busy}>
+            {submitLabel}
+          </Button>
+          {saveError ? <Alert>{saveError}</Alert> : null}
+        </div>
+      </form>
+    </>
   )
 }

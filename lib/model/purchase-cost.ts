@@ -11,6 +11,7 @@
 //   a purchase, at the rate of that snapshot; without, a correction, at the average rate of the line.
 // A rate typed by the person stands for the whole cost; an average price said to be in euros is the cost.
 
+import { toEuroCents } from './situation'
 import type { Cents, Line, Snapshot } from './types'
 
 export type PurchaseCost = {
@@ -21,7 +22,17 @@ export type PurchaseCost = {
 
 // Parts compared within a rounding of fractions: 0,1 + 0,2 is 0,3.
 const more = (after: number, before: number) => after - before > 1e-9 * Math.max(1, Math.abs(before))
-const fewer = (after: number, before: number) => more(before, after)
+export const fewer = (after: number, before: number) => more(before, after)
+
+// What a cost in the average price's money (hundredths) is in euro cents, rounded like a value: by the
+// person's own word first (said in euros, or « 1 € = 1,20 $ »), as purchaseCost below; else at `fx`.
+export function costToEuroCents(minorUnits: number, line: Line, fx: Snapshot['fx']): Cents {
+  if (line.currency !== 'EUR' && line.purchase) {
+    const minor = Math.round(minorUnits)
+    return 'inEuros' in line.purchase ? minor : Math.round(minor / line.purchase.perEuro)
+  }
+  return toEuroCents(minorUnits, line, fx)
+}
 
 export function purchaseCost(line: Line, snapshots: readonly Snapshot[]): PurchaseCost | null {
   if (line.currency === 'EUR' || line.kind !== 'units') return null

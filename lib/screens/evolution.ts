@@ -85,7 +85,10 @@ export type EvolutionView =
         rows: SplitRow[]
         unknownPayments: string[]
       }
-      snapshots: Array<{ id: string; date: string; net: string; squareValue: string | null }>
+      // Each row opens the page of its relevé; `last`: the latest relevé, only when it is listed.
+      // `squareValue` is no longer shown in the app's list (it moved to the relevé's page); the example
+      // keeps it, unchanged.
+      snapshots: Array<{ id: string; date: string; net: string; href: string; last: boolean; squareValue: string | null }>
       notes: string[]
     }
 
@@ -132,13 +135,10 @@ type Item = {
   point: EvolutionPoint
 }
 
-// `today` only decides whether the date of the figures says its year (a snapshot of another year).
-export function evolutionView(model: Model, today: IsoDate): EvolutionView {
-  // A curve missing a snapshot, or read without its profile, would say something false.
-  if (model.unreadable.profile > 0 || model.unreadable.snapshots > 0) return { kind: 'unreadable', notes: [] }
-  if (!model.profile || model.snapshots.length === 0) return { kind: 'none' }
-  const profile: Profile = model.profile.value
-
+// The relevés as « Tes relevés » reads them, oldest first (same-day ones in storage order): each at
+// its own rates, without Chez toi when the setting applies; one that cannot be computed is left out,
+// and a note says so. The page of a relevé reads the very same (lib/screens/statement.ts).
+export function readStatements(model: Model, profile: Profile): { items: Item[]; notes: string[] } {
   const notes: string[] = []
   const items: Item[] = []
   const ordered = [...model.snapshots].sort((a, b) =>
@@ -180,6 +180,16 @@ export function evolutionView(model: Model, today: IsoDate): EvolutionView {
       },
     })
   }
+  return { items, notes }
+}
+
+// `today` only decides whether the date of the figures says its year (a snapshot of another year).
+export function evolutionView(model: Model, today: IsoDate): EvolutionView {
+  // A curve missing a snapshot, or read without its profile, would say something false.
+  if (model.unreadable.profile > 0 || model.unreadable.snapshots > 0) return { kind: 'unreadable', notes: [] }
+  if (!model.profile || model.snapshots.length === 0) return { kind: 'none' }
+  const profile: Profile = model.profile.value
+  const { items, notes } = readStatements(model, profile)
 
   if (items.length === 0) return { kind: 'unreadable', notes }
   if (items.length === 1) {
@@ -231,10 +241,13 @@ export function evolutionView(model: Model, today: IsoDate): EvolutionView {
     goals: model.unreadable.goals > 0 ? null : goalsOf(items, model.goals.map((g) => g.value), model.settings?.value.budget ?? null),
     steps: stepsOf(items),
     split: splitOf(profile, items),
+    // The latest relevé is the last one stored (same-day relevés keep their storage order).
     snapshots: [...items].reverse().map((i) => ({
       id: i.id,
       date: withYear(i.date),
       net: formatEurosShown(i.point.net),
+      href: `/releve/${i.id}`,
+      last: i.id === model.snapshots.at(-1)!.id,
       squareValue: squareText(i.point),
     })),
     notes,

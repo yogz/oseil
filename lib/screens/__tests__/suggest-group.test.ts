@@ -99,6 +99,52 @@ describe('suggestGroup: secured', () => {
   })
 })
 
+// 14 November 2026 (Nicolas): commodities, metals and miners have their own zone of « Placements en bourse ».
+describe('suggestGroup: matières premières', () => {
+  test.each([
+    'VanEck Rare Earth and Strategic Metals UCITS ETF',
+    'Fonds terres rares',
+    'Lyxor Commodities CRB',
+    'Amundi Bloomberg Equal-weight Commodity ex-Agriculture',
+    'FONDS MATIERES PREMIERES',
+    'Fonds matières premières',
+    'Fonds métaux précieux',
+    'iShares Copper Miners',
+    'Fonds cuivre',
+    'Global X Lithium & Battery Tech',
+    'WisdomTree Nickel',
+    'Sprott Uranium Miners',
+    'Sociétés minières',
+    'Fonds minier',
+    'Société minière',
+    'Amundi Physical Gold ETC',
+    // More precise than « World »: the metals and mining of the world are commodities.
+    'iShares MSCI World Metals & Mining Producers',
+  ])('%s → commodities, by name', (name) => {
+    expect(suggestGroup(line(name), pea, 'markets')).toEqual({ group: 'commodities', reason: 'name' })
+  })
+  // A keyword starts and ends a word: « or » is never a keyword, nor a part of a longer word.
+  test.each(['Orange', 'Coral Gold Resources', 'Datamining Corp', 'Nickelodeon', 'Etcetera', 'Ordinateurs et cie', 'Sociétés minéralogiques'])(
+    '%s proposes no commodities',
+    (name) => {
+      expect(suggestGroup(line(name), pea, 'markets')?.group).not.toBe('commodities')
+    },
+  )
+  // « ETC » only in capitals, as a word of its own: « etc. » is the end of a list.
+  test('« etc. » is not an ETC', () => {
+    expect(suggestGroup(line('Actions Europe, etc.'), pea, 'markets')?.group).not.toBe('commodities')
+    expect(suggestGroup(line('Actions Europe, ETC.'.toLowerCase()), pea, 'markets')?.group).not.toBe('commodities')
+    expect(suggestGroup(line('Physical Gold ETC'), pea, 'markets')).toEqual({ group: 'commodities', reason: 'name' })
+  })
+  // Mining of data or of crypto is not of metals.
+  test.each(['Data Mining Fund', 'Bitcoin Miners ETF', 'Crypto Mining Corp', 'Blockchain Miners', 'Fonds minier crypto'])('%s is not commodities', (name) => {
+    expect(suggestGroup(line(name), pea, 'markets')?.group).not.toBe('commodities')
+  })
+  test('a commodities name in secured → null', () => {
+    expect(suggestGroup(line('Fonds matières premières', { kind: 'amount' }), lifeInsurance, 'secured')).toBeNull()
+  })
+})
+
 describe('suggestGroup: other category ignored', () => {
   test('a money-market name in markets → null', () => {
     expect(suggestGroup(line('Fonds monétaire'), pea, 'markets')).toBeNull()

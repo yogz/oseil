@@ -418,10 +418,17 @@ describe('buildUpdate: what the draft says that cannot be merged', () => {
     expectParses(next)
   })
 
-  test('contributions keep the non-zero ones, on accounts of the profile', () => {
-    const draft: UpdateDraft = { ...fresh(), contributions: { life: 50_000, pea: 0, ghost: 10_000 } }
+  test('contributions are kept on accounts of the profile', () => {
+    const draft: UpdateDraft = { ...fresh(), contributions: { life: 50_000, ghost: 10_000 } }
     const next = buildUpdate(profile, base, draft, TAKEN_ON)
     expect(next.snapshot.contributions).toEqual({ life: 50_000 })
+  })
+
+  test('a typed 0 is kept: nothing paid in is known, not unknown', () => {
+    const draft: UpdateDraft = { ...fresh(), contributions: { life: 0 } }
+    const next = buildUpdate(profile, base, draft, TAKEN_ON)
+    expect(next.snapshot.contributions).toEqual({ life: 0 })
+    expectParses(next)
   })
 
   test('contributions are kept only on a life insurance, a PER or employee savings', () => {

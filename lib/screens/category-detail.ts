@@ -14,6 +14,7 @@ import {
   formatWholePercent,
 } from '@/lib/format'
 import { purchaseCost } from '@/lib/model/purchase-cost'
+import { missingPurchasePrice, purchaseGaps } from '@/lib/model/purchase-gaps'
 import { gapWords, goalInEffect, goalTargets, hasSteeredSquares, splitsProperty } from '@/lib/model/goals'
 import {
   categoryOf,
@@ -27,7 +28,7 @@ import {
   UnknownLineError,
 } from '@/lib/model/situation'
 import { buildGrid, shareLabel } from '@/lib/model/squares'
-import type { CategoryId, Cents, Establishment, GoalCategory, IsoDate } from '@/lib/model/types'
+import type { CategoryId, Cents, Establishment, GoalCategory, IsoDate, Line, Snapshot, SnapshotEntry } from '@/lib/model/types'
 import { convertible, usablePrices, withPrices } from '@/lib/market/live'
 import type { Market } from '@/lib/market/types'
 import { lastKnownPrice, unconvertedSentence } from '@/lib/market/words'
@@ -36,6 +37,7 @@ import { DEBT_SENTENCE } from '@/lib/screens/line-words'
 import { debtsOf } from '@/lib/screens/debts'
 import { cushionGoalOf, excludedSentence, noGridSentence, pocketSentence } from '@/lib/screens/mon-argent'
 import { titleRows } from '@/lib/screens/titles'
+import { purchaseRowLabel } from '@/lib/screens/to-complete-words'
 import { cushionHeader, NO_GOAL, whereWords } from '@/lib/screens/words'
 
 export type DetailLine = {
@@ -118,10 +120,33 @@ export type CategoryDetailView = {
   // « Placements en bourse » only (null elsewhere): the gain since purchase of the lines whose purchase
   // price is known, and what is left out (« depuis l’achat, hors 2 lignes »); or that it is unknown.
   purchaseGain: { kind: 'known'; figure: GainFigure; rest: string; said: Said } | { kind: 'unknown'; text: string } | null
+  // « Placements en bourse » only, under its gain: the purchase gap of « À compléter », to the sheet of
+  // the biggest title missing its price. Null when there is none, and on every other category.
+  complete: { label: string; href: string } | null
 }
 
 // What a line gained since purchase, in euro cents, and what it cost; null when it cannot be known.
-type Bought = { gain: Cents; cost: Cents } | null
+export type Bought = { gain: Cents; cost: Cents } | null
+
+// The gain of one line in parts, the one rule of this page and of « Trouver ». `snapshot`: the one the
+// figures come from; `saved`: every saved snapshot, for what was paid; `withoutPrice`: missingPurchasePrice.
+// A line of `missingPurchasePrice` stays « sans prix ».
+export function boughtOf(
+  line: Line,
+  entry: SnapshotEntry,
+  snapshot: Snapshot,
+  saved: Snapshot[],
+  withoutPrice: ReadonlySet<string>,
+): Bought {
+  if (entry.kind !== 'units' || entry.averagePrice === null || withoutPrice.has(line.id)) return null
+  // In another currency, what was paid in euros, from the rates of the snapshots or as the person
+  // set it (lib/model/purchase-cost.ts); without it (a rate missing), the price at today's rate.
+  const paid = purchaseCost(line, saved)
+  const cost = paid ? Math.round(paid.cost) : toEuroCents(entry.units * entry.averagePrice * 100, line, snapshot.fx)
+  // Only a cost under half a cent rounds to zero here: no percent to give, the line stays « sans prix ».
+  if (cost <= 0) return null
+  return { gain: entryValue(entry, line, snapshot.fx) - cost, cost }
+}
 
 const MINUS = '−'
 const SIGNS: Record<Tone, string> = { gain: '+', loss: MINUS, zero: '' }
@@ -148,7 +173,7 @@ function bothModes(gain: Cents, cost: Cents) {
 }
 
 // Σ gain / Σ cost over the known lines; null when none is known. A masked amount keeps no sign.
-function gainFigure(bought: Bought[]): { figure: GainFigure; said: Said } | null {
+export function gainFigure(bought: Bought[]): { figure: GainFigure; said: Said } | null {
   const known = bought.filter((b): b is NonNullable<Bought> => b !== null)
   if (known.length === 0) return null
   const gain = known.reduce((sum, b) => sum + b.gain, 0)
@@ -302,6 +327,7 @@ function detailOf(
   // The gain since purchase, told in « Placements en bourse » only: by line, by chapter and in total.
   const tellsGain = category === 'markets'
   const bought = new Map<string, Bought>()
+  const withoutPrice = new Set(missingPurchasePrice(profile, snapshot))
   const detailLines = listed.map((held): DetailLine => {
     const line = profile.lines.find((l) => l.id === held.lineId)!
     const account = profile.accounts.find((a) => a.id === line.accountId)!
@@ -315,21 +341,14 @@ function detailOf(
       const parts = [`${formatUnits(snapshotEntry.units)} ${snapshotEntry.units > 1 ? 'parts' : 'part'}`]
       if (snapshotEntry.averagePrice !== null) {
         parts.push(`prix moyen d’achat ${formatPriceShown(snapshotEntry.averagePrice, line.currency)}`)
-        // In another currency, what was paid in euros, from the rates of the snapshots or as the person
-        // set it (lib/model/purchase-cost.ts); without it (a rate missing), the price at today's rate.
-        const paid = purchaseCost(line, model.snapshots.map((s) => s.value))
-        const cost = paid ? Math.round(paid.cost) : toEuroCents(snapshotEntry.units * snapshotEntry.averagePrice * 100, line, snapshot.fx)
-        const gain = entryValue(snapshotEntry, line, snapshot.fx) - cost
-        // A cost of zero (0 units, or an average price of 0) leaves no percent to give: such a line
-        // is counted « sans prix » and says « prix d’achat manquant », like a line with no price
-        // (decided on review, 10 November 2026: one rule, no third kind of line).
-        if (cost > 0) {
-          bought.set(held.lineId, { gain, cost })
-          const { tone, euros, percent } = bothModes(gain, cost)
-          const told = (t: Tone, figure: string) => (t === 'zero' ? NEITHER : `${t === 'gain' ? 'a gagné' : 'a perdu'} ${figure} depuis l’achat`)
-          if (tone.euros !== 'zero' || tone.percent !== 'zero') {
-            result = { tone, euros: told(tone.euros, euros), percent: told(tone.percent, percent) }
-          }
+      }
+      const known = boughtOf(line, snapshotEntry, snapshot, model.snapshots.map((s) => s.value), withoutPrice)
+      if (known) {
+        bought.set(held.lineId, known)
+        const { tone, euros, percent } = bothModes(known.gain, known.cost)
+        const told = (t: Tone, figure: string) => (t === 'zero' ? NEITHER : `${t === 'gain' ? 'a gagné' : 'a perdu'} ${figure} depuis l’achat`)
+        if (tone.euros !== 'zero' || tone.percent !== 'zero') {
+          result = { tone, euros: told(tone.euros, euros), percent: told(tone.percent, percent) }
         }
       }
       const price = formatPriceShown(snapshotEntry.unitPrice, line.currency)
@@ -577,5 +596,14 @@ function detailOf(
     ranging,
     squares,
     purchaseGain: tellsGain ? purchaseGainOf(listed.map((l) => bought.get(l.lineId) ?? null)) : null,
+    complete: tellsGain ? completeRow(purchaseGaps(profile, saved), listed) : null,
   }
+}
+
+// The row under the gain: the biggest title missing its price first, as it moves the gain the most.
+function completeRow(gaps: string[], listed: Array<{ lineId: string; value: Cents }>): CategoryDetailView['complete'] {
+  if (gaps.length === 0) return null
+  const valueOf = (id: string) => listed.find((l) => l.lineId === id)?.value ?? 0
+  const biggest = gaps.reduce((best, id) => (valueOf(id) > valueOf(best) ? id : best))
+  return { label: purchaseRowLabel(gaps.length), href: `/ligne/${encodeURIComponent(biggest)}` }
 }

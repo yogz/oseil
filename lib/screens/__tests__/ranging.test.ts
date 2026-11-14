@@ -43,6 +43,7 @@ describe('rangingView', () => {
       'Japon',
       'Pays émergents',
       'Fonds monde',
+      'Matières premières',
       'Hors bourse (non coté, prêts)',
       'Je ne sais pas',
     ])

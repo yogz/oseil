@@ -13,6 +13,7 @@ import { computeSituation } from '@/lib/model/situation'
 import { excludedSentence } from '@/lib/screens/mon-argent'
 import type { MarketState } from '@/lib/market/use-market'
 import CategoryPage from '../categorie/[id]/page'
+import { todayIso } from '@/lib/dates'
 import { plain } from '@/lib/__tests__/plain'
 
 const mocks = vi.hoisted(() => ({
@@ -126,7 +127,7 @@ const quotedProfile: Profile = {
   ...exampleProfile,
   lines: exampleProfile.lines.map((l) => (l.id === 'etf' ? { ...l, quoteSymbol: 'CW8.PA' } : l)),
 }
-const MARKET = { quotes: { 'CW8.PA': { price: 260, currency: 'EUR', asOf: '2026-11-06' } }, rates: null }
+const MARKET = { quotes: { 'CW8.PA': { price: 260, currency: 'EUR', asOf: todayIso() } }, rates: null }
 
 test('prices: nothing is drawn while the market loads, then the line is at the day’s price', async () => {
   mocks.state.current = ready(quotedProfile)
@@ -492,5 +493,26 @@ describe('the gain since purchase of « Placements en bourse »', () => {
     render(<CategoryPage />)
     expect(screen.queryByText(/depuis l’achat/)).not.toBeInTheDocument()
     expect(document.querySelector('[data-gain]')).toBeNull()
+    expect(screen.queryByRole('link', { name: /prix d’achat pour/ })).not.toBeInTheDocument()
   })
+
+  test('right under « depuis l’achat »: the way to the purchase price of the one title missing it', () => {
+    mocks.state.current = withDisplay('percent')
+    render(<CategoryPage />)
+    // « free » has no average price; « eu-b » is an amount line, which can never take one.
+    const row = screen.getByRole('link', { name: 'Ajoute son prix d’achat pour le compter ›' })
+    expect(row).toHaveAttribute('href', '/ligne/free')
+    const gain = screen.getByText((_, el) => plain(el?.textContent ?? '') === 'depuis l’achat, hors 2 lignes').closest('p')!
+    expect(gain.nextElementSibling).toBe(row)
+  })
+})
+
+// One magnifier per screen, while the vault opens as once it is open (a wrapper nested in another drew two).
+test('exactly one magnifier « Trouver », loading as ready', () => {
+  mocks.state.current = { status: 'loading' }
+  const { rerender } = render(<CategoryPage />)
+  expect(screen.getAllByRole('link', { name: 'Trouver' })).toHaveLength(1)
+  mocks.state.current = ready()
+  rerender(<CategoryPage />)
+  expect(screen.getAllByRole('link', { name: 'Trouver' })).toHaveLength(1)
 })

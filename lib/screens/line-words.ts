@@ -42,6 +42,10 @@ export const UNFINISHED = (day: string) => `Sa fermeture au ${day} n’est pas a
 export const FINISH = 'Terminer'
 export const LOCKED_UPDATE = 'Une mise à jour est en cours. Termine-la ou abandonne-la avant de corriger une ligne.'
 export const RESUME = 'Reprendre la mise à jour'
+// A row to « Tes relevés » of Évolution, where any older relevé of this line is corrected
+// (docs/superpowers/specs/2026-11-12-corriger-un-releve-design.md); the row adds its « › ».
+export const HISTORY_LABEL = 'Ses relevés précédents'
+export const HISTORY_HREF = '/evolution#releves'
 export const LOCKED_UNREADABLE = 'Une partie de tes chiffres n’a pas pu être lue. Rien ne se corrige tant qu’elle ne l’est pas.'
 export const NO_RATE_AMOUNT = 'Son montant en euros n’est pas connu\u00A0: son taux de change manque.'
 export const IS_CORRECTION = 'C’est une correction\u00A0: la différence ne compte ni comme de l’argent mis de côté, ni comme un gain des marchés.'
@@ -117,6 +121,29 @@ export const recountTodayRates = (n: number, total: number) =>
 export const SLOW_YES = 'Oui'
 export const SLOW_NO = 'Non'
 export const CATEGORY_CAPTION = 'Sa catégorie'
+
+// « À compléter » (docs/superpowers/plans/2026-11-12-a-completer.md, exact words): the « je ne sais pas »
+// answer under a row, then what the row says once answered, with « Changer » to take it back.
+export const ANSWER_UNKNOWN = {
+  purchase: 'Je ne sais pas son prix d’achat',
+  quote: 'Pas coté',
+  unlock: 'Je ne sais pas',
+  loan: 'Ce crédit ne finance pas de logement',
+} as const
+export const ANSWERED_UNKNOWN = {
+  purchase: 'Tu ne le sais pas',
+  quote: 'Pas coté',
+  unlock: 'Tu ne le sais pas',
+  loan: 'Ne finance pas de logement',
+} as const
+export const CHANGE_ANSWER = 'Changer'
+// What VoiceOver reads for « Changer »: two can sit on one fiche (purchase and quote).
+export const CHANGE_ANSWER_LABEL = {
+  purchase: 'Changer : prix d’achat',
+  quote: 'Changer : cours',
+  unlock: 'Changer : date de déblocage',
+  loan: 'Changer : logement financé',
+} as const
 
 // The sentence for what a save answered; null once saved. Tasks 7 and 8 reuse it.
 export function outcomeSentence(outcome: CorrectionOutcome | 'failed'): string | null {

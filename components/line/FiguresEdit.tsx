@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { FormActions } from '@/components/setup/FormActions'
 import { useSubmit } from '@/components/setup/useSubmit'
 import { TextField } from '@/components/ui/TextField'
@@ -17,13 +17,45 @@ import {
 import { decimalText, euroText, priceText, tidyCount, tidyEuros, tidyPrice } from '@/lib/setup/step-changes'
 import { readAmount, readNumber } from '@/lib/update/fields'
 
-// The figures of the latest snapshot's entry, corrected in the line's own currency.
-// An empty average price stays unknown (null), never 0.
+type Errors = { amount?: string; units?: string; price?: string; average?: string }
+type Texts = { amount: string; units: string; price: string; average: string }
+
+// The figures typed, read in the entry's kind. An empty average price stays unknown (null), never 0.
+function readFigures(kind: SnapshotEntry['kind'], texts: Texts, accountType: AccountTypeId): { figures: Figures } | { errors: Errors } {
+  if (kind === 'amount') {
+    const read = readAmount(texts.amount, accountType)
+    return 'error' in read ? { errors: { amount: read.error } } : { figures: { kind: 'amount', amount: read.cents } }
+  }
+  const readUnits = readNumber(texts.units)
+  const readPrice = readNumber(texts.price)
+  const readAverage = texts.average.trim() === '' ? null : readNumber(texts.average)
+  const errors: Errors = {}
+  if ('error' in readUnits) errors.units = readUnits.error
+  if ('error' in readPrice) errors.price = readPrice.error
+  if (readAverage !== null && 'error' in readAverage) errors.average = readAverage.error
+  if ('error' in readUnits || 'error' in readPrice || (readAverage !== null && 'error' in readAverage)) return { errors }
+  return {
+    figures: {
+      kind: 'units',
+      units: readUnits.value,
+      unitPrice: readPrice.value,
+      averagePrice: readAverage === null ? null : readAverage.value,
+    },
+  }
+}
+
+// The figures of a snapshot's entry, corrected in the line's own currency: the latest snapshot's by
+// default (the fiche), or a past relevé's, dated by the page that passes its title, its labels, its
+// button and its notes (docs/superpowers/specs/2026-11-12-corriger-un-releve-design.md).
 export function FiguresEdit({
   entry,
   currency,
   accountType,
   label,
+  title,
+  labels,
+  submitLabel = SAVE,
+  notes,
   focusAverage = false,
   saveError,
   onSubmit,
@@ -33,6 +65,11 @@ export function FiguresEdit({
   currency: CurrencyCode
   accountType: AccountTypeId // decides whether a negative amount, or zero, is allowed
   label: string // « Son montant » or « Ce qui reste à rembourser »
+  title?: string // « Son montant au 16 novembre 2025 »; none on the fiche, whose title is the line's name
+  labels?: Texts // the whole field labels, « … ce jour-là »; the fiche's by default
+  submitLabel?: string // « Corriger le 16 novembre 2025 »; « Enregistrer » by default
+  // Said under « C’est une correction », of the figures as typed: null while they do not read.
+  notes?: (figures: Figures | null) => ReactNode
   focusAverage?: boolean // opened from « prix d’achat manquant »: the average price takes the focus
   saveError: string | null
   onSubmit: (figures: Figures) => Promise<boolean>
@@ -44,45 +81,34 @@ export function FiguresEdit({
   const [average, setAverage] = useState(
     entry.kind === 'units' && entry.averagePrice !== null ? priceText(entry.averagePrice) : '',
   )
-  const [errors, setErrors] = useState<{ amount?: string; units?: string; price?: string; average?: string }>({})
+  const [errors, setErrors] = useState<Errors>({})
   const { busy, run } = useSubmit()
-  const clear = (key: keyof typeof errors) => setErrors((now) => ({ ...now, [key]: undefined }))
+  const clear = (key: keyof Errors) => setErrors((now) => ({ ...now, [key]: undefined }))
+  const typed = readFigures(entry.kind, { amount, units, price, average }, accountType)
+  const shown: Texts = labels ?? {
+    amount: FIGURE_AMOUNT(label, currency),
+    units: FIGURE_UNITS,
+    price: FIGURE_PRICE(currency),
+    average: FIGURE_AVERAGE(currency),
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (entry.kind === 'amount') {
-      const read = readAmount(amount, accountType)
-      if ('error' in read) {
-        setErrors({ amount: read.error })
-        return
-      }
-      void run(() => onSubmit({ kind: 'amount', amount: read.cents }))
+    if ('errors' in typed) {
+      setErrors(typed.errors)
       return
     }
-    const readUnits = readNumber(units)
-    const readPrice = readNumber(price)
-    const readAverage = average.trim() === '' ? null : readNumber(average)
-    const found: typeof errors = {}
-    if ('error' in readUnits) found.units = readUnits.error
-    if ('error' in readPrice) found.price = readPrice.error
-    if (readAverage !== null && 'error' in readAverage) found.average = readAverage.error
-    setErrors(found)
-    if (Object.keys(found).length > 0 || 'error' in readUnits || 'error' in readPrice) return
-    void run(() =>
-      onSubmit({
-        kind: 'units',
-        units: readUnits.value,
-        unitPrice: readPrice.value,
-        averagePrice: readAverage === null || 'error' in readAverage ? null : readAverage.value,
-      }),
-    )
+    setErrors({})
+    const { figures } = typed
+    void run(() => onSubmit(figures))
   }
 
   return (
     <form onSubmit={submit} noValidate className="mt-4 flex flex-col gap-5">
+      {title ? <h1 className="pt-2 text-title font-semibold leading-tight tracking-[-0.01em]">{title}</h1> : null}
       {entry.kind === 'amount' ? (
         <TextField
-          label={FIGURE_AMOUNT(label, currency)}
+          label={shown.amount}
           type="text"
           inputMode="decimal"
           value={amount}
@@ -97,7 +123,7 @@ export function FiguresEdit({
       ) : (
         <>
           <TextField
-            label={FIGURE_UNITS}
+            label={shown.units}
             type="text"
             inputMode="decimal"
             value={units}
@@ -110,7 +136,7 @@ export function FiguresEdit({
             autoComplete="off"
           />
           <TextField
-            label={FIGURE_PRICE(currency)}
+            label={shown.price}
             type="text"
             inputMode="decimal"
             value={price}
@@ -123,7 +149,7 @@ export function FiguresEdit({
             autoComplete="off"
           />
           <TextField
-            label={FIGURE_AVERAGE(currency)}
+            label={shown.average}
             type="text"
             inputMode="decimal"
             value={average}
@@ -139,7 +165,8 @@ export function FiguresEdit({
         </>
       )}
       <p className="text-body leading-relaxed text-ink-soft">{IS_CORRECTION}</p>
-      <FormActions submitLabel={SAVE} busy={busy} saveError={saveError} onCancel={onCancel} />
+      {notes ? notes('figures' in typed ? typed.figures : null) : null}
+      <FormActions submitLabel={submitLabel} busy={busy} saveError={saveError} onCancel={onCancel} />
     </form>
   )
 }

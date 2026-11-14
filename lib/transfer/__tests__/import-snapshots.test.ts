@@ -458,8 +458,8 @@ describe('readSnapshots: « Versements »', () => {
       ),
     )
     const id = accountIdOf(profile, 'Assurance-vie')
-    // A zero is what the site never stores: the row is ignored.
-    expect(snapshots.map((s) => s.contributions)).toEqual([{ [id]: 50000 }, {}, { [id]: -20050 }])
+    // A zero is a known answer, nothing paid in: kept, like the site keeps a typed 0.
+    expect(snapshots.map((s) => s.contributions)).toEqual([{ [id]: 50000 }, { [id]: 0 }, { [id]: -20050 }])
   })
 
   it('finds the account by its identifier, even with empty names', () => {

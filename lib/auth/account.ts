@@ -4,17 +4,22 @@
 // here.
 
 import { idleClock } from '@/lib/app/idle-lock'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { isAuthApiError, type SupabaseClient } from '@supabase/supabase-js'
 import { forgetInEveryTab } from '@/lib/app/session-memory'
 import type { KeyStore } from '@/lib/vault/device'
 import { deriveSecrets, normalizeEmail } from '@/lib/vault/kdf'
 import {
+  WrongPasswordError,
   assertPasswordLength,
   createVault,
   isRecoveryKeyConfirmed,
   renewRecoveryKey,
+  signedInUserWithEmail,
   unlockVault,
 } from '@/lib/vault/store'
+import { accountHere } from './account-here'
+import { faceIdMarker } from './face-id-marker'
+import { rememberedEmail } from './remembered-email'
 
 export { PasswordTooShortError } from '@/lib/vault/store'
 
@@ -180,4 +185,73 @@ export async function signOut(client: SupabaseClient, keys: KeyStore): Promise<v
 
   if (keysKept) throw new DeviceKeyNotClearedError({ cause: keysKept.error })
   if (sessionError) throw sessionError
+}
+
+// Before deleting the account, the password typed again. The vault decides
+// first, on the device: a password that does not open its packet sends
+// nothing more. Then Supabase confirms it too, with the derived secret — never
+// the password — so that a session already open is not enough on its own.
+export async function confirmWithPassword(
+  client: SupabaseClient,
+  input: { email: string; password: string },
+): Promise<void> {
+  const { authSecret, keyEncryptionKey } = await deriveSecrets(input.password, input.email)
+  // Another address would derive another key, and read as a wrong password.
+  await signedInUserWithEmail(client, input.email)
+  // The link to this screen shows only with the vault open: a vault missing is not a password question.
+  if ((await unlockVault(client, keyEncryptionKey)) === 'missing') throw new Error('No vault to confirm against')
+  const { error } = await client.auth.signInWithPassword({ email: normalizeEmail(input.email), password: authSecret })
+  if (error) {
+    if (error.code === 'invalid_credentials') throw new WrongPasswordError()
+    throw error
+  }
+}
+
+// GoTrue's answer for a session whose user no longer exists. Verified against GoTrue on the local
+// Supabase copy on 12 November 2026: after `delete_my_account`, `getUser` with the old token answered
+// `AuthApiError` 403 `user_not_found`.
+export function isUserNotFound(error: unknown): boolean {
+  return isAuthApiError(error) && error.code === 'user_not_found'
+}
+
+// Whether the account signed in here is gone from the server: after a refusal of the deletion (its
+// answer was lost), or on another device after the deletion. Only GoTrue saying the session's user
+// no longer exists says yes. Anything else — a user still there, a session refused for another reason
+// (expired, signed out), the network — says nothing: wiping the device of an account that still
+// exists would be worse.
+export async function accountGone(client: SupabaseClient): Promise<boolean> {
+  try {
+    const { data, error } = await client.auth.getUser()
+    if (data.user) return false
+    return isUserNotFound(error)
+  } catch {
+    return false
+  }
+}
+
+// Once the account is gone from the server, the device forgets it: the Face ID mark, « un compte a
+// servi ici », the remembered address, the keys and the session (signOut forgets what the tabs keep first). The session is
+// dead on the server by then, so closing it may well fail, and that says nothing; a key the device
+// could not forget still must be told.
+export async function finishDeletion(client: SupabaseClient, keys: KeyStore): Promise<void> {
+  faceIdMarker.clear()
+  accountHere.clear()
+  rememberedEmail.clear()
+  try {
+    await signOut(client, keys)
+  } catch (signOutError) {
+    if (signOutError instanceof DeviceKeyNotClearedError) throw signOutError
+  }
+}
+
+// What the tabs keep goes first, as at every sign-out. Then the account, in one call
+// (`public.delete_my_account()`: everything of the person cascades from it). Only once it is gone
+// does the device forget it (finishDeletion).
+export async function deleteAccount(client: SupabaseClient, keys: KeyStore): Promise<void> {
+  forgetInEveryTab()
+  const { error } = await client.rpc('delete_my_account')
+  if (error && !(await accountGone(client))) {
+    throw new Error(`Could not delete the account: ${error.message}`, { cause: error })
+  }
+  await finishDeletion(client, keys)
 }

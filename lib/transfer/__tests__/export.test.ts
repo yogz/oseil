@@ -499,6 +499,21 @@ test('the instructions for an AI tell the months column as months, never as a pe
   expect(line).toMatch(/vaut alors 0/)
 })
 
+test('writes the zone « Matières premières » in words', () => {
+  const input = fixtureInput()
+  input.profile.lines = input.profile.lines.map((l) => (l.id === 'l-usd' ? { ...l, group: 'commodities' } : l))
+  const rows = sheet(exportSheets(input), SHEETS.accounts).rows
+  expect(cell(rows.find((row) => cell(row, 'accounts', 'reference') === 'l-usd')!, 'accounts', 'group')).toBe('Matières premières')
+})
+
+// 14 November 2026 (Nicolas): the zone is in the list of chapters, and the AI knows what goes in it.
+test('the instructions list « Matières premières » and say what goes in it', () => {
+  const prompt = AI_PROMPT.replace(/[\u00a0\u202f]/g, ' ')
+  expect(prompt).toMatch(/dans « Placements en bourse » : [^\n]*« Fonds monde », « Matières premières », « Hors bourse/)
+  expect(prompt).toMatch(/ETC.*terres rares.*« Matières premières »/)
+  expect(prompt).toMatch(/or physique.*« Or et crypto »/)
+})
+
 // Where some investments go (Nicolas, 11 November 2026, after three experts): the right held decides
 // the category, the time to get the money back decides « Long à récupérer ».
 test('the instructions say where crowdfunding, SCPI and Girardin go', () => {

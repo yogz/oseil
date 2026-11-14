@@ -7,6 +7,7 @@ import { BoardLeft } from '@/components/money/BoardLeft'
 import { DisplayModeProvider } from '@/components/money/DisplayMode'
 import { Button } from '@/components/ui/Button'
 import { PageColumns } from '@/components/ui/PageColumns'
+import { FindCorner } from '@/components/ui/FindLink'
 import { TabBar } from '@/components/ui/TabBar'
 import { useMenuFromModel } from '@/components/ui/use-menu-from-model'
 import { VaultWait, WaitCover } from '@/components/ui/VaultWait'
@@ -46,9 +47,11 @@ export default function RangerPage() {
           <Nothing href="/" label="‹ Mon argent" />
         )
       ) : (
-        <Link href={back.href} className={BACK}>
-          {back.label}
-        </Link>
+        <FindCorner>
+          <Link href={back.href} className={BACK}>
+            {back.label}
+          </Link>
+        </FindCorner>
       )}
 
       {state.status === 'failed' || state.status === 'unavailable' ? (
@@ -71,9 +74,11 @@ function Nothing({ href, label }: { href: string; label: string }) {
   return (
     <PageColumns aside={null}>
       <div className="flex flex-col">
-        <Link href={href} className={BACK}>
-          {label}
-        </Link>
+        <FindCorner>
+          <Link href={href} className={BACK}>
+            {label}
+          </Link>
+        </FindCorner>
         <p className="mt-4 text-body leading-relaxed text-ink-soft">Rien à ranger ici.</p>
       </div>
     </PageColumns>
@@ -126,9 +131,11 @@ function Ranging({ state, category }: { state: Ready; category: RangedCategory }
       <PageColumns aside={board ? <BoardLeft board={board} lit={category} /> : null}>
         <WaitCover active={saving} phase="lock">
           <div className="flex flex-col">
-            <Link href={view.back.href} className={BACK}>
-              {view.back.label}
-            </Link>
+            <FindCorner>
+              <Link href={view.back.href} className={BACK}>
+                {view.back.label}
+              </Link>
+            </FindCorner>
             <h1 className="pt-2 text-title font-semibold leading-tight tracking-[-0.01em]">{view.title}</h1>
             <p className="mt-1 text-body leading-relaxed text-ink-soft">{view.intro}</p>
 

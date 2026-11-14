@@ -7,6 +7,7 @@ import { AmountForm } from '@/components/setup/AmountForm'
 import { LoanForm } from '@/components/setup/LoanForm'
 import { UnitsForm } from '@/components/setup/UnitsForm'
 import { CURRENCY_CHANGED, FOLLOW_PRICE, FOLLOWED, NO_PRICE_YET } from '@/lib/market/words'
+import { todayIso } from '@/lib/dates'
 import { plain } from '@/lib/__tests__/plain'
 
 const client = vi.hoisted(() => ({ requestSearch: vi.fn(), requestQuotes: vi.fn(), requestRates: vi.fn() }))
@@ -20,7 +21,7 @@ const MATCH = { symbol: 'CW8.PA', name: 'Amundi MSCI World', exchange: 'Paris', 
 
 beforeEach(() => {
   client.requestSearch.mockReset().mockResolvedValue([MATCH])
-  client.requestQuotes.mockReset().mockResolvedValue({ 'CW8.PA': { price: 692.3, currency: 'EUR', asOf: '2026-11-06' } })
+  client.requestQuotes.mockReset().mockResolvedValue({ 'CW8.PA': { price: 692.3, currency: 'EUR', asOf: todayIso() } })
   client.requestRates.mockReset().mockResolvedValue(rates)
 })
 afterEach(cleanup)
@@ -167,7 +168,7 @@ test('an initial currency is shown as chosen, and a locked one has no « changer
 })
 
 test('a pick on a non-EUR line with nothing chosen sends the symbol only: no currency, no rate', async () => {
-  client.requestQuotes.mockResolvedValue({ 'CW8.PA': { price: 100, currency: 'USD', asOf: '2026-11-06' } })
+  client.requestQuotes.mockResolvedValue({ 'CW8.PA': { price: 100, currency: 'USD', asOf: todayIso() } })
   const onSubmit = units({ initial: { name: 'X', currency: 'USD' } })
   await pick()
   await userEvent.type(screen.getByLabelText('Combien de parts as-tu ?'), '1')
@@ -179,7 +180,7 @@ test('a pick on a non-EUR line with nothing chosen sends the symbol only: no cur
 })
 
 test('a pick then a currency change recomputes the price box', async () => {
-  client.requestQuotes.mockResolvedValue({ 'CW8.PA': { price: 100, currency: 'EUR', asOf: '2026-11-06' } })
+  client.requestQuotes.mockResolvedValue({ 'CW8.PA': { price: 100, currency: 'EUR', asOf: todayIso() } })
   units()
   await pick()
   expect(screen.getByLabelText('Combien vaut une part aujourd’hui ?')).toHaveValue('100,00')
@@ -190,7 +191,7 @@ test('a pick then a currency change recomputes the price box', async () => {
 
 test('a pick that cannot be converted, then a currency change, keeps the box empty and says so', async () => {
   // A yen quote has no rate: the box stays empty, and a new currency cannot fill it either.
-  client.requestQuotes.mockResolvedValue({ 'CW8.PA': { price: 15000, currency: 'JPY', asOf: '2026-11-06' } })
+  client.requestQuotes.mockResolvedValue({ 'CW8.PA': { price: 15000, currency: 'JPY', asOf: todayIso() } })
   units()
   await pick()
   expect(screen.getByLabelText('Combien vaut une part aujourd’hui ?')).toHaveValue('')

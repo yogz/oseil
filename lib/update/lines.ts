@@ -119,9 +119,10 @@ export function contributionAccounts(profile: Profile, base: Snapshot, establish
   )
 }
 
-// Negative: money taken out. 0, the box's default, is not stored.
-export function setContribution(draft: UpdateDraft, accountId: string, cents: Cents): UpdateDraft {
+// Negative: money taken out. A typed 0 is a known answer, nothing paid in, and is stored;
+// null, the box left or made empty, is unknown and is not.
+export function setContribution(draft: UpdateDraft, accountId: string, cents: Cents | null): UpdateDraft {
   const { [accountId]: _previous, ...others } = draft.contributions
   void _previous
-  return { ...draft, contributions: cents === 0 ? others : { ...draft.contributions, [accountId]: cents } }
+  return { ...draft, contributions: cents === null ? others : { ...draft.contributions, [accountId]: cents } }
 }

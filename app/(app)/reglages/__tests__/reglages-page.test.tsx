@@ -8,6 +8,7 @@ import type { Model, ModelState } from '@/lib/app/use-model'
 import { GOAL_PRESETS } from '@/lib/catalog'
 import { exampleProfile, exampleSnapshot } from '@/lib/model/__tests__/fixtures'
 import { DEFAULT_SETTINGS } from '@/lib/model/documents'
+import { SETTINGS_ANCHORS } from '@/lib/screens/find-words'
 import type { GoalAllocation, Profile, Settings } from '@/lib/model/types'
 import { PasswordHalfChangedError, RecoveryKeyReplacedError, WrongPasswordError } from '@/lib/vault/store'
 import { confirmRecoveryKey } from '@/components/__tests__/confirm-recovery-key'
@@ -81,6 +82,64 @@ afterEach(cleanup)
 
 const section = (name: string) => screen.getByRole('region', { name })
 
+// « Trouver » leads to a section by its anchor: each section carries its id, and keeps its title clear
+// of the menu at the top of a computer.
+test('each section carries the anchor « Trouver » leads to, in order', () => {
+  const { container } = render(<SettingsPage />)
+  const sections = [...container.querySelectorAll('section[id]')]
+  expect(sections.map((s) => s.id)).toEqual([
+    SETTINGS_ANCHORS.goals,
+    SETTINGS_ANCHORS.spending,
+    SETTINGS_ANCHORS.banks,
+    SETTINGS_ANCHORS.display,
+    SETTINGS_ANCHORS.data,
+    SETTINGS_ANCHORS.reminder,
+    SETTINGS_ANCHORS.account,
+  ])
+  for (const section of sections) expect(section).toHaveClass('lg:scroll-mt-24')
+})
+
+// The vault's wait comes before the sections: the browser finds no anchor on arrival, so the page goes
+// to it once its sections are there.
+// jsdom has no scrollIntoView: the test lends one, and the page's address, both given back after it.
+const scrollKept = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
+const addressKept = window.location.href
+afterEach(() => {
+  if (scrollKept) Object.defineProperty(Element.prototype, 'scrollIntoView', scrollKept)
+  else delete (Element.prototype as Partial<Element>).scrollIntoView
+  window.history.replaceState(null, '', addressKept)
+})
+
+test('opened at an anchor, the page goes to that section once it is ready', () => {
+  const scroll = vi.fn()
+  Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, writable: true, value: scroll })
+  window.history.replaceState(null, '', `/reglages#${SETTINGS_ANCHORS.account}`)
+  mocks.state.current = { status: 'loading' }
+  const { container, rerender } = render(<SettingsPage />)
+  expect(scroll).not.toHaveBeenCalled()
+  mocks.state.current = ready()
+  rerender(<SettingsPage />)
+  expect(scroll).toHaveBeenCalledTimes(1)
+  expect(scroll.mock.contexts[0]).toBe(container.querySelector(`section#${SETTINGS_ANCHORS.account}`))
+  rerender(<SettingsPage />)
+  expect(scroll).toHaveBeenCalledTimes(1)
+})
+
+test('the magnifier « Trouver » is at the top of the Réglages, after the way back for VoiceOver and the keyboard', () => {
+  render(<SettingsPage />)
+  const find = screen.getByRole('link', { name: 'Trouver' })
+  expect(find).toHaveAttribute('href', '/trouver')
+  const back = screen.getByRole('link', { name: '‹ Mon argent' })
+  expect(back.compareDocumentPosition(find) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(find.compareDocumentPosition(screen.getByRole('heading', { level: 1 })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+
+test('with no profile yet, « Mes banques » keeps its anchor', () => {
+  mocks.state.current = ready({ profile: null })
+  const { container } = render(<SettingsPage />)
+  expect(container.querySelector(`section#${SETTINGS_ANCHORS.banks}`)).not.toBeNull()
+})
+
 test('back to Mon argent, the tabs at the bottom, its seven sections in order', () => {
   render(<SettingsPage />)
   expect(screen.getByRole('heading', { level: 1, name: 'Réglages' })).toBeInTheDocument()
@@ -89,7 +148,8 @@ test('back to Mon argent, the tabs at the bottom, its seven sections in order', 
   const tabs = screen.getByRole('navigation', { name: 'Onglets' })
   expect(within(tabs).getAllByRole('link')).toHaveLength(3)
   expect(within(tabs).queryByRole('link', { current: 'page' })).toBeNull()
-  const titles = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+  // The « › » of a title that opens a screen is drawn, not read.
+  const titles = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent?.replace('›', '').trim())
   expect(titles).toEqual(['Mes objectifs', 'Mes dépenses par mois', 'Mes banques', 'Affichage', 'Mes chiffres en fichier', 'Le rappel de mise à jour', 'Mon compte'])
   expect(screen.getByRole('button', { name: 'Se déconnecter' })).toBeInTheDocument()
 })
@@ -107,6 +167,15 @@ test('« Mon compte » leads to the privacy page', () => {
     'href',
     '/confidentialite',
   )
+})
+
+// Nothing is deleted from the Réglages: the last row of « Mon compte » leads to a screen of its own.
+test('« Mon compte » ends on a link to delete the account, on its own screen', () => {
+  render(<SettingsPage />)
+  const links = within(section('Mon compte')).getAllByRole('link')
+  expect(links.at(-1)).toHaveTextContent('Supprimer mon compte')
+  expect(links.at(-1)).toHaveAttribute('href', '/reglages/supprimer')
+  expect(within(section('Mon compte')).queryByRole('button', { name: /Supprimer/ })).toBeNull()
 })
 
 test('a new account has no profile yet: « Mes banques » says there is no bank, not that a read failed', () => {
@@ -134,32 +203,48 @@ test('the goals as a small bar and the spending with its basis, each leading to 
   for (const [label, share] of [['Argent disponible', 25], ['Épargne sécurisée', 25], ['Placements en bourse', 45], ['Or et crypto', 5]] as const) {
     expect(goals).toHaveTextContent(new RegExp(`${label}\\s*${share}\\s%`))
   }
-  expect(within(section('Mes objectifs')).getByRole('link', { name: 'Modifier' })).toHaveAttribute(
-    'href',
-    '/premier-lancement/objectifs?depuis=reglages',
-  )
+  // Planche 3B (Nicolas, 12 November 2026): no « Modifier » row; the title is the link, named by the
+  // title alone, and the whole block (title, bar, legend) is what a finger touches.
+  expectTitleLink(goals, 'Mes objectifs', '/premier-lancement/objectifs?depuis=reglages')
   // The UI pass of 12 November 2026: a budget given as revenues is titled so, never « dépenses ».
   const spending = section('Mes revenus par mois')
   expect(spending).toHaveTextContent(/2\s200\s€/)
-  expect(within(spending).getByRole('link', { name: 'Modifier' })).toHaveAttribute(
-    'href',
-    '/premier-lancement/depenses?depuis=reglages',
-  )
+  expectTitleLink(spending, 'Mes revenus par mois', '/premier-lancement/depenses?depuis=reglages')
 })
+
+function expectTitleLink(block: HTMLElement, title: string, href: string) {
+  expect(within(block).queryByRole('link', { name: 'Modifier' })).toBeNull()
+  expect(within(block).getAllByRole('link')).toHaveLength(1)
+  const heading = within(block).getByRole('heading', { level: 2, name: title })
+  const link = within(heading).getByRole('link', { name: title })
+  expect(link).toHaveAttribute('href', href)
+  expect(link).toHaveTextContent('›')
+  // The link stretches over its block: the block is the reference, the link's after-layer covers it.
+  expect(block.className).toMatch(/\brelative\b/)
+  expect(link.className).toMatch(/after:absolute/)
+  expect(link.className).toMatch(/after:inset-0/)
+}
 
 test('nothing set yet is said, not drawn as a zero', () => {
   mocks.state.current = ready({ goals: false })
   render(<SettingsPage />)
   expect(within(section('Mes objectifs')).getByText('Pas encore d’objectifs.')).toBeInTheDocument()
   expect(within(section('Mes dépenses par mois')).getByText('Pas encore renseignées.')).toBeInTheDocument()
+  // Still a way in, by the title.
+  expectTitleLink(section('Mes objectifs'), 'Mes objectifs', '/premier-lancement/objectifs?depuis=reglages')
+  expectTitleLink(section('Mes dépenses par mois'), 'Mes dépenses par mois', '/premier-lancement/depenses?depuis=reglages')
 })
 
-test('banks: only an empty one can be removed, the first cannot go up, the last cannot go down', () => {
+// The arrows are not shown at rest (Nicolas, planche 2B, 12 November 2026): « Changer l’ordre » shows them.
+const startOrdering = (banks: HTMLElement) => userEvent.click(within(banks).getByRole('button', { name: 'Changer l’ordre' }))
+
+test('banks: only an empty one can be removed, the first cannot go up, the last cannot go down', async () => {
   render(<SettingsPage />)
   const banks = section('Mes banques')
   expect(within(within(banks).getByText('BoursoBank').closest('li')!).getByText('3 comptes')).toBeInTheDocument()
   expect(within(banks).getByRole('button', { name: 'Retirer\u00A0: Fortuneo' })).toBeEnabled()
   expect(within(banks).queryByRole('button', { name: 'Retirer\u00A0: BoursoBank' })).not.toBeInTheDocument()
+  await startOrdering(banks)
   expect(within(banks).getByRole('button', { name: 'Monter\u00A0: Fortuneo' })).toBeDisabled()
   expect(within(banks).getByRole('button', { name: 'Descendre\u00A0: Linxea' })).toBeDisabled()
 })
@@ -201,9 +286,10 @@ test('with only « Chez toi », « Mes banques » does not say there is no bank'
   expect(within(banks).queryByText('Aucune banque pour l’instant.')).not.toBeInTheDocument()
 })
 
-test('banks: the two arrows sit on the bank’s own line, at 44 px, beside its name', () => {
+test('banks: the two arrows sit on the bank’s own line, at 44 px, beside its name', async () => {
   render(<SettingsPage />)
   const banks = section('Mes banques')
+  await startOrdering(banks)
   const down = within(banks).getByRole('button', { name: 'Descendre\u00A0: BoursoBank' })
   const up = within(banks).getByRole('button', { name: 'Monter\u00A0: BoursoBank' })
   const row = within(banks).getByText('BoursoBank').closest('li')!
@@ -225,6 +311,7 @@ test('removing and moving a bank write one profile through the correction save, 
   expect(planned.writes[0].value.establishments.map((e) => e.id)).not.toContain('fortuneo')
   expect(mocks.reload).toHaveBeenCalled()
 
+  await startOrdering(banks)
   await userEvent.click(within(banks).getByRole('button', { name: 'Descendre\u00A0: BoursoBank' }))
   const move = mocks.saveCorrection.mock.calls[1][2] as typeof plan
   const moved = move({ profile: { id: 'p', value: withEmptyBank }, snapshots: [] })
@@ -235,6 +322,7 @@ test('removing and moving a bank write one profile through the correction save, 
 test('moving a bank to the top keeps the keyboard on its line: « Monter » gone, the focus is on « Descendre »', async () => {
   const { rerender } = render(<SettingsPage />)
   const banks = () => section('Mes banques')
+  await startOrdering(banks())
   const up = within(banks()).getByRole('button', { name: 'Monter : BoursoBank' })
   up.focus()
   await userEvent.keyboard('{Enter}')
@@ -254,6 +342,7 @@ test('a move refused keeps the focus on the arrow that was touched', async () =>
   mocks.saveCorrection.mockResolvedValueOnce('not-allowed')
   render(<SettingsPage />)
   const banks = section('Mes banques')
+  await startOrdering(banks)
   const down = within(banks).getByRole('button', { name: 'Descendre : BoursoBank' })
   down.focus()
   await userEvent.keyboard('{Enter}')
@@ -375,6 +464,46 @@ test('with a single bank, there is nothing to move: no « Monter », no « Desce
   const banks = section('Mes banques')
   expect(within(banks).queryByRole('button', { name: /^Monter/ })).not.toBeInTheDocument()
   expect(within(banks).queryByRole('button', { name: /^Descendre/ })).not.toBeInTheDocument()
+  expect(within(banks).queryByRole('button', { name: 'Changer l’ordre' })).not.toBeInTheDocument()
+  expect(within(banks).queryByText('L’ordre est celui de ta mise à jour.')).not.toBeInTheDocument()
+})
+
+test('banks: no arrows at rest; « Changer l’ordre » shows them on every bank, « Terminé » hides them again', async () => {
+  render(<SettingsPage />)
+  const banks = section('Mes banques')
+  const arrows = () => within(banks).queryAllByRole('button', { name: /^(Monter|Descendre)/ })
+  expect(arrows()).toHaveLength(0)
+  // The note on the left, the control on the right, on one line.
+  const note = within(banks).getByText('L’ordre est celui de ta mise à jour.')
+  const change = within(banks).getByRole('button', { name: 'Changer l’ordre' })
+  expect(change.parentElement).toBe(note.parentElement)
+  expect(change.className).toContain('underline')
+  expect(within(banks).getByRole('button', { name: '+ Ajouter une banque' })).toBeInTheDocument()
+
+  await userEvent.click(change)
+  // Three banks besides « Chez toi », two arrows each; « Chez toi » keeps its place, without arrows.
+  expect(arrows()).toHaveLength(6)
+  for (const name of ['Fortuneo', 'BoursoBank', 'Linxea']) {
+    const row = within(banks).getByText(name).closest('li')!
+    expect(within(row).getAllByRole('button', { name: /^(Monter|Descendre)/ })).toHaveLength(2)
+  }
+  expect(within(within(banks).getAllByRole('listitem')[0]).queryByRole('button', { name: /^(Monter|Descendre)/ })).toBeNull()
+  // The keyboard lands on the first arrow that can be used: the first bank cannot go up.
+  expect(document.activeElement).toBe(within(banks).getByRole('button', { name: 'Descendre\u00A0: Fortuneo' }))
+  // While the order changes, no bank is added nor removed: nothing but the arrows (planche 2B).
+  expect(within(banks).queryByRole('button', { name: '+ Ajouter une banque' })).not.toBeInTheDocument()
+  expect(within(banks).queryAllByRole('button', { name: /^Retirer/ })).toHaveLength(0)
+  expect(within(banks).queryByRole('button', { name: 'Changer l’ordre' })).not.toBeInTheDocument()
+  const done = within(banks).getByRole('button', { name: 'Terminé' })
+  expect(done.className).toContain('bg-ink')
+  expect(done.className).toContain('rounded-full')
+
+  await userEvent.click(done)
+  expect(arrows()).toHaveLength(0)
+  expect(within(banks).queryByRole('button', { name: 'Terminé' })).not.toBeInTheDocument()
+  expect(document.activeElement).toBe(within(banks).getByRole('button', { name: 'Changer l’ordre' }))
+  expect(within(banks).getByRole('button', { name: '+ Ajouter une banque' })).toBeInTheDocument()
+  expect(within(banks).getByRole('button', { name: 'Retirer : Fortuneo' })).toBeInTheDocument()
 })
 
 test('the masking switch is a real switch, large enough to touch, in design tokens', async () => {

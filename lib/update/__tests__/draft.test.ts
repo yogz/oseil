@@ -4,6 +4,7 @@ import { exampleProfile, exampleSnapshot, unitsEntry } from '@/lib/model/__tests
 import type { Account, Line, Profile, UpdateDraft } from '@/lib/model/types'
 import {
   addEstablishment,
+  asksPurchasePrice,
   withAddedEstablishments,
   confirmLine,
   currentEntry,
@@ -340,6 +341,10 @@ describe('hasChangesHere', () => {
 
   test('a contribution on one of its accounts is a change', () => {
     expect(here({ ...fresh(), contributions: { pea: 10_000 } })).toBe(true)
+  })
+
+  test('a typed 0 on one of its accounts is a change', () => {
+    expect(here({ ...fresh(), contributions: { pea: 0 } })).toBe(true)
   })
 
   test('an added line is a change', () => {
@@ -685,5 +690,32 @@ describe('an establishment added during the update', () => {
     const tidy = tidyDraft(saved, { ...draft, progress: { cb: 'done' } })
     expect(tidy.added.establishments ?? []).toEqual([])
     expect(tidy.progress).toEqual({ cb: 'done' })
+  })
+})
+
+describe('asksPurchasePrice: the parts box asks for the purchase price the base snapshot lacks', () => {
+  const withEtf = (entry: ReturnType<typeof unitsEntry> | null) => ({
+    ...base,
+    entries: base.entries.filter((e) => e.lineId !== 'etf').concat(entry ? [entry] : []),
+  })
+  const answered: Profile = { ...profile, lines: profile.lines.map((l) => (l.id === 'etf' ? { ...l, purchaseUnknown: true } : l)) }
+
+  test('no average price, or a cost of zero: asked', () => {
+    expect(asksPurchasePrice(profile, withEtf(unitsEntry('etf', 100, 250, null)), 'etf')).toBe(true)
+    expect(asksPurchasePrice(profile, withEtf(unitsEntry('etf', 100, 250, 0)), 'etf')).toBe(true)
+    expect(asksPurchasePrice(profile, withEtf(unitsEntry('etf', 0, 250, 200)), 'etf')).toBe(true)
+  })
+
+  test('a known price, « Je ne sais pas » answered, or nothing in the base: not asked', () => {
+    expect(asksPurchasePrice(profile, base, 'etf')).toBe(false)
+    expect(asksPurchasePrice(answered, withEtf(unitsEntry('etf', 100, 250, null)), 'etf')).toBe(false)
+    expect(asksPurchasePrice(profile, withEtf(null), 'etf')).toBe(false)
+  })
+
+  test('the rule of the purchase gap: outside « Placements en bourse », gold in units, not asked', () => {
+    const gold: Profile = { ...profile, lines: [...profile.lines, { id: 'bar', accountId: 'gold', name: 'Lingot', kind: 'units', currency: 'EUR' }] }
+    const snapshot = { ...base, entries: [...base.entries, unitsEntry('bar', 1, 2_000, null)] }
+    expect(profile.accounts.some((a) => a.id === 'gold' && a.type === 'gold')).toBe(true)
+    expect(asksPurchasePrice(gold, snapshot, 'bar')).toBe(false)
   })
 })

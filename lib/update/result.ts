@@ -277,7 +277,7 @@ function figuresAndWords(
   // Planche 21, « l’écran le dira »: an account whose value moved with nothing noted as paid in.
   const whole = wholeAccountChanges(next.profile, base, next.snapshot)
   const notes = next.profile.accounts
-    .filter((a) => wholeEuros(whole.get(a.id) ?? 0) !== 0 && !next.snapshot.contributions[a.id])
+    .filter((a) => wholeEuros(whole.get(a.id) ?? 0) !== 0 && !Object.hasOwn(next.snapshot.contributions, a.id))
     .map(
       (a) =>
         `Rien n’est noté comme versé sur « ${a.name} »\u00A0: tout ce qui a bougé y est compté dans les marchés et les intérêts.`,
