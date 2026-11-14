@@ -283,6 +283,13 @@ export function canFollowPrice(type: AccountTypeId): boolean {
   return ACCOUNT_TYPES[type].lineKinds.includes('units') && type !== 'gold'
 }
 
+// The accounts whose bank shows a total paid in since the opening, asked at each update
+// (docs/superpowers/specs/2026-11-14-total-verse-design.md): never a savings, current, home, loan or other account.
+export function takesPaidTotal(type: AccountTypeId): boolean {
+  const change = ACCOUNT_TYPES[type].change
+  return change === 'contributions' || change === 'cost-basis'
+}
+
 // The currencies a line can be in. Adding one is one line here, as long as the
 // ECB publishes it. `feminine` makes the sentences agree (« les livres sterling
 // sont converties »).

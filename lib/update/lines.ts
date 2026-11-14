@@ -1,11 +1,12 @@
 // The life of a line during the update: an account or a line opened since,
-// a line closed or sold, and what was paid into an account. The checks are the
+// a line closed or sold, and the total paid into an account. The checks are the
 // first launch's own (buildAccount, buildLine). Every function returns a new
 // object and never touches the one it was given. No React, no database here.
 
-import { ACCOUNT_TYPES } from '@/lib/catalog'
+import { ACCOUNT_TYPES, takesPaidTotal } from '@/lib/catalog'
 import type { Account, Arrival, Cents, IsoDate, Profile, Residence, Snapshot, SnapshotEntry, UpdateDraft } from '@/lib/model/types'
 import { buildAccount, buildLine, withoutFinanced, type AccountInput, type LineInput } from '@/lib/setup/first-launch'
+import { linesOf } from './draft'
 
 type NewId = () => string
 
@@ -107,22 +108,32 @@ export function reopenLine(draft: UpdateDraft, lineId: string): UpdateDraft {
   return { ...draft, closed: draft.closed.filter((id) => id !== lineId) }
 }
 
-// The accounts that ask « Combien a été versé dessus ? »: a life insurance, a PER or
-// employee savings, already followed (a value in the base snapshot).
-export function contributionAccounts(profile: Profile, base: Snapshot, establishmentId: string): Account[] {
-  const withEntry = new Set(base.entries.map((e) => e.lineId))
-  return profile.accounts.filter(
-    (a) =>
-      a.establishmentId === establishmentId &&
-      ACCOUNT_TYPES[a.type].change === 'contributions' &&
-      profile.lines.some((l) => l.accountId === a.id && withEntry.has(l.id)),
-  )
+// The accounts that ask « Total versé depuis l’ouverture » (docs/superpowers/specs/2026-11-14-total-verse-design.md),
+// with an open line in this update: a life insurance, a PER or employee savings, the base's or added now; a
+// cost-basis account (PEA, securities, gold, crypto) only with a line in amount, whose gain the total is needed
+// for, or with a total in the base, which the split follows as soon as both sides have one.
+export function paidTotalAccounts(profile: Profile, base: Snapshot, draft: UpdateDraft, establishmentId: string): Account[] {
+  const open = linesOf(profile, draft, establishmentId).filter((r) => !r.closed)
+  const accounts: Account[] = []
+  for (const { account } of open) {
+    if (accounts.some((a) => a.id === account.id) || !takesPaidTotal(account.type)) continue
+    const asked =
+      ACCOUNT_TYPES[account.type].change === 'contributions' ||
+      open.some((r) => r.account.id === account.id && r.line.kind === 'amount') ||
+      previousPaidTotal(base, account.id) !== null
+    if (asked) accounts.push(account)
+  }
+  return accounts
 }
 
-// Negative: money taken out. A typed 0 is a known answer, nothing paid in, and is stored;
-// null, the box left or made empty, is unknown and is not.
-export function setContribution(draft: UpdateDraft, accountId: string, cents: Cents | null): UpdateDraft {
-  const { [accountId]: _previous, ...others } = draft.contributions
+// The total of the snapshot the update starts from, recalled under the box; null when none was typed.
+export function previousPaidTotal(base: Snapshot, accountId: string): Cents | null {
+  return base.paidTotals?.[accountId] ?? null
+}
+
+// Stored as typed, 0 included; null, the box left or made empty, is unknown and is not.
+export function setPaidTotal(draft: UpdateDraft, accountId: string, cents: Cents | null): UpdateDraft {
+  const { [accountId]: _previous, ...others } = draft.paidTotals ?? {}
   void _previous
-  return { ...draft, contributions: cents === null ? others : { ...draft.contributions, [accountId]: cents } }
+  return { ...draft, paidTotals: cents === null ? others : { ...others, [accountId]: cents } }
 }

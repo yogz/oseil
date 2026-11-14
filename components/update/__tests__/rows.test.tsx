@@ -7,8 +7,8 @@ import { account, amountEntry, line, unitsEntry } from '@/lib/model/__tests__/fi
 import type { Account, Line, SnapshotEntry } from '@/lib/model/types'
 import type { EntryInput } from '@/lib/setup/first-launch'
 import { AmountRow } from '../AmountRow'
-import { ContributionField } from '../ContributionField'
 import { HomeRow } from '../HomeRow'
+import { PaidTotalField } from '../PaidTotalField'
 import { UnitsRow } from '../UnitsRow'
 import { plain } from '@/lib/__tests__/plain'
 
@@ -84,14 +84,6 @@ test('the price of a part left in its box always has two decimals', async () => 
   await user.type(box, '692,3')
   await user.tab()
   expect((box as HTMLInputElement).value).toBe('692,30')
-})
-
-test('a contribution since an abbreviated date does not end on two points', () => {
-  render(
-    <ContributionField account={account('livret-a', 'livret-a', { name: 'Livret A' })} since="2026-09-30" cents={null} onValue={vi.fn()} />,
-  )
-  expect(document.body.textContent).toContain('Depuis le 30 sept. Rien versé')
-  expect(document.body.textContent).not.toContain('..')
 })
 
 test('« Inchangé » says « Remettre … » once a different value is held: a button says what it does', () => {
@@ -300,49 +292,80 @@ test('a home shows its estimate date, confirms, and opens its box on « Changer 
   expect(onValue).toHaveBeenCalledWith({ kind: 'amount', amount: 30_000_000 })
 })
 
-test('a contribution not answered is an empty box; a typed 0 is an answer', async () => {
+const LABEL = 'Total versé depuis l’ouverture'
+const PREVIOUS = { total: 1_200_000, on: '2026-09-30' }
+const life = account('life', 'life-insurance')
+
+test('the total paid in opens empty, even with a previous total, which is recalled under it', () => {
+  render(<PaidTotalField account={life} previous={PREVIOUS} cents={null} onValue={vi.fn()} />)
+  expect((screen.getByLabelText(LABEL) as HTMLInputElement).value).toBe('')
+  sees(
+    'Au relevé du 30 sept. : 12 000 €. Recopie le chiffre de ta banque, souvent appelé « versements » ou « montant investi ». ' +
+      'Tu as retiré de l’argent ? Prends le total moins les retraits. Pas sous les yeux ? Laisse vide.',
+  )
+  expect(document.body.textContent).not.toContain('Soit')
+})
+
+test('a total typed: the sentence of what it means sits between the box and the hint (planche 10C)', () => {
+  render(<PaidTotalField account={life} previous={PREVIOUS} cents={1_260_000} onValue={vi.fn()} />)
+  const box = screen.getByLabelText(LABEL)
+  const deduced = sees('Soit 600 € versés depuis le 30 sept.')
+  const hint = sees(
+    'Au relevé du 30 sept. : 12 000 €. Recopie le chiffre de ta banque, souvent appelé « versements » ou « montant investi ». ' +
+      'Tu as retiré de l’argent ? Prends le total moins les retraits. Pas sous les yeux ? Laisse vide.',
+  )
+  expect(box.compareDocumentPosition(deduced) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(deduced.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(deduced.className).toContain('text-body')
+  expect(hint.className).toContain('text-caption')
+  expect(hint.className).toContain('text-ink-muted')
+  expect(box.getAttribute('aria-describedby')).toBe(`${deduced.id} ${hint.id}`)
+})
+
+test('without a previous total, nothing is deduced and the hint starts at the bank’s figure', () => {
+  render(<PaidTotalField account={life} previous={null} cents={1_260_000} onValue={vi.fn()} />)
+  sees(
+    'Recopie le chiffre de ta banque, souvent appelé « versements » ou « montant investi ». ' +
+      'Tu as retiré de l’argent ? Prends le total moins les retraits. Pas sous les yeux ? Laisse vide.',
+  )
+  expect(document.body.textContent).not.toContain('Soit')
+})
+
+test('employee savings: the employer is counted', () => {
+  render(<PaidTotalField account={account('es', 'employee-savings')} previous={null} cents={null} onValue={vi.fn()} />)
+  expect(document.body.textContent).toContain('Ton employeur compris.')
+})
+
+test('a total typed is committed; a 0 is an answer', async () => {
   const user = userEvent.setup()
   const onValue = vi.fn()
-  render(<ContributionField account={account('life', 'life-insurance')} since="2026-09-30" cents={null} onValue={onValue} />)
-  const box = screen.getByLabelText('Combien a été versé dessus ?') as HTMLInputElement
-  expect(box.value).toBe('')
+  render(<PaidTotalField account={life} previous={null} cents={null} onValue={onValue} />)
+  const box = screen.getByLabelText(LABEL)
   await user.type(box, '0')
   await user.tab()
   expect(onValue).toHaveBeenCalledWith(0)
 })
 
-test('a contribution box emptied is unknown again', async () => {
+test('a total box emptied is unknown again', async () => {
   const user = userEvent.setup()
   const onValue = vi.fn()
-  render(<ContributionField account={account('life', 'life-insurance')} since="2026-09-30" cents={150_000} onValue={onValue} />)
-  const box = screen.getByLabelText('Combien a été versé dessus ?') as HTMLInputElement
+  render(<PaidTotalField account={life} previous={null} cents={1_500_000} onValue={onValue} />)
+  const box = screen.getByLabelText(LABEL)
   await user.clear(box)
   await user.tab()
   expect(onValue).toHaveBeenCalledWith(null)
   expect(screen.queryByText('Ce montant n’est pas lisible.')).toBeNull()
 })
 
-test('a contribution takes a minus sign for money taken out', async () => {
+test('a negative or unreadable total is refused', async () => {
   const user = userEvent.setup()
   const onValue = vi.fn()
-  render(<ContributionField account={account('life', 'life-insurance')} since="2026-09-30" cents={null} onValue={onValue} />)
-  const box = screen.getByLabelText('Combien a été versé dessus ?') as HTMLInputElement
-  await user.clear(box)
-  await user.type(box, '-2000')
-  await user.tab()
-  expect(onValue).toHaveBeenCalledWith(-200_000)
-})
-
-test('the contribution hint changes for employee savings', () => {
-  render(<ContributionField account={account('es', 'employee-savings')} since="2026-09-30" cents={null} onValue={vi.fn()} />)
-  sees('Depuis le 30 sept., ton employeur compris. Rien versé ? Écris 0. Pas sûr ? Laisse vide : on comptera tout comme des intérêts, et l’écran le dira. Tu en as retiré ? Écris-le avec un moins devant.')
-})
-
-test('an unreadable contribution is refused', async () => {
-  const user = userEvent.setup()
-  const onValue = vi.fn()
-  render(<ContributionField account={account('life', 'life-insurance')} since="2026-09-30" cents={null} onValue={onValue} />)
+  render(<PaidTotalField account={life} previous={null} cents={null} onValue={onValue} />)
   const box = screen.getByRole('textbox')
+  await user.type(box, '-2000')
+  fireEvent.blur(box)
+  expect(screen.getByText('Ce montant ne peut pas être négatif.')).toBeTruthy()
+  await user.clear(box)
   await user.type(box, 'douze')
   fireEvent.blur(box)
   expect(screen.getByText('Ce montant n’est pas lisible.')).toBeTruthy()

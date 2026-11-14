@@ -117,7 +117,11 @@ export const COLUMNS = {
     col('number', 'N° du relevé', 'integer', 12),
     col('bank', 'Banque', 'text', 18, true),
     col('account', 'Compte', 'text', 22, true),
-    col('paid', 'Versé', 'euros', 14, true),
+    // « Versé » or « Total versé », or both: neither is required alone, a row needs one of them.
+    col('paid', 'Versé', 'euros', 14),
+    // Added 14 November 2026 (docs/superpowers/specs/2026-11-14-total-verse-design.md): everything paid in
+    // since the opening, withdrawals taken off, as the bank shows it.
+    col('paidTotal', 'Total versé', 'euros', 14),
     col('accountReference', 'Identifiant du compte (laisser vide)', 'text', 20, false, { quiet: true }),
   ],
   goals: [
@@ -193,6 +197,8 @@ export const SNAPSHOT_REFUSALS = {
   contributionSnapshot: `un versement dont le relevé n’est pas dans ${quoted(SHEETS.snapshots)}, ou une date qui a plusieurs relevés sans le ${snapshotsTitle('number')}`,
   contributionNotAllowed: 'un versement sur un compte qui n’en reçoit pas',
   duplicateContribution: 'deux versements pour un même compte dans un relevé',
+  negativePaidTotal: `un ${titleOf('contributions', 'paidTotal')} négatif`,
+  paidTotalNotAllowed: `un ${titleOf('contributions', 'paidTotal')} sur un compte qui n’en a pas`,
   currencyShown: `un ${snapshotsTitle('currencyShown')} rempli qui n’est pas la devise de la ligne dans ${quoted(SHEETS.accounts)}`,
 } as const
 

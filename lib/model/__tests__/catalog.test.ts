@@ -21,6 +21,7 @@ import {
   bankAt,
   canFollowPrice,
   searchBanks,
+  takesPaidTotal,
 } from '@/lib/catalog'
 import { parseEcbDaily } from '@/lib/market/ecb'
 import type { AccountTypeId, CategoryId, Establishment } from '../types'
@@ -62,6 +63,11 @@ describe('catalog', () => {
     for (const type of ['loan', 'gold', 'crypto'] as const) expect(ACCOUNT_TYPES[type].family).toBe('holdings')
     expect(ACCOUNT_TYPES.home.family).toBe('outside')
     expect(ACCOUNT_TYPES.loan.explanation).toBe('ce qu’il te reste à rembourser')
+  })
+
+  test('the total paid in is asked on contributions and cost-basis accounts only', () => {
+    const taking = Object.keys(ACCOUNT_TYPES).filter((type) => takesPaidTotal(type as keyof typeof ACCOUNT_TYPES))
+    expect(taking.sort()).toEqual(['crypto', 'employee-savings', 'gold', 'life-insurance', 'pea', 'pea-pme', 'per', 'securities'])
   })
 
   test('outside banks point at known account types', () => {

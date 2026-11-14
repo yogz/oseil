@@ -64,3 +64,11 @@ test('the setting is read back when true, and refused when it is anything else',
   expect(parseSettings(base)).not.toHaveProperty('withoutHome')
   expect(parseSettings({ ...base, withoutHome: 'oui' })).toBeNull()
 })
+
+test('the totals paid in of the accounts that left go with them, the others stay', () => {
+  const withTotals = { ...snapshot, contributions: { h: 100, c: 200 }, paidTotals: { h: 300, c: 400 } }
+  const out = snapshotWithoutHome(profile, withTotals)
+  expect(out.contributions).toEqual({ c: 200 })
+  expect(out.paidTotals).toEqual({ c: 400 })
+  expect(snapshotWithoutHome(profile, snapshot)).not.toHaveProperty('paidTotals')
+})

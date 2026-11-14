@@ -159,20 +159,20 @@ test('a failed write: « Fermer » takes two taps', async () => {
   expect(mocks.push).toHaveBeenCalledWith('/')
 })
 
-test('units and what was paid in: after a failed write their boxes show the draft’s value', async () => {
+test('units and the total paid in: after a failed write their boxes show the draft’s value', async () => {
   open(['home', 'boursobank'])
   mocks.down.current = true
   await typeIn(within(region('Unité de compte')).getByLabelText('Combien vaut une part aujourd’hui ?'), '520')
   await screen.findByRole('alert')
   expect(within(region('Unité de compte')).getByLabelText('Combien vaut une part aujourd’hui ?')).toHaveValue('520,00')
   expect(within(region('Unité de compte')).getByText((t) => norm(t) === '10 parts = 5 200 €')).toBeInTheDocument()
-  await typeIn(screen.getByLabelText('Combien a été versé dessus ?'), '-2000')
-  expect(screen.getByLabelText('Combien a été versé dessus ?')).toHaveValue('-2\u202f000')
+  await typeIn(screen.getByLabelText('Total versé depuis l’ouverture'), '18400')
+  expect(screen.getByLabelText('Total versé depuis l’ouverture')).toHaveValue('18\u202f400')
 
   mocks.down.current = false
   await typeIn(within(region('Fonds euros')).getByRole('textbox'), '31000')
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
-  expect(lastWritten().contributions).toEqual({ life: -200_000 })
+  expect(lastWritten().paidTotals).toEqual({ life: 1_840_000 })
   expect(lastWritten().values).toEqual(
     expect.arrayContaining([expect.objectContaining({ lineId: 'life-uc', unitPrice: 520 })]),
   )

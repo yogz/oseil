@@ -94,6 +94,9 @@ export type Snapshot = {
   fx: Record<CurrencyCode, number>
   entries: SnapshotEntry[]
   contributions: Record<string, Cents> // per account, in euros
+  // Per account id, the total paid in since the opening as typed from the bank, in euros; absent: none.
+  // Never a computed difference: correcting a total corrects both splits around it.
+  paidTotals?: Record<string, Cents>
   arrivals: Record<string, Arrival> // per new line
 }
 
@@ -107,7 +110,11 @@ export type UpdateDraft = {
   values: SnapshotEntry[] // typed values, one per line (base or added); seenOn = the day typed
   confirmed: string[] // line ids confirmed unchanged
   progress: Record<string, StepStatus> // per establishment id
-  contributions: Record<string, Cents> // per account id, paid in since the base snapshot; negative = taken out
+  // Per account id, paid in since the base snapshot; negative = taken out. Written by drafts from before the
+  // totals paid in, and still counted; a new update no longer asks it.
+  contributions: Record<string, Cents>
+  // Per account id, the total paid in since the opening, as typed; absent in a draft written before the totals.
+  paidTotals?: Record<string, Cents>
   // `establishments`: a bank or « Chez toi » added during the update; absent in a draft that added none.
   added: { accounts: Account[]; lines: Line[]; establishments?: Establishment[] }
   arrivals: Record<string, Arrival> // per added account id, or per line added to an existing account

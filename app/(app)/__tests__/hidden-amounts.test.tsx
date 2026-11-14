@@ -11,7 +11,6 @@ import { exampleProfile, exampleSnapshot } from '@/lib/model/__tests__/fixtures'
 import type { GoalAllocation, Profile, Settings, Snapshot } from '@/lib/model/types'
 import type { UpdateState } from '@/lib/update/use-update'
 import { confirmLine, markStep, setTakenOn, setValue, startDraft } from '@/lib/update/draft'
-import { setContribution } from '@/lib/update/lines'
 import HomePage from '../page'
 import CategoryPage from '../categorie/[id]/page'
 import EvolutionPage from '../evolution/page'
@@ -87,7 +86,8 @@ function result(): UpdateState {
   draft = setValue(draft, exampleSnapshot, 'livret-a-line', { kind: 'amount', amount: 1_300_000 }, today, {})
   draft = setValue(draft, exampleSnapshot, 'etf', { kind: 'units', units: 100, unitPrice: 260, averagePrice: 200 }, today, {})
   draft = setValue(draft, exampleSnapshot, 'mortgage-line', { kind: 'amount', amount: 17_890_000 }, today, {})
-  draft = setContribution(draft, 'life', 50_000)
+  // A sum paid in, as a draft from before the totals paid in holds it: it still counts.
+  draft = { ...draft, contributions: { life: 50_000 } }
   draft = confirmLine(draft, 'house-line')
   draft = ['home', 'boursobank', 'linxea'].reduce((d, step) => markStep(d, step, 'done'), draft)
   return {

@@ -1,4 +1,4 @@
-import { ACCOUNT_TYPES } from '@/lib/catalog'
+import { ACCOUNT_TYPES, takesPaidTotal } from '@/lib/catalog'
 import { costToEuroCents, fewer } from '@/lib/model/purchase-cost'
 import { entryMinorUnits, entryValue, toEuroCents, UnknownLineError } from '@/lib/model/situation'
 import type { Cents, Line, Profile, Snapshot, SnapshotEntry } from '@/lib/model/types'
@@ -17,10 +17,17 @@ export function splitChange(profile: Profile, before: Snapshot, after: Snapshot)
   return walk(profile, before, after).split
 }
 
-// The change of each contributions account handled as a whole (followed in both
-// snapshots), before what was paid in is taken off: what is not paid in is markets.
+// The change of each account handled as a whole (a contributions account followed in both
+// snapshots, or an account with a total paid in on both sides), before what was paid in is
+// taken off: what is not paid in is markets.
 export function wholeAccountChanges(profile: Profile, before: Snapshot, after: Snapshot): Map<string, Cents> {
   return walk(profile, before, after).wholeAccounts
+}
+
+// Both snapshots hold the account's total paid in since the opening: their difference is
+// what was paid in between them (docs/superpowers/specs/2026-11-14-total-verse-design.md).
+export function hasBothTotals(before: Snapshot, after: Snapshot, accountId: string): boolean {
+  return before.paidTotals?.[accountId] !== undefined && after.paidTotals?.[accountId] !== undefined
 }
 
 function walk(
@@ -66,6 +73,23 @@ function walk(
   for (const id of entriesB.keys()) presentB.add(lineOf(id).accountId)
   for (const id of entriesA.keys()) presentA.add(lineOf(id).accountId)
   const wholeAccountDelta = new Map<string, Cents>()
+  const takesTotal = (accountId: string) => {
+    const account = accounts.get(accountId)
+    return account !== undefined && takesPaidTotal(account.type) // an unknown account is refused in the loop below
+  }
+  // Held at both dates, as a contributions account: a closed account keeps the usual withdrawal rule.
+  const byTotals = (accountId: string) =>
+    takesTotal(accountId) && presentB.has(accountId) && presentA.has(accountId) && hasBothTotals(before, after, accountId)
+
+  // An account opened in the period (absent before, every line of it opened) with a total after:
+  // that total is effort, the rest of its value markets.
+  const openedWithTotal = new Set<string>()
+  for (const accountId of presentA) {
+    if (presentB.has(accountId) || !takesTotal(accountId) || after.paidTotals?.[accountId] === undefined) continue
+    const lineIds = after.entries.filter((e) => lineOf(e.lineId).accountId === accountId).map((e) => e.lineId)
+    if (lineIds.every((lineId) => after.arrivals[lineId] === 'opened')) openedWithTotal.add(accountId)
+  }
+  const openedValue = new Map<string, Cents>()
 
   let effort = 0
   let markets = 0
@@ -84,9 +108,12 @@ function walk(
     const delta = nA - nB
     total += delta
 
-    const wholeAccount = change === 'contributions' && presentB.has(account.id) && presentA.has(account.id)
+    const wholeAccount =
+      (change === 'contributions' && presentB.has(account.id) && presentA.has(account.id)) || byTotals(account.id)
     const alreadyHad = !entryB && after.arrivals[id] !== 'opened'
-    if (wholeAccount && !alreadyHad) {
+    if (openedWithTotal.has(account.id)) {
+      openedValue.set(account.id, (openedValue.get(account.id) ?? 0) + nA)
+    } else if (wholeAccount && !alreadyHad) {
       wholeAccountDelta.set(account.id, (wholeAccountDelta.get(account.id) ?? 0) + delta)
     } else if (entryB && !entryA) {
       effort -= nB
@@ -124,9 +151,16 @@ function walk(
   }
 
   for (const [accountId, delta] of wholeAccountDelta) {
-    const paidIn = after.contributions[accountId] ?? 0
+    const paidIn = byTotals(accountId)
+      ? after.paidTotals![accountId] - before.paidTotals![accountId]
+      : (after.contributions[accountId] ?? 0)
     effort += paidIn
     markets += delta - paidIn
+  }
+  for (const [accountId, value] of openedValue) {
+    const paidIn = after.paidTotals![accountId]
+    effort += paidIn
+    markets += value - paidIn
   }
 
   return { split: { effort, markets, property, existingAdded, total }, wholeAccounts: wholeAccountDelta }

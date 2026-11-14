@@ -5,7 +5,7 @@ import { NO_MARKET } from '@/lib/market/live'
 import type { Rates } from '@/lib/market/types'
 import type { Profile, Snapshot, UpdateDraft } from '@/lib/model/types'
 import { confirmLine, markStep, restateValue, setTakenOn, setValue, startDraft } from '../draft'
-import { putAddedLine, setContribution } from '../lines'
+import { putAddedLine, setPaidTotal } from '../lines'
 import { resultView, type ResultView } from '../result'
 
 const TODAY = '2026-11-07'
@@ -31,6 +31,12 @@ function resultOf(draft: UpdateDraft, from: Snapshot = base, p: Profile = profil
   if (view.kind !== 'result') throw new Error(`expected a result, got ${view.kind}`)
   return plain(view)
 }
+
+// What a draft written before the totals holds: a sum typed as paid in since the base. It still counts.
+const setContribution = (draft: UpdateDraft, accountId: string, cents: number): UpdateDraft => ({
+  ...draft,
+  contributions: { ...draft.contributions, [accountId]: cents },
+})
 
 const allDone = (draft: UpdateDraft) => ['home', 'boursobank', 'linxea'].reduce((d, step) => markStep(d, step, 'done'), draft)
 
@@ -59,6 +65,8 @@ const EXISTING = {
   label: 'Ce que tu avais déjà',
   detail: 'ajouté cette fois, il ne compte ni dans ton effort ni dans les marchés',
 } as const
+const firstTotal = (name: string) =>
+  `C’est ton premier total versé sur « ${name} » : le partage sera juste à partir de la prochaine mise à jour.`
 const nothingPaidIn = (name: string) =>
   `Rien n’est noté comme versé sur « ${name} » : tout ce qui a bougé y est compté dans les marchés et les intérêts.`
 
@@ -228,6 +236,22 @@ describe('resultView: the split', () => {
       { ...EFFORT, amount: '5 000 €', loss: false },
       { ...MARKETS, amount: '0 €', loss: false },
     ])
+  })
+
+  test('totals paid in on both sides: the effort is their difference, and no note', () => {
+    const withTotal: Snapshot = { ...base, paidTotals: { life: 2_000_000 } }
+    const fundUp = setValue(fresh(), base, 'euro-fund', { kind: 'amount', amount: 3_090_000 }, TODAY, {})
+    const view = resultOf(setPaidTotal(fundUp, 'life', 2_050_000), withTotal)
+    expect(view.split.rows).toEqual([
+      { ...EFFORT, amount: '500 €', loss: false },
+      { ...MARKETS, amount: '400 €', loss: false },
+    ])
+    expect(view.notes).toEqual([])
+  })
+
+  test('a total typed now with none before: still guessed, and the note says it is the first', () => {
+    const fundUp = setValue(fresh(), base, 'euro-fund', { kind: 'amount', amount: 3_090_000 }, TODAY, {})
+    expect(resultOf(setPaidTotal(fundUp, 'life', 2_050_000)).notes).toEqual([firstTotal('Assurance-vie')])
   })
 
   test('a typed 0 paid in is a known answer: no note', () => {

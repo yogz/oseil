@@ -4,7 +4,7 @@
 // the order that keeps a cut between two of them harmless. No React, no database here.
 
 import { addDays } from '@/lib/dates'
-import type { IsoDate, Line, Profile, Snapshot, SnapshotEntry } from '@/lib/model/types'
+import type { Cents, IsoDate, Line, Profile, Snapshot, SnapshotEntry } from '@/lib/model/types'
 import { withoutFinanced } from '@/lib/setup/first-launch'
 import type { Figures, Planned, StoredSnapshot, Write } from './types'
 
@@ -133,6 +133,29 @@ export function correctFiguresAt(
   return { writes, others: Math.max(writes.length - 1, 0), latestToo: corrected.has(latest) }
 }
 
+// The total paid in on an account at one relevé, as typed: that relevé only, never carried to its
+// neighbours (docs/superpowers/specs/2026-11-14-total-verse-design.md: each relevé has its own). The
+// two periods around it follow by themselves, since only totals are stored, never their difference.
+// `null` removes it (a total is optional); the last one gone, the field goes too, as before any total.
+// Nothing to write when nothing changes.
+export function setPaidTotalAt(
+  snapshots: StoredSnapshot[],
+  snapshotId: string,
+  accountId: string,
+  cents: Cents | null,
+): Write[] {
+  const x = snapshots.find((s) => s.id === snapshotId)
+  if (!x) throw new Error(`No snapshot ${snapshotId}`)
+  if ((x.value.paidTotals?.[accountId] ?? null) === cents) return []
+  const { paidTotals: _old, ...rest } = x.value
+  void _old
+  const { [accountId]: _previous, ...others } = x.value.paidTotals ?? {}
+  void _previous
+  const paidTotals = cents === null ? others : { ...others, [accountId]: cents }
+  const value: Snapshot = Object.keys(paidTotals).length === 0 ? rest : { ...rest, paidTotals }
+  return [{ kind: 'snapshot', id: x.id, value }]
+}
+
 // The days a line can be closed on: from the day after the first snapshot that holds
 // it, to today. Null when there is none: the line never had a value, only a deletion fits.
 export function closingBounds(
@@ -155,18 +178,24 @@ export function closingRewrites(snapshots: StoredSnapshot[], lineId: string, on:
   return takenSince(snapshots, lineId, on).length
 }
 
-// Drops the line's entry and its arrival, and its account's contributions once no
-// other line of that account is left in the snapshot. The rates stay.
+// Drops the line's entry and its arrival, and its account's contributions and total paid in
+// once no other line of that account is left in the snapshot. The rates stay.
 function withoutLine(profile: Profile, snapshot: Snapshot, line: Line): Snapshot {
   const accountOf = new Map(profile.lines.map((l) => [l.id, l.accountId]))
   const entries = snapshot.entries.filter((e) => e.lineId !== line.id)
   const { [line.id]: _arrival, ...arrivals } = snapshot.arrivals
   void _arrival
   const accountLeft = entries.some((e) => accountOf.get(e.lineId) === line.accountId)
-  const contributions = accountLeft
-    ? snapshot.contributions
-    : Object.fromEntries(Object.entries(snapshot.contributions).filter(([accountId]) => accountId !== line.accountId))
-  return { ...snapshot, entries, contributions, arrivals }
+  const without = (record: Record<string, Cents>) =>
+    accountLeft ? record : Object.fromEntries(Object.entries(record).filter(([accountId]) => accountId !== line.accountId))
+  const contributions = without(snapshot.contributions)
+  return {
+    ...snapshot,
+    entries,
+    contributions,
+    ...(snapshot.paidTotals && { paidTotals: without(snapshot.paidTotals) }),
+    arrivals,
+  }
 }
 
 // The snapshots taken on `on` or after that hold the line, oldest first, the latest

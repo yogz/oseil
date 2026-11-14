@@ -183,7 +183,7 @@ describe('names', () => {
       'Ouverte avec de l’argent neuf', 'Taux de change', 'Identifiant (laisser vide)',
     ])
     expect(COLUMNS.contributions.map((c) => c.title)).toEqual([
-      'Date du relevé', 'N° du relevé', 'Banque', 'Compte', 'Versé', 'Identifiant du compte (laisser vide)',
+      'Date du relevé', 'N° du relevé', 'Banque', 'Compte', 'Versé', 'Total versé', 'Identifiant du compte (laisser vide)',
     ])
     expect(COLUMNS.goals.map((c) => c.title)).toEqual([
       'À partir du', 'Argent disponible (%)', 'Épargne sécurisée (%)', 'Placements en bourse (%)', 'Or et crypto (%)',

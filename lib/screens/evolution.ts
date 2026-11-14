@@ -7,7 +7,7 @@ import { GOAL_CATEGORIES } from '@/lib/catalog'
 import { formatDayMonth, formatEurosShown, formatMonthYear, formatPercent1 } from '@/lib/format'
 import type { Model } from '@/lib/app/use-model'
 import { convertible } from '@/lib/market/live'
-import { splitChange, wholeAccountChanges, type ChangeSplit } from '@/lib/model/change'
+import { hasBothTotals, splitChange, wholeAccountChanges, type ChangeSplit } from '@/lib/model/change'
 import { currentShares, goalInEffect, goalSharesOf, goalTargets, heldSquares } from '@/lib/model/goals'
 import {
   computeSituation,
@@ -355,11 +355,12 @@ function splitOf(profile: Profile, items: Item[]) {
     total.existingAdded += part.existingAdded
     total.total += part.total
 
-    // A contributions account held at both dates whose payments are unknown, and that moved:
-    // its whole change went to « marchés ».
+    // An account handled as a whole, that moved, with nothing known of what was paid in (no sum, no
+    // total on both sides): its whole change went to « marchés ». The result screen's very rule.
     for (const [id, delta] of wholeAccountChanges(profile, before, after)) {
       const account = accountOf.get(id)
-      if (!account || Object.hasOwn(after.contributions, id) || Math.round(delta / 100) === 0) continue
+      const known = Object.hasOwn(after.contributions, id) || hasBothTotals(before, after, id)
+      if (!account || known || Math.round(delta / 100) === 0) continue
       const sentence = unknownPaymentsSentence(account.name)
       if (!unknown.includes(sentence)) unknown.push(sentence)
     }

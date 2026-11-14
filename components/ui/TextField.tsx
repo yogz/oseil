@@ -10,6 +10,8 @@ type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'name' | 'id' 
   label: string
   type: 'email' | 'password' | 'text' | 'date'
   hint?: string
+  /** A sentence of the body size between the box and its hint: what the site reads from what was typed. */
+  note?: string | null
   error?: string
   /** A password that can be shown, and hidden again (planche 1 of the account screens). */
   revealable?: boolean
@@ -21,14 +23,16 @@ function Frame({ relative, children }: { relative: boolean; children: React.Reac
   return relative ? <div className="relative">{children}</div> : <>{children}</>
 }
 
-export function TextField({ label, type, hint, error, revealable = false, ...input }: TextFieldProps) {
+export function TextField({ label, type, hint, note, error, revealable = false, ...input }: TextFieldProps) {
   const id = useId()
   const hintId = `${id}-hint`
+  const noteId = `${id}-note`
   const errorId = `${id}-error`
   const [shown, setShown] = useState(false)
   const canShow = revealable && type === 'password'
   // An error takes the place of the hint: the rule is never written twice (planche 2).
-  const describedBy = (error ? errorId : hint ? hintId : null) ?? undefined
+  const described = error ? errorId : [note ? noteId : null, hint ? hintId : null].filter((x) => x !== null).join(' ')
+  const describedBy = described === '' ? undefined : described
 
   return (
     <div className="flex flex-col gap-2">
@@ -70,6 +74,13 @@ export function TextField({ label, type, hint, error, revealable = false, ...inp
           </button>
         ) : null}
       </Frame>
+      {/* What was typed, read: it changes with the box, so it is announced, from a region there from the
+          start (one that appears is not always read out); empty, it takes no room. An error replaces it. */}
+      {note !== undefined ? (
+        <p id={noteId} aria-live="polite" className="text-body leading-normal text-ink empty:hidden">
+          {note && !error ? note : null}
+        </p>
+      ) : null}
       {/* Right under the field, in place of the hint. Not in the loss colour:
           that one is kept for money actually lost. */}
       {error ? (

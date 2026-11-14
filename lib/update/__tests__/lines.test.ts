@@ -5,11 +5,12 @@ import { confirmLine, linesOf, setValue, startDraft } from '../draft'
 import {
   addAccount,
   closeLine,
-  contributionAccounts,
+  paidTotalAccounts,
+  previousPaidTotal,
   putAddedLine,
   removeAddedLine,
   reopenLine,
-  setContribution,
+  setPaidTotal,
 } from '../lines'
 
 const TODAY = '2026-11-07'
@@ -296,29 +297,77 @@ describe('closeLine, reopenLine and removeAddedLine', () => {
   })
 })
 
-describe('contributions', () => {
-  test('contributionAccounts: the accounts paid into, with a value in the base snapshot', () => {
-    expect(contributionAccounts(profile, base, 'linxea')).toEqual([profile.accounts[3]])
-    expect(contributionAccounts(profile, base, 'boursobank')).toEqual([])
+describe('the total paid in', () => {
+  const ids = (accounts: { id: string }[]) => accounts.map((a) => a.id)
+
+  test('a life insurance is asked; a savings or a current account never', () => {
+    expect(ids(paidTotalAccounts(profile, base, fresh(), 'linxea'))).toEqual(['life'])
+    expect(ids(paidTotalAccounts(profile, base, fresh(), 'boursobank'))).toEqual([])
   })
 
-  test('an account paid into but without a base value is not offered', () => {
-    const noLife = { ...base, entries: base.entries.filter((e) => e.lineId !== 'euro-fund' && e.lineId !== 'life-uc') }
-    expect(contributionAccounts(profile, noLife, 'linxea')).toEqual([])
+  test('a PEA followed only in parts, with no total before, is not asked', () => {
+    expect(ids(paidTotalAccounts(profile, base, fresh(), 'boursobank'))).not.toContain('pea')
   })
 
-  test('money taken out is kept as a negative amount', () => {
-    expect(setContribution(fresh(), 'life', -200_000).contributions).toEqual({ life: -200_000 })
+  test('a PEA with a line in amount in this update is asked', () => {
+    const added = putAddedLine(
+      profile,
+      fresh(),
+      { accountId: 'pea', name: 'Robot', entry: { kind: 'amount', amount: 500_000 }, arrival: 'opened' },
+      TODAY,
+      id,
+    )
+    expect(ids(paidTotalAccounts(profile, base, added.draft, 'boursobank'))).toEqual(['pea'])
   })
 
-  test('a typed 0 is kept: nothing was paid in is a known answer', () => {
-    expect(setContribution(fresh(), 'life', 0).contributions).toEqual({ life: 0 })
+  test('a PEA with a total in the base stays asked, even in parts only', () => {
+    const withTotal = { ...base, paidTotals: { pea: 2_000_000 } }
+    expect(ids(paidTotalAccounts(profile, withTotal, fresh(), 'boursobank'))).toEqual(['pea'])
   })
 
-  test('null, a box emptied, makes the contribution unknown again', () => {
-    const paid = setContribution(fresh(), 'life', 150_000)
-    expect(paid.contributions).toEqual({ life: 150_000 })
-    expect(setContribution(paid, 'life', null).contributions).toEqual({})
+  test('gold in amount, in the home: asked like any cost-basis account in amount', () => {
+    expect(ids(paidTotalAccounts(profile, base, fresh(), 'home'))).toEqual(['gold'])
+  })
+
+  test('an account added in the update is asked', () => {
+    const account = addAccount(
+      profile,
+      fresh(),
+      { establishmentId: 'linxea', type: 'per', name: 'PER', arrival: 'opened' },
+      id,
+    )
+    const line = putAddedLine(
+      profile,
+      account.draft,
+      { accountId: account.accountId, name: 'Fonds', entry: { kind: 'amount', amount: 100_000 } },
+      TODAY,
+      id,
+    )
+    expect(ids(paidTotalAccounts(profile, base, line.draft, 'linxea'))).toEqual(['life', account.accountId])
+  })
+
+  test('an account whose every line is closed now is not asked', () => {
+    const closed = closeLine(closeLine(fresh(), 'euro-fund'), 'life-uc')
+    expect(ids(paidTotalAccounts(profile, base, closed, 'linxea'))).toEqual([])
+  })
+
+  test('setPaidTotal keeps what is typed; null, a box emptied, makes it unknown again', () => {
+    const typed = setPaidTotal(fresh(), 'life', 1_500_000)
+    expect(typed.paidTotals).toEqual({ life: 1_500_000 })
+    expect(setPaidTotal(typed, 'life', 0).paidTotals).toEqual({ life: 0 })
+    expect(setPaidTotal(typed, 'life', null).paidTotals).toEqual({})
+  })
+
+  test('setPaidTotal on a draft written before the totals', () => {
+    const { paidTotals: _none, ...old } = fresh()
+    void _none
+    expect(setPaidTotal(old, 'life', 100).paidTotals).toEqual({ life: 100 })
+    expect(setPaidTotal(old, 'life', null).paidTotals).toEqual({})
+  })
+
+  test('previousPaidTotal: the base total, or null', () => {
+    expect(previousPaidTotal(base, 'life')).toBeNull()
+    expect(previousPaidTotal({ ...base, paidTotals: { life: 0 } }, 'life')).toBe(0)
   })
 })
 
@@ -339,8 +388,8 @@ describe('no input is changed', () => {
     ['closeLine', (d) => closeLine(d, 'gold-line')],
     ['closeLine (added)', (d) => closeLine(d, lep.lineId)],
     ['reopenLine', (d) => reopenLine(closeLine(d, 'gold-line'), 'gold-line')],
-    ['contributionAccounts', () => contributionAccounts(profile, base, 'linxea')],
-    ['setContribution', (d) => setContribution(d, 'life', 100)],
+    ['paidTotalAccounts', (d) => paidTotalAccounts(profile, base, d, 'linxea')],
+    ['setPaidTotal', (d) => setPaidTotal(d, 'life', 100)],
   ]
 
   test.each(calls)('%s leaves the draft, the profile and the snapshot as they were', (_name, call) => {

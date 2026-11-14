@@ -3,9 +3,13 @@ import type { Model } from '@/lib/app/use-model'
 import { amountEntry, exampleProfile, unitsEntry } from '@/lib/model/__tests__/fixtures'
 import type { Profile, Snapshot, SnapshotEntry, UpdateDraft } from '@/lib/model/types'
 import { LOCKED_UNREADABLE, LOCKED_UPDATE } from '@/lib/screens/line-words'
-import { correctionPreview, statementLineView, statementView } from '@/lib/screens/statement'
+import { HIDDEN_AMOUNT, setAmountsHidden } from '@/lib/format'
+import { splitChange } from '@/lib/model/change'
+import { correctionPreview, planPaidTotal, statementLineView, statementTotalView, statementView } from '@/lib/screens/statement'
 import {
   ERASE_REFUSED,
+  LOCKED_UPDATE_TOTAL,
+  TOTAL_TO_COPY,
   STATEMENT_HISTORY,
   STATEMENT_LEAD,
   TODAY_CORRECTED,
@@ -275,5 +279,113 @@ describe('what the screen says of the figures typed', () => {
     })
     expect(preview).toEqual({ refused: 'erase', message: ERASE_REFUSED })
     expect(ERASE_REFUSED).toBe('Un chiffre de ce jour-là ne peut pas être effacé.')
+  })
+})
+
+// docs/superpowers/specs/2026-11-14-total-verse-design.md, planche 10D.
+describe('the total paid in, on a relevé', () => {
+  const withTotals = (s: Snapshot, paidTotals: Record<string, number>): Snapshot => ({ ...s, paidTotals })
+  const draft = loaded({ basedOn: 's2' } as unknown as UpdateDraft, 'd')
+
+  test('a row per account that takes one: its figure, or « à recopier »; none for a livret', () => {
+    const model = modelOf([withTotals(old, { life: 1_500_000 }), middle, latest])
+    const bourso = ready(statementView(model, 's0', TODAY)).banks.find((b) => b.name === 'BoursoBank')!
+    const linxea = ready(statementView(model, 's0', TODAY)).banks.find((b) => b.name === 'Linxea')!
+    // The PEA is followed in parts only, without a total: its average price does the work.
+    expect(bourso.totals).toEqual([])
+    expect(linxea.totals).toHaveLength(1)
+    expect(plain(linxea.totals[0].label)).toBe('Total versé sur Assurance-vie')
+    expect(plain(linxea.totals[0].figure)).toBe('15 000 €')
+    expect(linxea.totals[0].href).toBe('/releve/s0/total/life')
+    expect(ready(statementView(model, 's1', TODAY)).banks.find((b) => b.name === 'Linxea')!.totals[0].figure).toBeNull()
+    expect(TOTAL_TO_COPY).toBe('à recopier')
+  })
+
+  test('a cost-basis account: with a line in amount, or a total already there', () => {
+    // Gold is followed in amount.
+    const home = ready(statementView(modelOf([old, middle, latest]), 's2', TODAY)).banks.find((b) => b.name === 'Chez toi')!
+    expect(home.totals.map((t) => t.accountId)).toEqual(['gold'])
+    const pea = ready(statementView(modelOf([withTotals(old, { pea: 1_000_000 }), middle, latest]), 's0', TODAY))
+    expect(pea.banks.find((b) => b.name === 'BoursoBank')!.totals.map((t) => t.accountId)).toEqual(['pea'])
+  })
+
+  // As the update keeps the box when its base had a total (paidTotalAccounts).
+  test('a cost-basis account in parts only, with a total at the relevé before: a row « à recopier », and its screen', () => {
+    const model = modelOf([withTotals(old, { pea: 1_000_000 }), middle, latest])
+    const bourso = ready(statementView(model, 's1', TODAY)).banks.find((b) => b.name === 'BoursoBank')!
+    expect(bourso.totals).toEqual([
+      { accountId: 'pea', label: 'Total versé sur PEA', figure: null, href: '/releve/s1/total/pea' },
+    ])
+    const view = ready(statementTotalView(model, 's1', 'pea', TODAY))
+    expect(view.previous).toEqual({ total: 1_000_000, on: '2025-11-16' })
+    expect(view.current).toBeNull()
+    // Two relevés on, the chain is broken: no row.
+    expect(ready(statementView(model, 's2', TODAY)).banks.find((b) => b.name === 'BoursoBank')!.totals).toEqual([])
+  })
+
+  test('the row’s figure is hidden with the amounts', () => {
+    setAmountsHidden(true)
+    try {
+      const view = ready(statementView(modelOf([withTotals(old, { life: 1_500_000 }), middle, latest]), 's0', TODAY))
+      expect(view.banks.find((b) => b.name === 'Linxea')!.totals[0].figure).toBe(HIDDEN_AMOUNT)
+    } finally {
+      setAmountsHidden(false)
+    }
+  })
+
+  test('its screen: titled with the account, back to the relevé, the total of the relevé before recalled', () => {
+    const model = modelOf([old, withTotals(middle, { life: 1_500_000 }), withTotals(latest, { gold: 100_000 })])
+    const view = ready(statementTotalView(model, 's1', 'life', TODAY))
+    expect(plain(view.title)).toBe('Total versé sur Assurance-vie')
+    expect(view.back).toEqual({ href: '/releve/s1', label: ready(statementView(model, 's1', TODAY)).title })
+    expect(view.current).toBe(1_500_000)
+    // The relevé before has no total: nothing to recall.
+    expect(view.previous).toBeNull()
+    expect(view.account.id).toBe('life')
+    expect(view.locked).toBeNull()
+    const after = ready(statementTotalView(modelOf([withTotals(old, { life: 1_000_000 }), middle, latest]), 's1', 'life', TODAY))
+    expect(after.previous).toEqual({ total: 1_000_000, on: '2025-11-16' })
+    expect(after.current).toBeNull()
+  })
+
+  test('has nothing for an account without a row on that relevé', () => {
+    const model = modelOf([old, middle, latest])
+    expect(statementTotalView(model, 's0', 'livret-a', TODAY).kind).toBe('none')
+    expect(statementTotalView(model, 's0', 'pea', TODAY).kind).toBe('none')
+    expect(statementTotalView(model, 'nope', 'life', TODAY).kind).toBe('none')
+  })
+
+  test('the latest relevé is refused while an update runs, with its own sentence; a past one is not', () => {
+    const running = modelOf([old, middle, latest], { draft })
+    expect(ready(statementTotalView(running, 's2', 'gold', TODAY)).locked).toEqual({ kind: 'update-running', message: LOCKED_UPDATE_TOTAL })
+    expect(LOCKED_UPDATE_TOTAL).toBe('Une mise à jour est en cours. Termine-la ou abandonne-la avant de corriger un total versé.')
+    expect(ready(statementTotalView(running, 's0', 'life', TODAY)).locked).toBeNull()
+    const unreadableDraft = modelOf([old, middle, latest], { unreadable: { profile: 0, snapshots: 0, goals: 0, settings: 0, draft: 1 } })
+    expect(ready(statementTotalView(unreadableDraft, 's0', 'life', TODAY)).locked).toEqual({ kind: 'unreadable', message: LOCKED_UNREADABLE })
+  })
+
+  test('the save, planned again on what is read then: that relevé only, refused when it moved meanwhile', () => {
+    const snapshots = [old, middle, latest].map((value, i) => ({ id: `s${i}`, value }))
+    const state = { profile: { id: 'p', value: profile }, snapshots }
+    const planned = planPaidTotal(state, 's0', 'life', null, 1_000_000)
+    if ('refused' in planned) throw new Error('refused')
+    expect(planned.writes.map((w) => (w.kind === 'snapshot' ? w.id : 'profile'))).toEqual(['s0'])
+    // Someone typed another total since the screen opened.
+    expect(planPaidTotal(state, 's0', 'life', 900_000, 1_000_000)).toEqual({ refused: 'not-held' })
+    expect(planPaidTotal({ ...state, updateRunning: true }, 's2', 'gold', null, 1)).toEqual({ refused: 'update-running' })
+    expect(planPaidTotal(state, 'nope', 'life', null, 1)).toEqual({ refused: 'not-held' })
+  })
+
+  // Review Focus 2: correcting a past total changes the two neighbouring periods and nothing else.
+  test('once saved, the period after it is split with it', () => {
+    const after = withTotals(middle, { life: 1_500_000 })
+    const before = splitChange(profile, old, after)
+    const planned = planPaidTotal({ profile: { id: 'p', value: profile }, snapshots: [old, after, latest].map((value, i) => ({ id: `s${i}`, value })) }, 's0', 'life', null, 1_000_000)
+    if ('refused' in planned) throw new Error('refused')
+    const corrected = (planned.writes[0] as { value: Snapshot }).value
+    const split = splitChange(profile, corrected, after)
+    // 15 000 € paid in since the opening, 10 000 € at the relevé before: 5 000 € of effort, the rest markets.
+    expect(split.effort - before.effort).toBe(500_000)
+    expect(split.total).toBe(before.total)
   })
 })

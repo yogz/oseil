@@ -1,7 +1,8 @@
 'use client'
 
 // The page of one relevé (docs/superpowers/specs/2026-11-12-corriger-un-releve-design.md, planche 8C):
-// that day's total, what a square was worth, and its lines by bank, each opening its correction.
+// that day's total, what a square was worth, and its lines by bank, each opening its correction; under
+// a bank's lines, the totals paid in that day (planche 10D, docs/superpowers/specs/2026-11-14-total-verse-design.md).
 // A reading: no field, no progress, no « suivant ». Everything it says comes from statementView.
 
 import Link from 'next/link'
@@ -19,7 +20,7 @@ import { useModel, type ModelState } from '@/lib/app/use-model'
 import { todayIso } from '@/lib/dates'
 import { EVOLUTION_LOAD_FAILED, EVOLUTION_RETRY, EVOLUTION_TITLE } from '@/lib/screens/evolution-words'
 import { CORRECTED_PARAM, statementView } from '@/lib/screens/statement'
-import { STATEMENT_CORRECTED } from '@/lib/screens/statement-words'
+import { STATEMENT_CORRECTED, TOTAL_TO_COPY } from '@/lib/screens/statement-words'
 
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink'
 const TITLE = 'pt-2 text-title font-semibold leading-tight tracking-[-0.01em]'
@@ -115,6 +116,22 @@ function ReadyBody({ state, snapshotId }: { state: Ready; snapshotId: string }) 
                   <span className="flex items-center gap-3">
                     {/* A figure of a list: dotted, as everywhere. */}
                     <span className="underline decoration-dotted underline-offset-4 tabular-nums">{line.figure}</span>
+                    <span aria-hidden="true">›</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+            {/* The totals paid in that day (planche 10D): each opens the screen to copy or correct it. */}
+            {bank.totals.map((total) => (
+              <li key={total.accountId} className="border-t border-hairline">
+                <Link href={total.href} className={`flex min-h-13 items-center justify-between gap-3 py-3 text-body ${FOCUS}`}>
+                  <span>{total.label}</span>
+                  <span className="flex items-center gap-3">
+                    {total.figure === null ? (
+                      <span className="text-ink-muted">{TOTAL_TO_COPY}</span>
+                    ) : (
+                      <span className="underline decoration-dotted underline-offset-4 tabular-nums">{total.figure}</span>
+                    )}
                     <span aria-hidden="true">›</span>
                   </span>
                 </Link>

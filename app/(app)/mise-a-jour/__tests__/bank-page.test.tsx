@@ -154,7 +154,7 @@ test('BoursoBank: its place, the sentence for banks, its lines, and the count of
   expect(within(region('Livret A')).getByLabelText('Combien y a-t-il dessus ?')).toHaveValue('12\u202f000')
   expect(within(region('ETF')).getByLabelText('Combien vaut une part aujourd’hui ?')).toHaveValue('250,00')
   // No account here has two lines: no total to check.
-  expect(screen.queryByText(/^Total/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/^Total du compte/)).not.toBeInTheDocument()
 
   await userEvent.click(within(region('Livret A')).getByRole('button', { name: 'Inchangé' }))
   expect(world.draft.confirmed).toEqual(['livret-a-line'])
@@ -267,12 +267,13 @@ test('with the amounts hidden, the bank’s total still shows its figure', () =>
   }
 })
 
-test('Linxea, the last step: what was paid in, the account’s total checked against the bank, then the result', async () => {
+test('Linxea, the last step: the total paid in, the account’s total checked against the bank, then the result', async () => {
   world.current = 'linxea'
   publish()
   render(<BankPage />)
   expect(screen.getByText('3 sur 3')).toBeInTheDocument()
-  expect(screen.getByLabelText('Combien a été versé dessus ?')).toHaveValue('')
+  expect(screen.getByLabelText('Total versé depuis l’ouverture')).toHaveValue('')
+  expect(screen.queryByLabelText('Combien a été versé dessus ?')).not.toBeInTheDocument()
   sees('Total du compte : 35 000 €')
   expect(
     screen.getByText(
@@ -287,11 +288,12 @@ test('Linxea, the last step: what was paid in, the account’s total checked aga
   await userEvent.tab()
   sees('Total du compte : 36 000 €')
 
-  const paid = screen.getByLabelText('Combien a été versé dessus ?')
+  const paid = screen.getByLabelText('Total versé depuis l’ouverture')
   await userEvent.clear(paid)
-  await userEvent.type(paid, '-2000')
+  await userEvent.type(paid, '18400')
   await userEvent.tab()
-  expect(world.draft.contributions).toEqual({ life: -200_000 })
+  expect(world.draft.paidTotals).toEqual({ life: 1_840_000 })
+  expect(world.draft.contributions).toEqual({})
 
   await userEvent.click(screen.getByRole('button', { name: 'Voir le résultat' }))
   expect(world.draft.progress).toEqual({ linxea: 'done' })
@@ -514,7 +516,7 @@ test('no total for an account while one of its lines has no value: it would leav
   world.base = { ...exampleSnapshot, entries: exampleSnapshot.entries.filter((e) => e.lineId !== 'euro-fund') }
   publish()
   render(<BankPage />)
-  expect(screen.queryByText(/^Total/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/^Total du compte/)).not.toBeInTheDocument()
   const fund = within(region('Fonds euros')).getByRole('textbox')
   await userEvent.type(fund, '30000')
   await userEvent.tab()
@@ -734,7 +736,7 @@ describe('lines in dollars', () => {
     world.current = 'revolut'
     publish()
     render(<BankPage />)
-    expect(screen.queryByText(/^Total/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Total du compte/)).not.toBeInTheDocument()
   })
 
   test('an added account in dollars: its value in dollars, never 0 and never an error', () => {

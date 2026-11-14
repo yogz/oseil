@@ -77,6 +77,7 @@ describe('startDraft and isStale', () => {
       confirmed: [],
       progress: {},
       contributions: {},
+      paidTotals: {},
       added: { accounts: [], lines: [] },
       arrivals: {},
       closed: [],
@@ -347,6 +348,17 @@ describe('hasChangesHere', () => {
     expect(here({ ...fresh(), contributions: { pea: 0 } })).toBe(true)
   })
 
+  test('a total paid in on one of its accounts is a change, 0 included', () => {
+    expect(here({ ...fresh(), paidTotals: { pea: 0 } })).toBe(true)
+    expect(here({ ...fresh(), paidTotals: { life: 10_000 } })).toBe(false)
+  })
+
+  test('a draft written before the totals has no change of its own', () => {
+    const { paidTotals: _none, ...old } = fresh()
+    void _none
+    expect(here(old)).toBe(false)
+  })
+
   test('an added line is a change', () => {
     expect(here(withAdded())).toBe(true)
   })
@@ -453,6 +465,7 @@ describe('tidyDraft', () => {
     confirmed: ['etf', 'gone-line', 'etf'],
     closed: ['gold-line', 'gone-line', 'gold-line'],
     contributions: { life: 10_000, 'gone-account': 5_000 },
+    paidTotals: { life: 20_000, 'gone-account': 5_000 },
     progress: { boursobank: 'done', 'gone-bank': 'skipped' },
     added: {
       accounts: [lep, { id: 'lost', establishmentId: 'gone-bank', type: 'lep', name: 'LEP perdu' }],
@@ -488,7 +501,14 @@ describe('tidyDraft', () => {
   test('drops contributions of unknown accounts and progress of unknown establishments', () => {
     const tidy = tidyDraft(profile, orphaned)
     expect(tidy.contributions).toEqual({ life: 10_000 })
+    expect(tidy.paidTotals).toEqual({ life: 20_000 })
     expect(tidy.progress).toEqual({ boursobank: 'done' })
+  })
+
+  test('a draft written before the totals stays without them', () => {
+    const { paidTotals: _none, ...old } = withAdded()
+    void _none
+    expect(tidyDraft(profile, old)).not.toHaveProperty('paidTotals')
   })
 
   test('a line closed in the profile since keeps no value, confirmation or closing', () => {

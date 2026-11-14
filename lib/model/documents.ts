@@ -213,6 +213,17 @@ function parseContributions(raw: unknown): Record<string, number> | null {
   return contributions
 }
 
+// The totals paid in, per account: absent, or a map of non-negative cents.
+function parsePaidTotals(raw: unknown): Record<string, number> | null {
+  if (!isObject(raw)) return null
+  const totals: Record<string, number> = {}
+  for (const [accountId, cents] of Object.entries(raw)) {
+    if (!isCents(cents) || cents < 0) return null
+    totals[accountId] = cents
+  }
+  return totals
+}
+
 export function parseSnapshot(value: unknown): Snapshot | null {
   if (!isObject(value) || value.schema !== 1 || !isDate(value.takenOn)) return null
   if (!isObject(value.fx) || !isObject(value.contributions) || !isObject(value.arrivals)) return null
@@ -224,6 +235,8 @@ export function parseSnapshot(value: unknown): Snapshot | null {
   }
   const contributions = parseContributions(value.contributions)
   if (!contributions) return null
+  const paidTotals = value.paidTotals === undefined ? undefined : parsePaidTotals(value.paidTotals)
+  if (paidTotals === null) return null
   const arrivals = parseArrivals(value.arrivals)
   if (!arrivals) return null
 
@@ -232,7 +245,7 @@ export function parseSnapshot(value: unknown): Snapshot | null {
   // One entry per line: the calculations rely on it.
   if (new Set(entries.map((e) => e.lineId)).size !== entries.length) return null
 
-  return { schema: 1, takenOn: value.takenOn, fx, entries, contributions, arrivals }
+  return { schema: 1, takenOn: value.takenOn, fx, entries, contributions, ...(paidTotals && { paidTotals }), arrivals }
 }
 
 function parseIdList(raw: unknown): string[] | null {
@@ -248,6 +261,9 @@ export function parseUpdateDraft(value: unknown): UpdateDraft | null {
   const confirmed = parseIdList(value.confirmed)
   const closed = parseIdList(value.closed)
   const contributions = parseContributions(value.contributions)
+  // Absent in a draft written before the totals paid in.
+  const paidTotals = value.paidTotals === undefined ? undefined : parsePaidTotals(value.paidTotals)
+  if (paidTotals === null) return null
   const arrivals = parseArrivals(value.arrivals)
   const accounts = parseList(value.added.accounts, parseAccount)
   const lines = parseList(value.added.lines, parseLine)
@@ -271,6 +287,7 @@ export function parseUpdateDraft(value: unknown): UpdateDraft | null {
     confirmed,
     progress,
     contributions,
+    ...(paidTotals && { paidTotals }),
     added: { accounts, lines, ...(establishments.length > 0 ? { establishments } : {}) },
     arrivals,
     closed,

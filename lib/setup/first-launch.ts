@@ -121,6 +121,7 @@ export function chooseWhere(
       takenOn: today,
       entries: snapshot.entries.filter((e) => lineIds.has(e.lineId)),
       contributions: pick(snapshot.contributions, accountIds),
+      ...(snapshot.paidTotals && { paidTotals: pick(snapshot.paidTotals, accountIds) }),
       arrivals: pick(snapshot.arrivals, lineIds),
     },
   }
@@ -282,12 +283,18 @@ export function removeLine(draft: SetupDraft, lineId: string): SetupDraft {
   const accounts = accountEmpty ? draft.profile.accounts.filter((a) => a.id !== line.accountId) : draft.profile.accounts
   const { [lineId]: _arrival, ...arrivals } = draft.snapshot.arrivals
   void _arrival
-  const contributions = accountEmpty
-    ? Object.fromEntries(Object.entries(draft.snapshot.contributions).filter(([id]) => id !== line.accountId))
-    : draft.snapshot.contributions
+  const without = <V>(record: Record<string, V>) =>
+    accountEmpty ? Object.fromEntries(Object.entries(record).filter(([id]) => id !== line.accountId)) : record
+  const { paidTotals } = draft.snapshot
   return {
     profile: { ...draft.profile, accounts: accounts.map((a) => (a.financedLineId === lineId ? withoutFinanced(a) : a)), lines },
-    snapshot: { ...draft.snapshot, entries: draft.snapshot.entries.filter((e) => e.lineId !== lineId), contributions, arrivals },
+    snapshot: {
+      ...draft.snapshot,
+      entries: draft.snapshot.entries.filter((e) => e.lineId !== lineId),
+      contributions: without(draft.snapshot.contributions),
+      ...(paidTotals && { paidTotals: without(paidTotals) }),
+      arrivals,
+    },
   }
 }
 
@@ -337,6 +344,7 @@ export function reconcile(draft: SetupDraft): SetupDraft {
       // An entry of another kind than its line comes from a half-saved kind change.
       entries: snapshot.entries.filter((e) => lineKinds.get(e.lineId) === e.kind),
       contributions: pick(snapshot.contributions, accountIds),
+      ...(snapshot.paidTotals && { paidTotals: pick(snapshot.paidTotals, accountIds) }),
       arrivals: pick(snapshot.arrivals, lineIds),
     },
   }

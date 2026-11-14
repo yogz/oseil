@@ -32,6 +32,7 @@ export function startDraft(baseId: string): UpdateDraft {
     confirmed: [],
     progress: {},
     contributions: {},
+    paidTotals: {},
     added: { accounts: [], lines: [] },
     arrivals: {},
     closed: [],
@@ -201,13 +202,14 @@ function accountIdsHere(profile: Profile, draft: UpdateDraft, establishmentId: s
   )
 }
 
-// A typed value, a contribution, an added or a closed line. A confirmation is no change.
+// A typed value, a total paid in, an added or a closed line (or a contribution, in a draft from before
+// the totals). A confirmation is no change.
 export function hasChangesHere(profile: Profile, draft: UpdateDraft, establishmentId: string): boolean {
   const typed = new Set(draft.values.map((e) => e.lineId))
   if (linesOf(profile, draft, establishmentId).some((r) => r.added || r.closed || typed.has(r.line.id))) return true
   const accounts = accountIdsHere(profile, draft, establishmentId)
-  // A typed 0 is an answer too: nothing paid in.
-  return Object.keys(draft.contributions).some((accountId) => accounts.has(accountId))
+  // A typed 0 is an answer too.
+  return [...Object.keys(draft.contributions), ...Object.keys(draft.paidTotals ?? {})].some((accountId) => accounts.has(accountId))
 }
 
 // Something was done here: a value typed, a line added or closed, a sum paid in, or a line confirmed.
@@ -288,6 +290,7 @@ export function tidyDraft(profile: Profile, draft: UpdateDraft): UpdateDraft {
     confirmed,
     progress: pick(draft.progress, establishments),
     contributions: pick(draft.contributions, accounts),
+    ...(draft.paidTotals && { paidTotals: pick(draft.paidTotals, accounts) }),
     added: {
       accounts: addedAccounts.map((a) =>
         a.financedLineId !== undefined && !financeable.has(a.financedLineId) ? withoutFinanced(a) : a,

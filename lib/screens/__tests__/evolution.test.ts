@@ -299,6 +299,15 @@ describe('where it comes from', () => {
     expect(history(evolutionView(modelOf([older, known]), TODAY)).split.unknownPayments).toEqual([])
   })
 
+  test('is silent when the PER has a total paid in on both sides, and speaks when only one has it', () => {
+    const before = { ...older, paidTotals: { 'a-per': 1_500_000 } }
+    const after = { ...newer, paidTotals: { 'a-per': 1_600_000 } }
+    expect(history(evolutionView(modelOf([before, after]), TODAY)).split.unknownPayments).toEqual([])
+    expect(history(evolutionView(modelOf([older, after]), TODAY)).split.unknownPayments).toEqual([
+      unknownPaymentsSentence('PER'),
+    ])
+  })
+
   test('does not say it for an account whose value did not move', () => {
     const still = at('2026-09-30', snapshotOf([amountEntry('liv', 12_000), amountEntry('per-line', 20_000), amountEntry('usd', 10_000)], { USD: 0.86 }))
     expect(history(evolutionView(modelOf([older, still]), TODAY)).split.unknownPayments).toEqual([])

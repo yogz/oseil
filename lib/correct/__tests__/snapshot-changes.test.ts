@@ -14,6 +14,7 @@ import {
   deleteLine,
   finishClosing,
   reopenLine,
+  setPaidTotalAt,
 } from '../snapshot-changes'
 import type { Planned, StoredSnapshot, Write } from '../types'
 
@@ -461,6 +462,7 @@ describe('closeLine', () => {
       s('b', '2026-11-01', [livret(1, '2026-11-01'), euroFund], {
         fx: { USD: 1.08 },
         contributions: { life: 50_000 },
+        paidTotals: { life: 2_000_000 },
         arrivals: { 'euro-fund': 'opened', 'livret-a-line': 'existing' },
       }),
     ]
@@ -472,6 +474,7 @@ describe('closeLine', () => {
       fx: { USD: 1.08 }, // the rates stay
       entries: [livret(1, '2026-11-01')],
       contributions: {},
+      paidTotals: {},
       arrivals: { 'livret-a-line': 'existing' },
     })
   })
@@ -481,6 +484,7 @@ describe('closeLine', () => {
       s('a', '2026-10-01', [amount('euro-fund', 2_900_000, '2026-10-01'), unitsEntry('life-uc', 10, 500, 450, '2026-10-01')]),
       s('b', '2026-11-01', [amount('euro-fund', 3_000_000, '2026-11-01'), unitsEntry('life-uc', 10, 510, 450, '2026-11-01')], {
         contributions: { life: 50_000 },
+        paidTotals: { life: 2_000_000 },
         arrivals: { 'euro-fund': 'opened', 'life-uc': 'opened' },
       }),
     ]
@@ -488,6 +492,7 @@ describe('closeLine', () => {
     const rewritten = (writes[1] as SnapshotWrite).value
     expect(rewritten.entries).toEqual([unitsEntry('life-uc', 10, 510, 450, '2026-11-01')])
     expect(rewritten.contributions).toEqual({ life: 50_000 })
+    expect(rewritten.paidTotals).toEqual({ life: 2_000_000 })
     expect(rewritten.arrivals).toEqual({ 'life-uc': 'opened' })
   })
 
@@ -638,5 +643,43 @@ describe('deleteLine', () => {
 
   it('refuses a line it does not know', () => {
     expect(deleteLine(exampleProfile, snaps, 'nowhere')).toEqual({ refused: 'not-held' })
+  })
+})
+
+// docs/superpowers/specs/2026-11-14-total-verse-design.md: a total is that relevé's own, never carried forward.
+describe('setPaidTotalAt', () => {
+  const life = amount('euro-fund', 2_000_000, '2026-01-01')
+  const snaps = [
+    s('a', '2026-01-01', [life], { paidTotals: { life: 1_000_000 } }),
+    s('b', '2026-04-01', [life], { paidTotals: { life: 1_000_000, pea: 500_000 } }),
+    s('c', '2026-07-01', [life], { paidTotals: { life: 1_000_000 } }),
+  ]
+
+  it('writes that one relevé only, as typed, even where its neighbours held the same total', () => {
+    const writes = setPaidTotalAt(snaps, 'b', 'life', 1_200_000)
+    expect(ids(writes)).toEqual(['b'])
+    expect(snapshotWrites(writes)[0].value).toEqual({ ...snaps[1].value, paidTotals: { life: 1_200_000, pea: 500_000 } })
+  })
+
+  it('adds a total to a relevé that had none, 0 included', () => {
+    const none = [s('a', '2026-01-01', [life])]
+    expect(snapshotWrites(setPaidTotalAt(none, 'a', 'life', 0))[0].value.paidTotals).toEqual({ life: 0 })
+  })
+
+  it('a case made empty removes that relevé’s total, and only it', () => {
+    const writes = setPaidTotalAt(snaps, 'b', 'life', null)
+    expect(ids(writes)).toEqual(['b'])
+    expect(snapshotWrites(writes)[0].value.paidTotals).toEqual({ pea: 500_000 })
+    // The last total gone, the relevé is as it was before any total.
+    expect('paidTotals' in snapshotWrites(setPaidTotalAt(snaps, 'a', 'life', null))[0].value).toBe(false)
+  })
+
+  it('writes nothing when nothing changes', () => {
+    expect(setPaidTotalAt(snaps, 'a', 'life', 1_000_000)).toEqual([])
+    expect(setPaidTotalAt(snaps, 'a', 'pea', null)).toEqual([])
+  })
+
+  it('throws on an unknown relevé', () => {
+    expect(() => setPaidTotalAt(snaps, 'nope', 'life', 1)).toThrow()
   })
 })

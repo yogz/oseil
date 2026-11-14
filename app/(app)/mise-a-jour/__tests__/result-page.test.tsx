@@ -8,7 +8,7 @@ import type { UpdateMarket } from '@/lib/market/live'
 import { exampleProfile, exampleSnapshot } from '@/lib/model/__tests__/fixtures'
 import type { Profile, UpdateDraft } from '@/lib/model/types'
 import { confirmLine, markStep, setTakenOn, setValue, startDraft } from '@/lib/update/draft'
-import { putAddedLine, setContribution } from '@/lib/update/lines'
+import { putAddedLine } from '@/lib/update/lines'
 import type { UpdateState } from '@/lib/update/use-update'
 import ResultPage from '../resultat/page'
 
@@ -58,7 +58,8 @@ function worked(): UpdateDraft {
   draft = setValue(draft, exampleSnapshot, 'livret-a-line', { kind: 'amount', amount: 1_300_000 }, today, {})
   draft = setValue(draft, exampleSnapshot, 'etf', { kind: 'units', units: 100, unitPrice: 260, averagePrice: 200 }, today, {})
   draft = setValue(draft, exampleSnapshot, 'euro-fund', { kind: 'amount', amount: 3_090_000 }, today, {})
-  draft = setContribution(draft, 'life', 50_000)
+  // A sum paid in, as a draft from before the totals paid in holds it: it still counts.
+  draft = { ...draft, contributions: { life: 50_000 } }
   draft = setValue(draft, exampleSnapshot, 'mortgage-line', { kind: 'amount', amount: 17_890_000 }, today, {})
   draft = confirmLine(draft, 'house-line')
   return ['home', 'boursobank', 'linxea'].reduce((d, step) => markStep(d, step, 'done'), draft)

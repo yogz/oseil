@@ -1,7 +1,7 @@
 // The sheets « Relevés » and « Versements » into snapshots, every cell checked against the
 // accounts « Comptes » described. An amount comes back as it was written, to the cent;
 // nothing is guessed: what does not read, or reads two ways, is an error with its row.
-import { ACCOUNT_TYPES } from '@/lib/catalog'
+import { ACCOUNT_TYPES, takesPaidTotal } from '@/lib/catalog'
 import { todayIso } from '@/lib/dates'
 import { parseSnapshot } from '@/lib/model/documents'
 import type { Account, AccountTypeId, Arrival, Cents, IsoDate, Line, Profile, Snapshot, SnapshotEntry } from '@/lib/model/types'
@@ -38,6 +38,11 @@ const dayText = (date: IsoDate) => `${date.slice(8, 10)}/${date.slice(5, 7)}/${d
 const decimalText = (value: number) => String(value).replace('.', ',')
 const numberText = (n: number) => `n°${NB}${n}`
 const CONTRIBUTION_TYPES = (Object.keys(ACCOUNT_TYPES) as AccountTypeId[]).filter((id) => ACCOUNT_TYPES[id].change === 'contributions')
+const PAID_TOTAL_TYPES = (Object.keys(ACCOUNT_TYPES) as AccountTypeId[]).filter(takesPaidTotal)
+const labelList = (types: AccountTypeId[]) => {
+  const labels = types.map((id) => q(ACCOUNT_TYPES[id].label))
+  return `${labels.slice(0, -1).join(', ')} et ${labels.at(-1)}`
+}
 
 // What every row of both sheets starts with: the relevé it belongs to.
 type Place = { row: number; date: IsoDate; number: number | null }
@@ -101,6 +106,7 @@ type Relevé = {
   seen: Map<string, number> // line id → row
   arrivals: Record<string, Arrival>
   contributions: Record<string, Cents>
+  paidTotals: Record<string, Cents>
   paidRow: Map<string, number> // account id → row
 }
 
@@ -161,7 +167,7 @@ export function readSnapshots(
   const open = (place: Place, key: string): Relevé => {
     let relevé = byKey.get(key)
     if (!relevé) {
-      relevé = { key, date: place.date, number: place.number, firstRow: place.row, entries: [], fx: {}, fxRow: {}, seen: new Map(), arrivals: {}, contributions: {}, paidRow: new Map() }
+      relevé = { key, date: place.date, number: place.number, firstRow: place.row, entries: [], fx: {}, fxRow: {}, seen: new Map(), arrivals: {}, contributions: {}, paidTotals: {}, paidRow: new Map() }
       byKey.set(key, relevé)
     }
     return relevé
@@ -219,6 +225,8 @@ export function readSnapshots(
       fx: relevé.fx,
       entries: relevé.entries,
       contributions: relevé.contributions,
+      // Absent when the relevé has none: a file without totals reads as before.
+      ...(Object.keys(relevé.paidTotals).length > 0 && { paidTotals: relevé.paidTotals }),
       arrivals: relevé.arrivals,
     })
     // A safety net, not a rule: the checks above make it unreachable, so the note does not list it.
@@ -414,7 +422,9 @@ function readArrival(table: TableRow, fail: Fail): Arrival | null | undefined {
 }
 
 // A row of « Versements »: its relevé (by number, else by date when that date has only one),
-// an account that takes contributions, once per relevé. A zero is kept: nothing paid in is a known answer.
+// an account, once per relevé, and « Versé », « Total versé » or both. « Versé » only on an account
+// that takes contributions; « Total versé » on one that takes a total (`takesPaidTotal`), kept as
+// typed, never negative. A zero is kept: nothing paid in is a known answer.
 function readContribution(table: TableRow, place: Place | undefined, relevés: Relevé[], fail: Fail, index: AccountIndex): void {
   const row = table.row
   const header = (key: string) => titleOf('contributions', key)
@@ -436,20 +446,41 @@ function readContribution(table: TableRow, place: Place | undefined, relevés: R
     }
   }
 
+  // undefined: the cell does not read (already said).
+  const euros = (key: 'paid' | 'paidTotal'): Cents | null | undefined => {
+    const read = readEuros(table.get(key))
+    if (!read.ok || (read.value !== null && !Number.isSafeInteger(read.value))) {
+      fail('unreadable', row, `dans ${header(key)}, un montant en euros est attendu, par exemple 1${NB}200,50.`)
+      return undefined
+    }
+    return read.value
+  }
+  const cents = euros('paid')
+  let total = euros('paidTotal')
+  if (cents === null && total === null) {
+    fail('missingValue', row, `les cases ${header('paid')} et ${header('paidTotal')} sont vides. Remplis l’une ou l’autre, ou efface la ligne.`)
+  }
+  if (total != null && total < 0) {
+    fail('negativePaidTotal', row, `${header('paidTotal')} ne peut pas être négatif.`)
+    total = undefined
+  }
+
   const found = index.accountFor(name(table, 'bank'), name(table, 'account'), name(table, 'accountReference'))
   let account: Account | undefined
   if (!found.ok) fail('unknownLine', row, found.reason)
-  else if (ACCOUNT_TYPES[found.value.type].change !== 'contributions') {
-    const allowed = CONTRIBUTION_TYPES.map((id) => q(ACCOUNT_TYPES[id].label))
-    fail('contributionNotAllowed', row, `un compte ${q(ACCOUNT_TYPES[found.value.type].label)} ne reçoit pas de versements. Seuls les comptes ${allowed.slice(0, -1).join(', ')} et ${allowed.at(-1)} en reçoivent.`)
-  } else account = found.value
-
-  const read = readEuros(table.get('paid'))
-  let cents: Cents | null = null
-  if (!read.ok || (read.value !== null && !Number.isSafeInteger(read.value))) {
-    fail('unreadable', row, `dans ${header('paid')}, un montant en euros est attendu, par exemple 1${NB}200,50.`)
-  } else if (read.value === null) fail('missingValue', row, `la case ${header('paid')} est vide.`)
-  else cents = read.value
+  else {
+    const type = found.value.type
+    let allowed = true
+    if (cents !== null && ACCOUNT_TYPES[type].change !== 'contributions') {
+      fail('contributionNotAllowed', row, `un compte ${q(ACCOUNT_TYPES[type].label)} ne reçoit pas de versements. Seuls les comptes ${labelList(CONTRIBUTION_TYPES)} en reçoivent.`)
+      allowed = false
+    }
+    if (total !== null && !takesPaidTotal(type)) {
+      fail('paidTotalNotAllowed', row, `un compte ${q(ACCOUNT_TYPES[type].label)} n’a pas de total versé. Seuls les comptes ${labelList(PAID_TOTAL_TYPES)} en ont un.`)
+      allowed = false
+    }
+    if (allowed) account = found.value
+  }
 
   if (!relevé || !account) return
   const before = relevé.paidRow.get(account.id)
@@ -459,5 +490,6 @@ function readContribution(table: TableRow, place: Place | undefined, relevés: R
   }
   relevé.paidRow.set(account.id, row)
   // A 0 is a known answer, nothing paid in: kept, as the site keeps a typed 0.
-  if (cents !== null) relevé.contributions[account.id] = cents
+  if (cents != null) relevé.contributions[account.id] = cents
+  if (total != null) relevé.paidTotals[account.id] = total
 }

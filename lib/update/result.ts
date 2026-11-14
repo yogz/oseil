@@ -8,7 +8,7 @@ import { CATEGORIES, CATEGORY_ORDER } from '@/lib/catalog'
 import { formatDayMonth, formatEuros } from '@/lib/format'
 import type { LinePrices, UpdateMarket } from '@/lib/market/live'
 import { missingRateSentence, rateNote } from '@/lib/market/words'
-import { splitChange, wholeAccountChanges, type ChangeSplit } from '@/lib/model/change'
+import { hasBothTotals, splitChange, wholeAccountChanges, type ChangeSplit } from '@/lib/model/change'
 import {
   computeSituation,
   EntryKindError,
@@ -274,13 +274,21 @@ function figuresAndWords(
         ? `Le reste n’a pas bougé\u00A0: ${still.join(', ')}.`
         : null
 
-  // Planche 21, « l’écran le dira »: an account whose value moved with nothing noted as paid in.
+  // Planche 21, « l’écran le dira »: an account whose value moved with nothing noted as paid in, neither
+  // a sum (a draft from before the totals) nor a total on both sides.
   const whole = wholeAccountChanges(next.profile, base, next.snapshot)
   const notes = next.profile.accounts
-    .filter((a) => wholeEuros(whole.get(a.id) ?? 0) !== 0 && !Object.hasOwn(next.snapshot.contributions, a.id))
-    .map(
+    .filter(
       (a) =>
-        `Rien n’est noté comme versé sur « ${a.name} »\u00A0: tout ce qui a bougé y est compté dans les marchés et les intérêts.`,
+        wholeEuros(whole.get(a.id) ?? 0) !== 0 &&
+        !Object.hasOwn(next.snapshot.contributions, a.id) &&
+        !hasBothTotals(base, next.snapshot, a.id),
+    )
+    .map((a) =>
+      // A first total, typed now with none before: the split stays guessed this once (Nicolas, 14 November 2026).
+      next.snapshot.paidTotals?.[a.id] !== undefined && base.paidTotals?.[a.id] === undefined
+        ? `C’est ton premier total versé sur « ${a.name} » : le partage sera juste à partir de la prochaine mise à jour.`
+        : `Rien n’est noté comme versé sur « ${a.name} »\u00A0: tout ce qui a bougé y est compté dans les marchés et les intérêts.`,
     )
 
   const withAmount = new Set(next.snapshot.entries.map((e) => e.lineId))

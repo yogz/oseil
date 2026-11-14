@@ -2,7 +2,7 @@
 // for an assistant asked to fill the template. Every list of words and every column title
 // comes from the catalogue and from COLUMNS, the constants the import reads: the
 // instructions cannot say a word the import refuses.
-import { ACCOUNT_TYPES, BANKS, CATEGORIES, CURRENCIES, GROUP_LABELS, OTHER_BANKS, RANGED_GROUPS, RESIDENCE_LABELS } from '@/lib/catalog'
+import { ACCOUNT_TYPES, BANKS, CATEGORIES, CURRENCIES, GROUP_LABELS, OTHER_BANKS, RANGED_GROUPS, RESIDENCE_LABELS, takesPaidTotal } from '@/lib/catalog'
 import { SITE_URL } from '@/lib/app/site-metadata'
 import { canHold } from '@/lib/correct/profile-changes'
 import type { AccountTypeId, CategoryId } from '@/lib/model/types'
@@ -187,6 +187,7 @@ const FORMAT_WORDS: Record<ColumnFormat, string> = {
 }
 
 const contributionTypes = typeIds.filter((id) => ACCOUNT_TYPES[id].change === 'contributions')
+const paidTotalTypes = typeIds.filter(takesPaidTotal)
 const sameAsAccounts = `comme dans l’onglet ${q(SHEETS.accounts)}, qui doit avoir ce placement.`
 
 // What each column holds, by sheet and by column key. A column missing here fails the build of the note.
@@ -232,7 +233,8 @@ const HELP: Record<'accounts' | 'snapshots' | 'contributions' | 'settings', Reco
     number: `comme dans ${q(SHEETS.snapshots)}.`,
     bank: `comme dans l’onglet ${q(SHEETS.accounts)}, qui doit avoir ce compte.`,
     account: `comme dans l’onglet ${q(SHEETS.accounts)}, qui doit avoir ce compte.`,
-    paid: `l’argent versé sur le compte depuis le relevé précédent, en euros${NB}; négatif pour un retrait${NB}; 0 si rien n’a été versé${NB}; pas de ligne si tu ne sais pas. Seulement pour les comptes ${contributionTypes.map(typeLabel).join(', ')}.`,
+    paid: `l’argent versé sur le compte depuis le relevé précédent, en euros${NB}; négatif pour un retrait${NB}; 0 si rien n’a été versé${NB}; vide si tu ne sais pas. Seulement pour les comptes ${contributionTypes.map(typeLabel).join(', ')}.`,
+    paidTotal: `tout l’argent versé sur le compte depuis son ouverture, en euros, tel que la banque l’affiche (souvent ${q('versements')} ou ${q('montant investi')})${NB}; retraits ôtés, jamais négatif${NB}; vide si tu ne sais pas. Seulement pour les comptes ${paidTotalTypes.map(typeLabel).join(', ')}. Une ligne porte ${title('contributions', 'paid')}, ${title('contributions', 'paidTotal')} ou les deux, jamais aucun${NB}: pas de ligne si tu ne sais ni l’un ni l’autre.`,
     accountReference: 'écrit par le site. Laisser vide.',
   },
   settings: {
@@ -242,7 +244,7 @@ const HELP: Record<'accounts' | 'snapshots' | 'contributions' | 'settings', Reco
 }
 
 // Not required in every row, but required for some: the help says when.
-const CONDITIONAL = new Set(['accounts.category', 'snapshots.amount', 'snapshots.units', 'snapshots.unitPrice', 'snapshots.fx'])
+const CONDITIONAL = new Set(['accounts.category', 'snapshots.amount', 'snapshots.units', 'snapshots.unitPrice', 'snapshots.fx', 'contributions.paid', 'contributions.paidTotal'])
 
 function obligation(kind: string, column: Column): string {
   if (column.computed) return 'calculé'
@@ -312,7 +314,7 @@ const TABLES = ['accounts', 'snapshots', 'contributions', 'goals', 'settings'] a
 const ROLES: Record<(typeof TABLES)[number], string> = {
   accounts: `obligatoire, une ligne par placement (un livret, un fonds, une action, un logement, un crédit). ${EMPTY_ROWS}`,
   snapshots: `obligatoire, une ligne par placement et par relevé. Un relevé est la photo de tout le patrimoine à une date${NB}: il contient chaque placement que la personne avait alors, jamais une partie seulement. Il faut au moins un relevé.`,
-  contributions: 'facultatif, l’argent versé ou retiré entre deux relevés, par compte.',
+  contributions: 'facultatif, par compte et par relevé, l’argent versé ou retiré depuis le relevé précédent, ou tout l’argent versé depuis l’ouverture.',
   goals: 'facultatif, une ligne par objectif de répartition.',
   settings: 'facultatif, deux colonnes. Un réglage absent garde sa valeur par défaut.',
 }

@@ -160,7 +160,7 @@ export function computeSituation(profile: Profile, snapshot: Snapshot): Situatio
 // without the lines of the pocket Chez toi and the loans that finance one of them in this same snapshot. Taken
 // off the snapshot itself, before any computation, so that everything read from snapshots follows alike (the
 // split of Évolution too). The rental stays; a loan whose home is not in the snapshot stays (it lowers the
-// available money, as in the whole computation). Arrivals and contributions of what left go with it.
+// available money, as in the whole computation). Arrivals, contributions and totals paid in of what left go with it.
 export function snapshotWithoutHome(profile: Profile, snapshot: Snapshot): Snapshot {
   const lines = new Map(profile.lines.map((l) => [l.id, l]))
   const accounts = new Map(profile.accounts.map((a) => [a.id, a]))
@@ -188,6 +188,9 @@ export function snapshotWithoutHome(profile: Profile, snapshot: Snapshot): Snaps
     entries,
     arrivals: Object.fromEntries(Object.entries(snapshot.arrivals).filter(([key]) => !leaves(key) && !gone.has(key))),
     contributions: Object.fromEntries(Object.entries(snapshot.contributions).filter(([accountId]) => !gone.has(accountId))),
+    ...(snapshot.paidTotals && {
+      paidTotals: Object.fromEntries(Object.entries(snapshot.paidTotals).filter(([accountId]) => !gone.has(accountId))),
+    }),
   }
 }
 

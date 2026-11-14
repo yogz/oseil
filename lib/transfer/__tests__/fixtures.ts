@@ -5,6 +5,7 @@
 // relevé, two relevés on the same day, two accounts (and two lines) of the same name in one
 // bank, an account with no line, a bank with no account, a bank typed by hand (no catalogId),
 // the « Épargne salariale » establishment, contributions paid in and taken out,
+// a total paid in beside a contribution and a total alone on a securities account,
 // two goals, settings that are not the default.
 import type { GoalAllocation, Profile, Settings, Snapshot } from '@/lib/model/types'
 import type { ExportInput } from '../export'
@@ -95,6 +96,8 @@ export const fixtureSnapshots = (): Snapshot[] => [
       amount('l-home', 32000000, '2026-10-31'),
     ],
     contributions: { 'a-av': -20000, 'a-cto': 0 },
+    // A total beside a contribution, on one row of « Versements ».
+    paidTotals: { 'a-av': 3100000 },
     arrivals: { 'l-livret2': 'opened' },
   },
   {
@@ -112,6 +115,8 @@ export const fixtureSnapshots = (): Snapshot[] => [
       amount('l-home', 32500000, '2026-10-31'),
     ],
     contributions: {},
+    // A total alone, on an account at its cost basis.
+    paidTotals: { 'a-cto': 400000 },
     arrivals: { 'l-current': 'existing' },
   },
 ]

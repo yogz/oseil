@@ -4,12 +4,24 @@
 // lines are the same lines, at that day's rates, without Chez toi when the setting applies.
 
 import type { Model } from '@/lib/app/use-model'
-import { correctFiguresAt } from '@/lib/correct/snapshot-changes'
-import type { Figures, StoredSnapshot } from '@/lib/correct/types'
+import { ACCOUNT_TYPES, takesPaidTotal } from '@/lib/catalog'
+import type { CorrectionState } from '@/lib/correct/save'
+import { correctFiguresAt, setPaidTotalAt } from '@/lib/correct/snapshot-changes'
+import type { Figures, Planned, StoredSnapshot } from '@/lib/correct/types'
 import { formatEurosShown, formatMoneyShown, formatPriceShown, formatUnits } from '@/lib/format'
 import { buildGrid } from '@/lib/model/squares'
 import { categoryOf, entryValue } from '@/lib/model/situation'
-import type { AccountTypeId, CategoryId, CurrencyCode, IsoDate, SnapshotEntry } from '@/lib/model/types'
+import type {
+  Account,
+  AccountTypeId,
+  Cents,
+  CategoryId,
+  CurrencyCode,
+  IsoDate,
+  Profile,
+  Snapshot,
+  SnapshotEntry,
+} from '@/lib/model/types'
 import { steps } from '@/lib/setup/first-launch'
 import { isStale } from '@/lib/update/draft'
 import { readStatements, withYear } from '@/lib/screens/evolution'
@@ -25,8 +37,10 @@ import {
   averageThatDay,
   correctOn,
   ERASE_REFUSED,
+  LOCKED_UPDATE_TOTAL,
   othersToo,
   owedTitle,
+  paidTotalOn,
   priceThatDay,
   squareWas,
   STATEMENT_HISTORY,
@@ -47,6 +61,8 @@ export const CORRECTED_PARAM = 'corrige'
 export const correctedHref = (snapshotId: string) => `/releve/${snapshotId}?${CORRECTED_PARAM}=1`
 
 export type StatementLine = { lineId: string; name: string; category: CategoryId | null; figure: string; href: string }
+// « Total versé sur Assurance-vie »; `figure` null: none that day, the row says « à recopier » (TOTAL_TO_COPY).
+export type StatementTotal = { accountId: string; label: string; figure: string | null; href: string }
 export type StatementView =
   | { kind: 'none' }
   | {
@@ -55,8 +71,43 @@ export type StatementView =
       total: string
       squareValue: string | null // « un carré valait 2 214 € »; null when that day had no grid
       lead: string
-      banks: Array<{ name: string; lines: StatementLine[] }>
+      banks: Array<{ name: string; lines: StatementLine[]; totals: StatementTotal[] }>
     }
+
+// The accounts of a relevé that take a total paid in, as the update asks for one
+// (paidTotalAccounts, lib/update/lines.ts): a contributions account, a cost-basis account with a
+// line in amount that day, or one with a total on this relevé or on the relevé just before (`previous`,
+// as the update keeps the box when its base had one). Only an account the relevé holds.
+function totalsOf(
+  profile: Profile,
+  snapshot: Snapshot,
+  previous: Snapshot | null,
+  snapshotId: string,
+  establishmentId: string,
+): StatementTotal[] {
+  return profile.accounts
+    .filter((a) => a.establishmentId === establishmentId && takesPaidTotal(a.type))
+    .flatMap((account): StatementTotal[] => {
+      const ids = new Set(profile.lines.filter((l) => l.accountId === account.id).map((l) => l.id))
+      const entries = snapshot.entries.filter((e) => ids.has(e.lineId))
+      if (entries.length === 0) return []
+      const total = snapshot.paidTotals?.[account.id]
+      const asked =
+        ACCOUNT_TYPES[account.type].change === 'contributions' ||
+        entries.some((e) => e.kind === 'amount') ||
+        total !== undefined ||
+        previous?.paidTotals?.[account.id] !== undefined
+      if (!asked) return []
+      return [
+        {
+          accountId: account.id,
+          label: paidTotalOn(account.name),
+          figure: total === undefined ? null : formatEurosShown(total),
+          href: `/releve/${snapshotId}/total/${account.id}`,
+        },
+      ]
+    })
+}
 
 // The relevé as « Tes relevés » lists it, with the profile; null when the list leaves it out.
 function listed(model: Model, snapshotId: string) {
@@ -97,7 +148,13 @@ export function statementView(model: Model, snapshotId: string, today: IsoDate):
             ]
           }),
       )
-    return lines.length === 0 ? [] : [{ name: establishment.name, lines }]
+    // The totals are read on the relevé as stored: none belongs to Chez toi, which the list may leave out.
+    const index = model.snapshots.findIndex((s) => s.id === snapshotId)
+    const stored = model.snapshots[index].value
+    const previous = index > 0 ? model.snapshots[index - 1].value : null
+    return lines.length === 0
+      ? []
+      : [{ name: establishment.name, lines, totals: totalsOf(profile, stored, previous, snapshotId, establishment.id) }]
   })
 
   return {
@@ -228,4 +285,63 @@ export function correctionPreview(model: Model, snapshotId: string, lineId: stri
     today: isLatest ? null : result.latestToo ? TODAY_CORRECTED : todaySentence(model, lineId),
     lockedNote: wouldReach ? UPDATE_STOPS : null,
   }
+}
+
+export type StatementTotalView =
+  | { kind: 'none' }
+  | {
+      kind: 'ready'
+      snapshotId: string
+      account: Account
+      back: { href: string; label: string } // « ‹ Relevé du 16 novembre 2025 »
+      title: string // « Total versé sur Assurance-vie »
+      // The total of the relevé just before this one, recalled under the box; null when none was typed.
+      previous: { total: Cents; on: IsoDate } | null
+      // This relevé's own total, as stored: the box opens on it, and the save checks it is still there.
+      current: Cents | null
+      isLatest: boolean
+      locked: { kind: 'update-running' | 'unreadable'; message: string } | null
+    }
+
+// Copying or correcting the total paid in on an account at one relevé (planche 10D): only an account
+// the relevé's page shows a row for.
+export function statementTotalView(model: Model, snapshotId: string, accountId: string, today: IsoDate): StatementTotalView {
+  const page = statementView(model, snapshotId, today)
+  if (page.kind !== 'ready' || !page.banks.some((b) => b.totals.some((t) => t.accountId === accountId))) return { kind: 'none' }
+  const account = model.profile!.value.accounts.find((a) => a.id === accountId)!
+  const index = model.snapshots.findIndex((s) => s.id === snapshotId)
+  const before = index > 0 ? model.snapshots[index - 1].value : null
+  const previousTotal = before?.paidTotals?.[accountId]
+  const isLatest = index === model.snapshots.length - 1
+  return {
+    kind: 'ready',
+    snapshotId,
+    account,
+    back: { href: `/releve/${snapshotId}`, label: page.title },
+    title: paidTotalOn(account.name),
+    previous: before && previousTotal !== undefined ? { total: previousTotal, on: before.takenOn } : null,
+    current: model.snapshots[index].value.paidTotals?.[accountId] ?? null,
+    isLatest,
+    locked:
+      model.unreadable.draft > 0
+        ? { kind: 'unreadable', message: LOCKED_UNREADABLE }
+        : isLatest && updateRunning(model)
+          ? { kind: 'update-running', message: LOCKED_UPDATE_TOTAL }
+          : null,
+  }
+}
+
+// The save of a total, planned again on the state read just before writing: the relevé must still hold
+// the total the screen opened on (`held`), and the latest relevé is never written while an update runs.
+export function planPaidTotal(
+  state: CorrectionState,
+  snapshotId: string,
+  accountId: string,
+  held: Cents | null,
+  cents: Cents | null,
+): Planned {
+  const found = state.snapshots.find((s) => s.id === snapshotId)
+  if (!found || (found.value.paidTotals?.[accountId] ?? null) !== held) return { refused: 'not-held' }
+  if (state.updateRunning && state.snapshots.at(-1)?.id === snapshotId) return { refused: 'update-running' }
+  return { writes: setPaidTotalAt(state.snapshots, snapshotId, accountId, cents) }
 }

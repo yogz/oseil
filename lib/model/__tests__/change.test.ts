@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { splitChange, wholeAccountChanges } from '@/lib/model/change'
+import { hasBothTotals, splitChange, wholeAccountChanges } from '@/lib/model/change'
 import { UnknownLineError } from '@/lib/model/situation'
 import type { Snapshot } from '@/lib/model/types'
 import { account, amountEntry, line, profileOf, snapshotOf, unitsEntry } from './fixtures'
@@ -367,5 +367,110 @@ describe('splitChange', () => {
   it('throws on a line unknown to the profile', () => {
     const profile = profileOf([account('a', 'livret-a')], [line('l', 'a')])
     expect(() => splitChange(profile, snapshotOf([amountEntry('zzz', 1)]), snapshotOf([]))).toThrow(UnknownLineError)
+  })
+})
+
+// The total paid in since the opening, copied from the bank at each snapshot
+// (docs/superpowers/specs/2026-11-14-total-verse-design.md).
+describe('splitChange with the total paid in', () => {
+  const lifeProfile = profileOf([account('a', 'life-insurance')], [line('f', 'a')])
+  const lifeBefore = (extra: Partial<Snapshot> = {}) => withExtra(snapshotOf([amountEntry('f', 30_000)]), extra)
+  const lifeAfter = (extra: Partial<Snapshot> = {}) => withExtra(snapshotOf([amountEntry('f', 31_000)]), extra)
+
+  it('takes the effort of a contributions account from the two totals', () => {
+    const r = splitChange(lifeProfile, lifeBefore({ paidTotals: { a: 1_840_000 } }), lifeAfter({ paidTotals: { a: 1_900_000 } }))
+    expect(r.effort).toBe(60_000)
+    expect(r.markets).toBe(40_000)
+    check(r)
+  })
+
+  it('lets the totals win over a payment typed the old way', () => {
+    const r = splitChange(
+      lifeProfile,
+      lifeBefore({ paidTotals: { a: 1_840_000 } }),
+      lifeAfter({ paidTotals: { a: 1_900_000 }, contributions: { a: 50_000 } }),
+    )
+    expect(r.effort).toBe(60_000)
+    expect(r.markets).toBe(40_000)
+  })
+
+  it('ignores a total on one side only: the old payment, else all markets', () => {
+    const typed = splitChange(lifeProfile, lifeBefore(), lifeAfter({ contributions: { a: 50_000 } }))
+    expect(splitChange(lifeProfile, lifeBefore(), lifeAfter({ contributions: { a: 50_000 }, paidTotals: { a: 1_900_000 } }))).toEqual(
+      typed,
+    )
+    expect(splitChange(lifeProfile, lifeBefore({ paidTotals: { a: 1_840_000 } }), lifeAfter({ contributions: { a: 50_000 } }))).toEqual(
+      typed,
+    )
+    const none = splitChange(lifeProfile, lifeBefore(), lifeAfter())
+    expect(none.markets).toBe(100_000)
+    expect(splitChange(lifeProfile, lifeBefore(), lifeAfter({ paidTotals: { a: 1_900_000 } }))).toEqual(none)
+  })
+
+  it('handles a cost-basis account with both totals as a whole, its units line not counted twice', () => {
+    const profile = profileOf([account('a', 'securities')], [line('u', 'a', { kind: 'units' }), line('m', 'a')])
+    const before = withExtra(snapshotOf([unitsEntry('u', 10, 100, 90), amountEntry('m', 5_000)]), {
+      paidTotals: { a: 600_000 },
+    })
+    const after = withExtra(snapshotOf([unitsEntry('u', 12, 110, 95), amountEntry('m', 5_600)]), {
+      paidTotals: { a: 650_000 },
+    })
+    const r = splitChange(profile, before, after)
+    // 6 000 € → 6 920 €: 500 € paid in, 420 € of markets (line by line it would be 840 € of effort).
+    expect(r.effort).toBe(50_000)
+    expect(r.markets).toBe(42_000)
+    check(r)
+    expect(wholeAccountChanges(profile, before, after)).toEqual(new Map([['a', 92_000]]))
+    expect(hasBothTotals(before, after, 'a')).toBe(true)
+  })
+
+  it('keeps the line by line split of a cost-basis account with a total on one side only', () => {
+    const profile = profileOf([account('a', 'securities')], [line('u', 'a', { kind: 'units' }), line('m', 'a')])
+    const before = snapshotOf([unitsEntry('u', 10, 100, 90), amountEntry('m', 5_000)])
+    const after = snapshotOf([unitsEntry('u', 12, 110, 95), amountEntry('m', 5_600)])
+    const today = splitChange(profile, before, after)
+    expect(today.effort).toBe(84_000)
+    expect(splitChange(profile, before, withExtra(after, { paidTotals: { a: 650_000 } }))).toEqual(today)
+    expect(splitChange(profile, withExtra(before, { paidTotals: { a: 600_000 } }), after)).toEqual(today)
+    expect(hasBothTotals(before, withExtra(after, { paidTotals: { a: 650_000 } }), 'a')).toBe(false)
+    expect(wholeAccountChanges(profile, before, withExtra(after, { paidTotals: { a: 650_000 } }))).toEqual(new Map())
+  })
+
+  it('keeps the usual withdrawal for an account closed in the period, its total left after', () => {
+    const profile = profileOf([account('c', 'livret-a'), account('a', 'securities')], [line('cash', 'c'), line('m', 'a')])
+    const before = withExtra(snapshotOf([amountEntry('cash', 1_000), amountEntry('m', 5_000)]), { paidTotals: { a: 400_000 } })
+    const after = withExtra(snapshotOf([amountEntry('cash', 1_000)]), { paidTotals: { a: 400_000 } })
+    const r = splitChange(profile, before, after)
+    expect(r.effort).toBe(-500_000)
+    expect(r.markets).toBe(0)
+    check(r)
+    expect(wholeAccountChanges(profile, before, after)).toEqual(new Map())
+  })
+
+  it('falls back to the usual rules for an account with a total after and a line not marked opened', () => {
+    const profile = profileOf([account('p', 'pea')], [line('x', 'p'), line('y', 'p')])
+    const after = withExtra(snapshotOf([amountEntry('x', 3_000), amountEntry('y', 1_000)]), {
+      arrivals: { x: 'opened', y: 'existing' },
+    })
+    const r = splitChange(profile, snapshotOf([]), withExtra(after, { paidTotals: { p: 100_000 } }))
+    expect(r).toEqual(splitChange(profile, snapshotOf([]), after))
+    expect(r.effort).toBe(300_000)
+    expect(r.existingAdded).toBe(100_000)
+  })
+
+  it('takes the total of an account opened in the period as effort, the rest of its value as markets', () => {
+    const profile = profileOf(
+      [account('c', 'livret-a'), account('p', 'pea')],
+      [line('cash', 'c'), line('x', 'p'), line('y', 'p', { kind: 'units' })],
+    )
+    const before = snapshotOf([amountEntry('cash', 1_000)])
+    const after = withExtra(snapshotOf([amountEntry('cash', 1_000), amountEntry('x', 3_000), unitsEntry('y', 10, 110, 100)]), {
+      arrivals: { x: 'opened', y: 'opened' },
+      paidTotals: { p: 380_000 },
+    })
+    const r = splitChange(profile, before, after)
+    expect(r.effort).toBe(380_000)
+    expect(r.markets).toBe(30_000)
+    check(r)
   })
 })

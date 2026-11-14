@@ -22,8 +22,9 @@ export function readNumber(text: string): { value: number } | { error: string } 
   return value === null ? { error: UNREADABLE_NUMBER } : { value }
 }
 
-// Money paid in since the last snapshot; negative is money taken out.
-export function readContribution(text: string): { cents: Cents } | { error: string } {
+// The total paid in since the opening: 0 or more, what was taken out already taken off it.
+export function readPaidTotal(text: string): { cents: Cents } | { error: string } {
   const cents = parseEuros(text)
-  return cents === null ? { error: UNREADABLE_AMOUNT } : { cents }
+  if (cents === null) return { error: UNREADABLE_AMOUNT }
+  return cents < 0 ? { error: NEGATIVE_AMOUNT } : { cents }
 }

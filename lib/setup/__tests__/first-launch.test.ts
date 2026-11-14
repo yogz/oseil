@@ -223,6 +223,24 @@ describe('removeLine, finishStep, completeFirstLaunch', () => {
     expect(afterAll.snapshot.entries).toEqual([])
   })
 
+  test('removing the last line of an account drops its contributions and its total paid in', () => {
+    const { draft, accountId } = withLivretA(started())
+    const a = putLine(draft, { accountId, name: 'A', entry: { kind: 'amount', amount: 1 } }, TODAY, id)
+    const b = putLine(a.draft, { accountId, name: 'B', entry: { kind: 'amount', amount: 2 } }, TODAY, id)
+    const withTotals: SetupDraft = {
+      ...b.draft,
+      snapshot: { ...b.draft.snapshot, contributions: { [accountId]: 5 }, paidTotals: { [accountId]: 10 } },
+    }
+    const afterOne = removeLine(withTotals, a.lineId)
+    expect(afterOne.snapshot.paidTotals).toEqual({ [accountId]: 10 })
+    const afterAll = removeLine(afterOne, b.lineId)
+    expect(afterAll.snapshot.contributions).toEqual({})
+    expect(afterAll.snapshot.paidTotals).toEqual({})
+    // Resuming tidies a total left behind by an account gone from the profile.
+    expect(reconcile({ profile: afterAll.profile, snapshot: afterOne.snapshot }).snapshot.paidTotals).toEqual({})
+    expect(removeLine(b.draft, a.lineId).snapshot).not.toHaveProperty('paidTotals')
+  })
+
   test('finishStep then completeFirstLaunch gives a profile parseProfile accepts', () => {
     let draft = started()
     for (const e of steps(draft.profile)) draft = finishStep(draft, e.id)

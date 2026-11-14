@@ -18,7 +18,7 @@ import {
   startDraft,
   tidyDraft,
 } from '../draft'
-import { addAccount, closeLine, putAddedLine, removeAddedLine, setContribution } from '../lines'
+import { addAccount, closeLine, putAddedLine, removeAddedLine, setPaidTotal } from '../lines'
 
 const TYPED_ON = '2026-11-05' // the day a value was typed, before the snapshot's own date
 const TAKEN_ON = '2026-11-07'
@@ -329,16 +329,18 @@ describe('buildUpdate: adding', () => {
     expectParses(next)
   })
 
-  test('an added account left without lines is not in the profile, nor its contribution', () => {
+  test('an added account left without lines is not in the profile, nor its contribution or total', () => {
     const empty = addAccount(
       profile,
       fresh(),
-      { establishmentId: 'boursobank', type: 'ldds', name: 'LDDS', arrival: 'opened' },
+      { establishmentId: 'linxea', type: 'per', name: 'PER', arrival: 'opened' },
       id,
     )
-    const next = buildUpdate(profile, base, setContribution(empty.draft, empty.accountId, 10_000), TAKEN_ON)
+    const typed = setPaidTotal({ ...empty.draft, contributions: { [empty.accountId]: 10_000 } }, empty.accountId, 10_000)
+    const next = buildUpdate(profile, base, typed, TAKEN_ON)
     expect(next.profile).toEqual(profile)
     expect(next.snapshot.contributions).toEqual({})
+    expect(next.snapshot).not.toHaveProperty('paidTotals')
     expect(next.snapshot.arrivals).toEqual({})
   })
 
@@ -431,6 +433,96 @@ describe('buildUpdate: what the draft says that cannot be merged', () => {
     expectParses(next)
   })
 
+  test('a draft written before the totals builds a snapshot without them', () => {
+    const { paidTotals: _none, ...old } = fresh()
+    void _none
+    const next = buildUpdate(profile, base, old, TAKEN_ON)
+    expect(next.snapshot).not.toHaveProperty('paidTotals')
+    expectParses(next)
+  })
+
+  test('totals paid in are kept as typed, only on the accounts that take one', () => {
+    let draft = fresh()
+    for (const [accountId, cents] of [['life', 1_500_000], ['pea', 0], ['gold', 200_000], ['livret-a', 10_000], ['current', 1], ['ghost', 5]] as const) {
+      draft = setPaidTotal(draft, accountId, cents)
+    }
+    const next = buildUpdate(profile, base, draft, TAKEN_ON)
+    expect(next.snapshot.paidTotals).toEqual({ life: 1_500_000, pea: 0, gold: 200_000 })
+    expect(next.snapshot.contributions).toEqual({})
+    expectParses(next)
+  })
+
+  test('a bank skipped keeps its accounts’ totals from the base: the chain does not break', () => {
+    const withTotals: Snapshot = { ...base, paidTotals: { life: 1_200_000, pea: 900_000 } }
+    const draft = markStep(markStep(fresh(), 'linxea', 'skipped'), 'boursobank', 'done')
+    const next = buildUpdate(profile, withTotals, draft, TAKEN_ON)
+    // Linxea skipped: its total is carried. BoursoBank done with the box left empty: unknown now.
+    expect(next.snapshot.paidTotals).toEqual({ life: 1_200_000 })
+    expectParses(next)
+  })
+
+  test('a bank closed with « Rien n’a changé ici » keeps its accounts’ totals from the base', () => {
+    const withTotals: Snapshot = { ...base, paidTotals: { life: 1_200_000 } }
+    const draft = nothingChangedHere(profile, fresh(), 'linxea')
+    expect(buildUpdate(profile, withTotals, draft, TAKEN_ON).snapshot.paidTotals).toEqual({ life: 1_200_000 })
+  })
+
+  test('every line of the account confirmed unchanged, in a bank still open: the total is kept', () => {
+    const withTotals: Snapshot = { ...base, paidTotals: { life: 1_200_000 } }
+    const draft = markStep(confirmLine(confirmLine(fresh(), 'euro-fund'), 'life-uc'), 'linxea', 'done')
+    expect(buildUpdate(profile, withTotals, draft, TAKEN_ON).snapshot.paidTotals).toEqual({ life: 1_200_000 })
+  })
+
+  test('a line of the account with a new value and the box left empty: the total is not carried', () => {
+    const withTotals: Snapshot = { ...base, paidTotals: { life: 1_200_000 } }
+    let draft = setValue(fresh(), base, 'euro-fund', { kind: 'amount', amount: 3_090_000 }, TYPED_ON, {})
+    draft = nothingChangedHere(profile, draft, 'linxea')
+    expect(buildUpdate(profile, withTotals, draft, TAKEN_ON).snapshot).not.toHaveProperty('paidTotals')
+    // Skipped after typing too: the account moved, its total cannot be guessed.
+    const skipped = markStep(setValue(fresh(), base, 'euro-fund', { kind: 'amount', amount: 3_090_000 }, TYPED_ON, {}), 'linxea', 'skipped')
+    expect(buildUpdate(profile, withTotals, skipped, TAKEN_ON).snapshot).not.toHaveProperty('paidTotals')
+  })
+
+  test('a line added to the account: the total is not carried', () => {
+    const withTotals: Snapshot = { ...base, paidTotals: { life: 1_200_000 } }
+    const added = putAddedLine(
+      profile,
+      fresh(),
+      { accountId: 'life', name: 'Fonds actions', entry: { kind: 'amount', amount: 100_000 }, arrival: 'opened' },
+      TYPED_ON,
+      id,
+    )
+    const draft = nothingChangedHere(profile, added.draft, 'linxea')
+    expect(buildUpdate(profile, withTotals, draft, TAKEN_ON).snapshot).not.toHaveProperty('paidTotals')
+  })
+
+  test('a line of the account closed now, the others confirmed: the total is not carried', () => {
+    const withTotals: Snapshot = { ...base, paidTotals: { life: 1_200_000 } }
+    const draft = markStep(confirmLine(closeLine(fresh(), 'life-uc'), 'euro-fund'), 'linxea', 'done')
+    expect(buildUpdate(profile, withTotals, draft, TAKEN_ON).snapshot).not.toHaveProperty('paidTotals')
+  })
+
+  test('a line of the account closed now, its bank skipped: the total is not carried', () => {
+    const withTotals: Snapshot = { ...base, paidTotals: { life: 1_200_000 } }
+    const draft = markStep(closeLine(fresh(), 'life-uc'), 'linxea', 'skipped')
+    expect(buildUpdate(profile, withTotals, draft, TAKEN_ON).snapshot).not.toHaveProperty('paidTotals')
+  })
+
+  test('in a bank skipped, a total typed before skipping wins over the base one', () => {
+    const withTotals: Snapshot = { ...base, paidTotals: { life: 1_200_000 } }
+    const draft = markStep(setPaidTotal(fresh(), 'life', 1_300_000), 'linxea', 'skipped')
+    expect(buildUpdate(profile, withTotals, draft, TAKEN_ON).snapshot.paidTotals).toEqual({ life: 1_300_000 })
+  })
+
+  test('an account whose every line is closed now keeps no total, even in a bank skipped', () => {
+    const withTotals: Snapshot = { ...base, paidTotals: { life: 1_200_000, gold: 100_000 } }
+    let draft = setPaidTotal(fresh(), 'gold', 150_000)
+    draft = closeLine(draft, 'gold-line')
+    draft = closeLine(closeLine(draft, 'euro-fund'), 'life-uc')
+    draft = markStep(markStep(draft, 'linxea', 'skipped'), 'home', 'done')
+    expect(buildUpdate(profile, withTotals, draft, TAKEN_ON).snapshot).not.toHaveProperty('paidTotals')
+  })
+
   test('contributions are kept only on a life insurance, a PER or employee savings', () => {
     const draft: UpdateDraft = { ...fresh(), contributions: { life: 50_000, pea: 20_000, 'livret-a': 10_000 } }
     const next = buildUpdate(profile, base, draft, TAKEN_ON)
@@ -512,7 +604,7 @@ describe('buildUpdate: a whole update built through the draft’s functions', ()
     const fund = withFund(lep.draft)
     draft = markStep(fund.draft, 'boursobank', 'done')
     draft = setValue(draft, base, 'euro-fund', { kind: 'amount', amount: 3_090_000 }, TYPED_ON, {})
-    draft = setContribution(draft, 'life', 50_000)
+    draft = setPaidTotal(draft, 'life', 2_500_000)
     draft = markStep(draft, 'linxea', 'skipped')
     draft = confirmLine(draft, 'house-line')
     draft = setValue(draft, base, 'mortgage-line', { kind: 'amount', amount: 17_890_000 }, TYPED_ON, {})
@@ -532,7 +624,8 @@ describe('buildUpdate: a whole update built through the draft’s functions', ()
       [lep.lineId, TAKEN_ON],
       [fund.lineId, TAKEN_ON],
     ])
-    expect(next.snapshot.contributions).toEqual({ life: 50_000 })
+    expect(next.snapshot.contributions).toEqual({})
+    expect(next.snapshot.paidTotals).toEqual({ life: 2_500_000 })
     expect(next.snapshot.arrivals).toEqual({ [lep.lineId]: 'opened', [fund.lineId]: 'existing' })
     expect(next.snapshot.takenOn).toBe(TAKEN_ON)
     expect(() => splitChange(next.profile, base, next.snapshot)).not.toThrow()

@@ -1,7 +1,7 @@
 // The model into sheets: what `writeWorkbook` turns into the exported file, and the
 // template a person fills in by hand. Every column comes from COLUMNS, in its order.
 import { lineSlow, slowDecidedByType } from '@/lib/correct/account-changes'
-import { ACCOUNT_TYPES, CATEGORIES, GOAL_CATEGORIES, GROUP_LABELS, RESIDENCE_LABELS } from '@/lib/catalog'
+import { ACCOUNT_TYPES, CATEGORIES, takesPaidTotal, GOAL_CATEGORIES, GROUP_LABELS, RESIDENCE_LABELS } from '@/lib/catalog'
 import { entryValue } from '@/lib/model/situation'
 import type {
   Account,
@@ -194,21 +194,26 @@ function contributionRows(profile: Profile, snapshots: Snapshot[]): Cell[][] {
   // A typed 0 on an account paid into is a known answer, nothing paid in: it goes out. A 0 on
   // another account counts for nothing, and the import would refuse it.
   const paidInto = new Set(profile.accounts.filter((a) => ACCOUNT_TYPES[a.type].change === 'contributions').map((a) => a.id))
-  return snapshots.flatMap((snapshot, index) =>
-    Object.entries(snapshot.contributions)
-      .filter(([accountId, cents]) => cents !== 0 || paidInto.has(accountId))
-      .map(([accountId, cents]) => {
-        const { account, bank } = find.accountOf(accountId)
-        return row('contributions', {
-          date: dateCell(snapshot.takenOn),
-          number: index + 1,
-          bank,
-          account: account.name,
-          paid: euros(cents),
-          accountReference: account.id,
-        })
-      }),
-  )
+  // One row per account with a contribution, a total paid in, or both.
+  return snapshots.flatMap((snapshot, index) => {
+    const paid = new Map(Object.entries(snapshot.contributions).filter(([accountId, cents]) => cents !== 0 || paidInto.has(accountId)))
+    // A total left on an account whose type no longer takes one would make the import refuse the file.
+    const totals = new Map(Object.entries(snapshot.paidTotals ?? {}).filter(([accountId]) => takesPaidTotal(find.accountOf(accountId).account.type)))
+    return [...new Set([...paid.keys(), ...totals.keys()])].map((accountId) => {
+      const { account, bank } = find.accountOf(accountId)
+      const cents = paid.get(accountId)
+      const total = totals.get(accountId)
+      return row('contributions', {
+        date: dateCell(snapshot.takenOn),
+        number: index + 1,
+        bank,
+        account: account.name,
+        paid: cents === undefined ? null : euros(cents),
+        paidTotal: total === undefined ? null : euros(total),
+        accountReference: account.id,
+      })
+    })
+  })
 }
 
 const goalRows = (goals: GoalAllocation[]): Cell[][] =>
@@ -270,7 +275,7 @@ export function templateSheets(): SheetSpec[] {
     row('snapshots', { date: day, ...lifeInsurance, amount: 25000 }),
     row('snapshots', { date: day, ...loan, amount: -180000 }),
   ]
-  const contributions = [row('contributions', { date: day, bank, account: lifeInsurance.account, paid: 500 })]
+  const contributions = [row('contributions', { date: day, bank, account: lifeInsurance.account, paid: 500, paidTotal: 24000 })]
   return [
     note(SHEETS.guide, guideNote({ profile: 0, snapshots: 0, goals: 0, settings: 0 }, { template: true })),
     table('accounts', accounts),

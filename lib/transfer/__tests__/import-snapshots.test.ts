@@ -500,9 +500,50 @@ describe('readSnapshots: « Versements »', () => {
     ])
   })
 
+  it('reads a total alone, or beside a contribution, on the accounts that take one', () => {
+    const { profile, index } = setup()
+    const { snapshots } = success(
+      readSnapshots(
+        tableOf('snapshots', [{ date: sep, ...fund, amount: 1 }]),
+        tableOf('contributions', [
+          { date: sep, ...av, paid: 500, paidTotal: 12000.5 },
+          { date: sep, bank: apple.bank, account: apple.account, paidTotal: 0 },
+        ]),
+        profile,
+        index,
+      ),
+    )
+    const avId = accountIdOf(profile, 'Assurance-vie')
+    const ctoId = accountIdOf(profile, 'Compte-titres')
+    expect(snapshots[0].contributions).toEqual({ [avId]: 50000 })
+    // A 0 is a known answer, as typed.
+    expect(snapshots[0].paidTotals).toEqual({ [avId]: 1200050, [ctoId]: 0 })
+  })
+
+  it('writes no totals on a relevé without any', () => {
+    const { snapshots } = success(run(twoRelevés.slice(0, 1), [{ date: sep, ...av, paid: 5 }]))
+    expect(snapshots[0]).not.toHaveProperty('paidTotals')
+  })
+
+  it('refuses a negative total, a total where none is kept, a Versé on a cost-basis account, two totals for one account', () => {
+    const result = run(twoRelevés, [
+      { date: sep, ...av, paidTotal: -1 },
+      { date: sep, bank: livret.bank, account: livret.account, paidTotal: 1 },
+      { date: sep, bank: apple.bank, account: apple.account, paid: 1, paidTotal: 1 },
+      { date: oct, number: 2, ...av, paidTotal: 1 },
+      { date: oct, number: 2, ...av, paid: 1 },
+    ])
+    expect(messages(result)).toEqual([
+      'Onglet Versements, ligne 2 : « Total versé » ne peut pas être négatif.',
+      'Onglet Versements, ligne 3 : un compte « Livret A » n’a pas de total versé. Seuls les comptes « Assurance-vie », « PER », « Épargne salariale », « PEA », « PEA-PME », « Compte-titres », « Or » et « Crypto » en ont un.',
+      'Onglet Versements, ligne 4 : un compte « Compte-titres » ne reçoit pas de versements. Seuls les comptes « Assurance-vie », « PER » et « Épargne salariale » en reçoivent.',
+      'Onglet Versements, ligne 6 : ce compte a déjà un versement pour ce relevé, à la ligne 5.',
+    ])
+  })
+
   it('refuses an empty amount and the template’s example rows', () => {
     expect(messages(run(twoRelevés, [{ date: sep, ...av }, { date: sep, bank: EXAMPLE_BANK, account: 'Assurance-vie', paid: 500 }]))).toEqual([
-      'Onglet Versements, ligne 2 : la case « Versé » est vide.',
+      'Onglet Versements, ligne 2 : les cases « Versé » et « Total versé » sont vides. Remplis l’une ou l’autre, ou efface la ligne.',
       'Onglet Versements, ligne 3 : c’est la ligne d’exemple du modèle. Efface-la ou remplace-la.',
     ])
   })
@@ -622,6 +663,14 @@ const REFUSAL_CASES: Record<keyof typeof SNAPSHOT_REFUSALS, { errors: () => Impo
         ),
       ),
     says: 'a déjà un versement',
+  },
+  negativePaidTotal: {
+    errors: () => errorsOf(run([{ date: oct, ...fund, amount: 1 }], [{ date: oct, bank: fund.bank, account: fund.account, paidTotal: -1 }])),
+    says: 'ne peut pas être négatif',
+  },
+  paidTotalNotAllowed: {
+    errors: () => errorsOf(run([{ date: oct, ...livret, amount: 1 }], [{ date: oct, bank: livret.bank, account: livret.account, paidTotal: 1 }])),
+    says: 'n’a pas de total versé',
   },
 }
 

@@ -2,7 +2,7 @@
 
 // One establishment of the monthly update (planche 11, écran 2): every open line
 // with its box already filled, the account totals to check against the bank,
-// what was paid into a life insurance, and the ways on. A step moves on only
+// the total paid in since the opening (planche 10C), and the ways on. A step moves on only
 // once its change is saved; otherwise it stays, with the save error. Every box, total and
 // value here reads the prices the update read when it opened (`session.market`, R18), and
 // is written in its line's own currency, as the bank shows it.
@@ -36,12 +36,12 @@ import {
   verifiedWords,
   type UpdateLine,
 } from '@/lib/update/draft'
-import { closeLine, contributionAccounts, reopenLine, setContribution } from '@/lib/update/lines'
+import { closeLine, paidTotalAccounts, previousPaidTotal, reopenLine, setPaidTotal } from '@/lib/update/lines'
 import { ownValue, shownTotal } from '@/lib/update/totals'
 import { AddFlow, addedLabel } from './AddFlow'
 import { AmountRow, type RowProps } from './AmountRow'
-import { ContributionField } from './ContributionField'
 import { HomeRow } from './HomeRow'
+import { PaidTotalField } from './PaidTotalField'
 import { StepsBar } from './StepsBar'
 import { UnitsRow } from './UnitsRow'
 import { useUpdateScreen } from './UpdateProvider'
@@ -126,7 +126,11 @@ export function BankStep({
   const groups = byAccount(linesOf(profile, draft, here))
   // The lines of the base still followed: the ones that can be closed (an added line is deleted, not closed).
   const openLines = groups.flatMap(({ rows }) => rows.filter((r) => !r.added && !r.closed))
-  const paidIn = new Set(contributionAccounts(profile, base.value, here).map((a) => a.id))
+  const paidIn = new Set(paidTotalAccounts(profile, base.value, draft, here).map((a) => a.id))
+  const previousOf = (accountId: string) => {
+    const total = previousPaidTotal(base.value, accountId)
+    return total === null ? null : { total, on: base.value.takenOn }
+  }
   const verified = verifiedWords(profile, draft, here)
   const busy = moving.busy || closing.busy
   // An open line with no value at all (no base entry, nothing typed): nothing is known of it,
@@ -309,11 +313,11 @@ export function BankStep({
               ) : null}
               {paidIn.has(account.id) ? (
                 <div className="border-t border-hairline py-5">
-                  <ContributionField
+                  <PaidTotalField
                     account={account}
-                    since={base.value.takenOn}
-                    cents={draft.contributions[account.id] ?? null}
-                    onValue={(cents) => void change((d) => setContribution(d, account.id, cents))}
+                    previous={previousOf(account.id)}
+                    cents={draft.paidTotals?.[account.id] ?? null}
+                    onValue={(cents) => void change((d) => setPaidTotal(d, account.id, cents))}
                   />
                 </div>
               ) : null}

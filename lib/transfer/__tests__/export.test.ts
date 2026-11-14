@@ -181,11 +181,20 @@ describe('exportSheets', () => {
     expect(snapshotRows('l-current').map((row) => cell(row, 'snapshots', 'opened'))).toEqual([null, null, 'non'])
   })
 
-  it('writes one Versements row per non-zero contribution, in euros', () => {
+  it('writes one Versements row per account with a contribution or a total, in euros', () => {
     expect(contributions.rows).toEqual([
-      [day('2026-09-30'), 1, 'Crédit Agricole', 'Assurance-vie', 500, 'a-av'],
-      [day('2026-10-31'), 2, 'Crédit Agricole', 'Assurance-vie', -200, 'a-av'],
+      [day('2026-09-30'), 1, 'Crédit Agricole', 'Assurance-vie', 500, null, 'a-av'],
+      [day('2026-10-31'), 2, 'Crédit Agricole', 'Assurance-vie', -200, 31000, 'a-av'],
+      [day('2026-10-31'), 3, 'BoursoBank', 'Compte-titres', null, 4000, 'a-cto'],
     ])
+  })
+
+  it('leaves out a stored total on an account whose type no longer takes one', () => {
+    const input = fixtureInput()
+    input.snapshots = input.snapshots.map((s, i) => (i === 0 ? { ...s, paidTotals: { ...s.paidTotals, 'a-livret1': 100_000 } } : s))
+    const rows = sheet(exportSheets(input), SHEETS.contributions).rows
+    expect(rows.some((row) => cell(row, 'contributions', 'accountReference') === 'a-livret1')).toBe(false)
+    expect(rows).toHaveLength(contributions.rows.length)
   })
 
   it('writes the goals in their order and the settings it holds', () => {

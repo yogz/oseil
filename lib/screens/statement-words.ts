@@ -34,3 +34,10 @@ export const othersToo = (n: number) =>
 export const UPDATE_STOPS =
   'Une mise à jour est en cours : ton dernier relevé n’est pas corrigé. Corrige ce chiffre dans ta mise à jour.'
 export const ERASE_REFUSED = 'Un chiffre de ce jour-là ne peut pas être effacé.'
+
+// The total paid in since the opening, on a relevé (docs/superpowers/specs/2026-11-14-total-verse-design.md,
+// planche 10D): the row, and the title of its screen.
+export const paidTotalOn = (account: string) => `Total versé sur ${account}`
+export const TOTAL_TO_COPY = 'à recopier'
+export const LOCKED_UPDATE_TOTAL =
+  'Une mise à jour est en cours. Termine-la ou abandonne-la avant de corriger un total versé.'

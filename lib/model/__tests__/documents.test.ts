@@ -181,6 +181,18 @@ describe('parseSnapshot', () => {
     expect(parseSnapshot({ ...clone(exampleSnapshot), arrivals: { etf: 'opened' } })).not.toBeNull()
     expect(parseSnapshot({ ...clone(exampleSnapshot), arrivals: { etf: 'new' } })).toBeNull()
   })
+
+  test('reads the totals paid in when present, absent in an older snapshot', () => {
+    expect(parseSnapshot(clone(exampleSnapshot))).not.toHaveProperty('paidTotals')
+    expect(parseSnapshot({ ...clone(exampleSnapshot), paidTotals: { life: 1_840_000, pea: 0 } })?.paidTotals).toEqual({
+      life: 1_840_000,
+      pea: 0,
+    })
+    expect(parseSnapshot({ ...clone(exampleSnapshot), paidTotals: { a: -1 } })).toBeNull()
+    expect(parseSnapshot({ ...clone(exampleSnapshot), paidTotals: { a: 'x' } })).toBeNull()
+    expect(parseSnapshot({ ...clone(exampleSnapshot), paidTotals: { a: 10.5 } })).toBeNull()
+    expect(parseSnapshot({ ...clone(exampleSnapshot), paidTotals: [] })).toBeNull()
+  })
 })
 
 describe('parseProfile, residence of a home', () => {
@@ -309,6 +321,15 @@ describe('parseUpdateDraft', () => {
   test('round-trips a full draft, and accepts a null date', () => {
     expect(parseUpdateDraft(clone(fullDraft()))).toEqual(fullDraft())
     expect(parseUpdateDraft({ ...fullDraft(), takenOn: null })).toEqual({ ...fullDraft(), takenOn: null })
+  })
+
+  test('the totals paid in: kept as typed, and absent in a draft written before them', () => {
+    expect(parseUpdateDraft(clone(fullDraft()))).not.toHaveProperty('paidTotals')
+    const typed = { ...fullDraft(), paidTotals: { life: 1_840_000, 'new-account': 0 } }
+    expect(parseUpdateDraft(clone(typed))?.paidTotals).toEqual({ life: 1_840_000, 'new-account': 0 })
+    expect(parseUpdateDraft({ ...fullDraft(), paidTotals: { life: -1 } })).toBeNull()
+    expect(parseUpdateDraft({ ...fullDraft(), paidTotals: { life: 10.5 } })).toBeNull()
+    expect(parseUpdateDraft({ ...fullDraft(), paidTotals: 'x' })).toBeNull()
   })
 
   test('refuses what is not a draft', () => {
