@@ -1,0 +1,11 @@
+# The dev base (Supabase project "oseil-dev"): what the app and its journeys use on this machine
+# (next dev, npm run test:e2e), and each developer's own Supabase token. References only: the dev
+# secrets stay in the Proton Pass vault shared by the two developers, the token in one's own
+# "Personal" vault (item "Supabase - Stefin", field supabase-token). Loaded by mise-tokens.sh.
+# The URL, project ref and publishable key are public by design.
+SUPABASE_ACCESS_TOKEN={{ pass://Personal/Supabase - Stefin/supabase-token }}
+NEXT_PUBLIC_SUPABASE_URL=https://lsbfivpchbuorwqvcizf.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_UKjgg0I89Aoda_Hi84IaJQ_TD6Kw2Lc
+SUPABASE_SECRET_KEY={{ pass://Cecile&Manu/Supabase - Oseil dev/supabase-secret-key }}
+DEV_SUPABASE_PROJECT_REF=lsbfivpchbuorwqvcizf
+DEV_SUPABASE_DB_PASSWORD={{ pass://Cecile&Manu/Supabase - Oseil dev/supabase-db-password }}
